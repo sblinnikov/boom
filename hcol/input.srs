@@ -1,0 +1,887 @@
+*deck input
+      subroutine  input (jmax,ngmax,nxx)
+      implicit none
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call vc
+*call keyeos
+*call chemp
+*call names
+      integer*4, intent(inout) :: jmax, ngmax, nxx
+      real*8, dimension(10) :: param
+      integer*4, dimension(10) :: nparm
+      character*80 filenam,diskw,profile
+      character*20 namef
+      character*10  dateil ,clockil
+      common  /nzan/jz
+      common  /zan/ az,sz
+      external  zanav
+      integer*4 :: i, j, l, ldiskw, lng, lnp, kpr, n, jm
+      integer*4 :: jz, jmx, keyets, nut, kro, ng, kzoning
+      integer*4 :: nt, nn
+      real*8 :: c1, xc2, c3, c4, az, sz, q
+      real*8 :: rr, dr, dmf, rat, fm1, fm2, fm3, frnz3, szk
+      real*8 :: acor, delm, sound
+      real*8 :: tr, te, pr, pe, sr, se, dtbb
+      namelist /cor/ acor
+*call corac
+*call coric
+      do  i=200,lenvc
+      vc(i)=0.d0
+      enddo
+c
+c     zero matrix cscat
+      cscat(2:jmax,1:ngmax,1:ngmax,1:numax)=0d0
+
+      call kvuim	! load constants
+c
+c     fill corct with default values
+c     tru to have all of the variables default to something sensible
+
+      coralen=49d0
+      dtmax=1000.d0
+      dtmin=1d-11
+      dtprof=0.025
+      dtflux=10.d0
+      dtprnt=10.d0
+      dtconv=10.d0
+      dtplot=0.001d0
+      dtck=0.010d0
+      dmping=6000.d0
+      dyein=0d0
+      edel=0.001d0
+      enumax=400.d0
+      enu1=2.d0
+      epsdifq=1d-5
+      epsdye=5d-4
+      fmass1=0.7d0
+      fmass2=0.3d0
+      frnz1=0.1d0
+      frnz2=0.7d0
+      pexter=0d0
+      rmedia=0.5d0
+      roc=4d9
+      rstop=1.02d0
+! The radius at which to plot the neutrino luminosities
+! set to 500 km to be consistent with other people
+      rnumeas=5d7
+      roatum=5d12
+      roecapt=2e12
+      roequil=2e14
+      roshakf=2d7
+      runtime=3600.d0
+      stepm=10.d0
+      stepr=10.d0
+      stab=0.3d0
+      smass=1.4d0
+      cmass=1.4d0
+      timax=10d0
+      do  i=1,5
+      timerlg(i)=0d0
+      enddo
+      tprnt=0d0
+      tplot=0d0
+      velnot=0d0
+      ydotmax=0.001d0
+      ykatan=0d0
+      zcor=0d0
+      zjoecons = 0d0
+      zsalt =0d0
+      zoverti =0d0
+      zoverma =0d0
+
+c     Convective constants for Gemehyr convection routine
+c     See Astron. Astrophys. 253, 92-100 (1992) for derivation of these values
+
+c     \alpha_{MLT}
+      zalmlt = 3d0/2d0
+c     \alpha_{c}
+      zalc = 3d0 / 2d0
+c     \alpha_{t}
+      zalt = 3d0 / 2d0
+c     \alpha_{turb}
+      zalturb = 3d0 / 2d0
+c     \alpha_{\nu}
+      zalnu = sqrt(2d0)/3d0
+c     \alpha_{\lambda}
+      zallam = 6d0
+c     c_{d}
+      zcd = 128d0 * sqrt(2d0) / 9d0
+c     zvisbase
+      zvisbase = 0d0
+c     zald 
+      zald = 1d0
+
+c     Convective constants new scheme
+c     See joether.srs for details on what these mean
+      fconml = 1d0
+      fconmr = 1d0
+      fconrs = 1d0
+      fconrye = 0d0
+      fconas = 1d0
+      fconaye = 1d0
+      fconldx = 1d0
+      fconper = 0.1
+      fconasym=0.1
+      fcondis = 1d0
+      fcontp = 0d0
+
+c     Boost values
+      fneuabs = 1d0
+      fneuscat = 1d0
+      fneuemis = 1d0
+
+
+      ah0=56.d0
+      zh0=26.d0
+      yein=26.d0/56.d0
+      yeinmax=0.5d0
+      szero=rgas
+      lencori=38
+      inprof=0
+      inrelag=0
+      iprcor=1
+      iprizun=0
+      iprnt1=0
+      iprntin=0
+      jcore=0
+      jmaxinp=-1
+      jmxeos1=jmax
+      kadaptlag=1               ! Turn on adaptive meshing
+      kchkdif=0
+      kchkcon=0                 ! Check concentration
+                                ! 0 = normal
+                                ! 1 = don't change energies
+                                ! 2 = don't change energy or ye
+     
+      kdnscat=1                 ! Turn on downscattering
+      keos=7                    ! Use swesty table for eos
+      keype=0   ! Variable in input file which determines processor #
+      keycomp=1
+      keydump=1
+      keygr=0
+      keynue=3                  ! Use difq3 to calculate neutrinos
+      keynup=0
+      keyjoe=0
+      keyjout=0
+      keynuad=1
+      keyyecv=1
+      zjclim=0.0
+      keyplt=0
+c These are the best rate and scattering routines
+      keyrate=3                 ! Use Bruenn rates
+      keyscat=3                 ! And corrected Bruenn scattering
+c Turn on pair production by default
+      keypp=1
+c Add Bremstrallung
+      kbrem=1
+      keytemp=0
+      keyzons=0
+      kfluxlm=1
+      kschifa=0
+      kshulz=0
+      mdrelag=0
+      mprnt=10
+      mxjmin=jmax/2
+      nocprnt=1000
+      nprnt0=0
+      nprnt=100
+      nrelag=0
+      ntapin=10
+      ntimax=100000
+      ntplot=12
+      nuprnt=250
+      nprntbal=2500 ! how often to print a balance report 0=turn off
+      nwtprof=100000
+      nwtflux=100000
+      nwtconv=100000
+      izcor=0
+c
+c     fill par
+      paralen=82d0
+      cputime=0d0
+      dtlast=0d0
+      dta=0d0
+      dtb=0d0
+      dtnext=0d0
+      dlifnu=0d0
+      dlifen=0d0
+      dlifnub=0d0
+      dlifenb=0d0
+      stabfc=0.85d0
+      eblow=0d0
+      eblowk=0d0
+      eblowg=0d0
+      ebal=0d0
+      egrav=0d0
+      egrav1=0d0
+      egrav2=0d0
+      ekin=0d0
+      ekin1=0d0
+      eout=0d0
+      eprs=0d0
+      etot=0d0
+      etot0=0d0
+      etrm=0d0
+      enutot=0d0
+      emisst=0d0
+      pext=0d0
+      ram=0d0
+      ra2=0d0
+      do   j=1,20
+      rmin(j)=0d0
+      rmax(j)=0d0
+      enddo
+      stabil=0d0
+      time=0d0
+      timea=0d0
+      timeck=0d0
+      timelg=0d0
+      tplotp=0d0
+      tprof=0d0
+      tflux=0d0
+      xminp=0d0
+      zpar=0d0
+      lenpari=30
+      imaxp1=jmax
+c This switch is here so that we can test adaptive meshing during infall
+c for a dust equation of state
+      if (keos .ne. 0) then
+         infall=1
+      else
+         infall=0
+      endif
+      iref=0
+      inkeygr=0
+      jequil=0
+      jmin=2
+      jmxeq1=jmxeos1
+      kmin=0
+      krelag=0
+      kromin=0
+      kromax=0
+      ku=0
+      lastpr=0
+      mshulz=0
+      nupstrt=0
+c     numax is defined in colapse from the input data
+      nutype=1
+      keydif=0
+      keyexit=0
+      keyets0=2
+      kpeid=0 ! which processor am I using
+      khelem=jmin
+      kgainr=jmin ! Location of the gain radius
+      do nut=1,numax
+      kgainrn(nut)=jmin
+      enddo
+      kstab=0
+      lngplt=0
+      fmassc=0d0
+      fmasst=0d0
+      fmantle=0d0
+      ntime=0
+      ndmp=0
+      nuemis=0
+      nueosp=0
+      ntindif(1)=0
+      ntindif(2)=0
+      izpar=0
+c     configuration and sedov values
+
+c The following two parameters adds energy to the core to generate a 
+c Sedov blast wave for testing purposes
+      sedove=0d0   ! Total energy to add to the core  (ergs)
+      sedovm=0d0   ! Where to add the energy  (solmass)
+
+c These parameters create a core of constant density
+      confro=1d12  ! density
+      confye=0.4   ! ye
+      conft=3d10   ! temperature (K)
+      confgam=3d0/2d0  ! gamma for EOS
+
+c These parameters create a core to test neutrino difusion as outlined in
+c page 837 of Bruenn (1985).  The density of the inner region is controlled
+c by the previous set of parameters
+      confro1=1d11  ! density r > r0
+      confye1=0.4   ! ye r > r0
+      conft1=2d10   ! temperature (K) r > r0
+      confrb0=4d7   ! r0 (cm) boundary between outer and inner regions
+      confrb1=4.9d8 ! R (cm) outer boundary of outer region
+      confefac=1d-2 ! how much to dilute the emission and absorption
+      kdilbru=0     ! whether to artificially dilute outer emission and
+                    ! absorption
+
+c This parameter turns off gravity.  This is useful to create a hydrostatic
+c test case
+      knograv=0
+c Parameters to control adaptive meshing
+      adnearshock = 2d6         ! Do not merge with x distance of shock
+      admminsplit = 0.7d0       ! Do not split if shock is less than
+                                ! x solar masses
+      admminmerge = 0.8d0       ! Do not merge until shock is above
+                                ! x solar masses
+                                
+c Parameters for rmax equations see adaptlag for what these do
+      adrmax1a = 1d+5
+      adrmax1b = 1.9d6
+      adrmax1c = 20d0
+
+      adrmax2a = 3d5
+      adrmax2b = 2.7e6
+      adrmax2c = 2e7
+
+      adrmax3a = 4d-6
+      adrmax3b = 0d0
+      adrmax3c = 0d0
+
+      admergeplim = 0.2         ! Merge if difference in pressure is 
+                                ! within x of total pressure
+      admergevlim = 3d+7        ! Ignore if velocity different > x
+      admaxmass = solmas / 30.0 ! maximum shell mass of merged shell
+      adshlim = 0.01d0     ! Limit to detect shock
+      adsplityelim = 0.1        ! split if difference in ye
+      adsplitrholim = 0.2       ! Split if difference in density is
+                                ! more than x 
+      adsplitrlim = 5e4         ! Do not split if r is less than x
+
+
+      kadntime = 250             ! Run adaptive mesh every n steps
+      kadnearshock = 5          ! Do not adapt within n zones of shock
+
+c
+      knunumt = 1               ! Consider e-nu e-nubar annihilation as 
+                                ! a source of mu and tau neutrinos
+                                !
+                                ! See ratemt for more details
+
+      kprobug = 0		! Turn on the proton bug
+
+      krotate = 0               ! Turn on rotation code
+      inrotin = 1               ! Rotation input
+      frotin = 1.0              ! Rotation input rate (rotation / sec)
+      fnufac(1) = one		! Factors for neutrinos
+      fnufac(2) = one
+      fnufac(3) = 4.0
+
+c ************************************************************************
+c TEST CODE
+c ************************************************************************
+c
+c ktest=1
+c
+c Divide core into two regions at ftest0 until ftest1
+c Set scattering to ftest2 r<r0, ftest3 r>r0
+c Multiply production rate by ftest4 r<r0 ftest5 r>r0
+c
+c After ftest1
+c Set scattering to ftest6 r<r0, ftest7 r>r0
+c Multiply production rate by ftest8 r<r0 ftest9 r>r0
+
+c     common keyeos
+      ntryeos=0
+      keycoul=1
+c915   format(/'  date:',a10,5x,'time:',a10)
+      read (5,802,end=990)  job,ntime
+      read (5,*,end=990)  diskw
+      l=index(diskw,' ')-1
+      if(diskw(l:l).ne.'/') then
+                            l=l+1
+                            diskw(l:l)='/'
+                            endif
+      if(l.eq.0)  then
+                  diskw='output/'
+                  l=index(diskw,' ')-1
+                  endif
+      ldiskw=l
+      print *,' write files on disk=',diskw
+      read (5,*,end=990) tabname
+      l=index(tabname,' ')-1
+      if(l.le.1)   tabname='eos_files/eostab.6.3'
+      print *,' tabname=',tabname
+      if(ntime .le. -10)  then
+      read (5,*,end=990) profile
+      print *,'read non standard profile'
+      print *,' profile=',profile
+                          endif
+      read (5, nml=cor, end=1)
+1     continue
+      if(ntimax.eq.0)  keydump=0
+c
+c     now update paramaters in common par
+      if(keynup.eq.0)  then
+                       nupress=0
+                       else
+                       nupress=1
+                       nueosp=1
+                       endif
+      mshulz=kshulz
+      nuemis=keynue
+      keyeos=keos
+      jmxeq1=jmxeos1
+      inkeygr=keygr
+      pext=pexter
+c
+c--------------------------------------------------------------------------
+c     now open files
+      call  pfname(name,namef,lng)
+      if(lng.le.0)   then
+                     print *,' input: lng(name)=0 '
+                     stop    ' input: lng(name)=0 '
+                     endif
+      l=ldiskw
+c     dump file
+      open(unit=6,file=diskw(1:l)//namef(1:lng)//'.t06'
+     1,status='replace')
+      if(iprcor.ne.0)  write(*,cor)
+      if(ntime .gt. -10)  profile=namef(1:lng)//'.t09'
+      lnp=index(profile,' ')-1
+      open(unit=9 ,file=diskw(1:l)//profile(1:lnp)
+     1,status='unknown',access='sequential',form='unformatted')
+      if(keydump.ge.2)  then
+c     dump file
+      open(unit=10,file=diskw(1:l)//namef(1:lng)//'.t10'
+     1,status='unknown',access='sequential',form='unformatted')
+                        endif
+c
+c     ntplot - flow lines
+      open(unit=12,file=diskw(1:l)//namef(1:lng)//'.t12'
+     1,status='unknown'
+     +,position='append')
+c
+c     ro-snaps
+      open(unit=13,file=diskw(1:l)//namef(1:lng)//'.t13'
+     1,status='unknown'
+     +,position='append')
+c
+c     profiles snap
+      open(unit=15,file=diskw(1:l)//namef(1:lng)//'.t15'
+     1,status='unknown'
+     2,position='append')
+c
+c     full group y and fluxes
+      open(unit=25,file=diskw(1:l)//namef(1:lng)//'.t25'
+     1,status='unknown'
+     2,position='append')
+c     unit 25 is overwritten
+c
+c     writes a profile for Alexei hydro variables+concentrations
+      open(unit=35,file=diskw(1:l)//namef(1:lng)//'.t35'
+     1,status='unknown'
+     2,position='append')
+
+c     writes a profile for convective energies and fluxes
+      open(unit=45,file=diskw(1:l)//namef(1:lng)//'.t45'
+     1,status='unknown'
+     2,position='append')
+
+c     writes a profile for shock profiles
+      open(unit=55,file=diskw(1:l)//namef(1:lng)//'.t55'
+     1,status='unknown'
+     2,position='append')
+
+c     extract file - briefings
+      open(unit=77,file=diskw(1:l)//namef(1:lng)//'.t77'
+     1,status='unknown'
+     2,position='append')
+
+c--------------------------------------------------------------------------
+      if(keynue.ge.2)  then
+                       kpr=1
+          call  makeenu(enu1,enumax,ngmax,enu,denu,yfull,kpr)
+                       endif
+c
+c     check what is the main EOS
+      select case (keos)
+      case (0)
+         print *, 'keos=', keos, 'dust eos - no pressure'
+      case (1)
+         print *,' keos=',keos,'  statez eos (ZIGEOS)'
+      case (2:3)
+         print *,' keos=',keos,'  statel eos (LLPR)'
+         filenam='ltape'
+         open(unit=1 ,file=filenam,status='unknown')
+      case (4)
+         print *,' keos=',keos,'  stateb eos (BCK)'
+         filenam='ltape'
+         open(unit=1 ,file=filenam,status='unknown')
+      case (5)
+         print *,' keos=',keos,'  statec eos (BCK) w/o bruenn grid.'
+         filenam='ltape'
+         open(unit=1 ,file=filenam,status='unknown')
+      case (6)
+         print *,' keos=',keos,'  states swesty-s eos for barions.'
+      case (7)
+         print *,' keos=',keos,'  state7 swesty-s in table form.'
+      case default
+         print *,' invalid keos=',keos
+         stop 'invalid keos'
+      end select
+c
+      do  j=2,jmax
+         if(j.le.jmxeq1) then
+            keosn(j)=keyeos
+         else
+            keosn(j)=1
+         endif
+      enddo
+c
+      xmue=0.d0
+      xmunu=0.d0
+      xmun=0.d0
+      xmup=0.d0
+      xmuhat=0.d0
+      header(1)=job
+      if(job.eq.'          ')  header(1)=name(1:10)
+      header(2)=datex
+      header(3)=clockx
+      header(4)(1:10)=version(1:10)
+902   format(i10)
+903   format(2i5)
+      write (header(5)(1:10),902) jmax
+      write (header(6)(1:10),903) ngmax,numax
+      write (header(7)(1:10),902) keygr
+      write (header(8)(1:10),902) keyeos
+      write (header(9)(1:10),902) jmxeq1
+      header(10)='sofhead'
+      if(ntime.ne.0) go to 700
+
+      if (int(inprof/10) .eq. 10 .and. smass .eq. 0d0) then
+         smass = (confro * pai43 * 
+     &        confrb0 ** 3d0) * 0.95 / solmas
+         if (confrb1 .gt. confrb0) then
+            smass = smass + (confro1 * pai43 *
+     &           (confrb1 ** 3d0 - confrb0 ** 3d0)) * 0.95 / solmas
+         endif
+      endif
+
+      stabil=0.05d0
+      fmassc=smass*solmas
+      fmass(1)=0.d0
+      dmk(1)  =0.d0
+      dmp(1)  =0.d0
+      n=jmax-1
+      if(keyzons.eq.0) then
+      delm=fmassc/n
+      do  j=2,jmax
+      dmk(j)=delm
+      fmass(j)=fmass(j-1)+dmk(j)
+      enddo
+      do  j=2,jmax
+      if(j.lt.jmax) then
+                    dmp(j)=(dmk(j)+dmk(j+1)) *0.5d0
+                    else
+                    dmp(j)=0.5d0*dmk(j)
+                    endif
+      enddo
+c     keyzons=1
+      elseif(keyzons.eq.1) then
+      call  abcd(zero,fmassc,rmedia,stepm,stepr,c1,xc2,c3,c4)
+      rr=0.d0
+      dr=1.d0/(jmax-1)
+      do  j=2,jmax
+      i=j-1
+      rr=rr+dr
+      fmass(j)=((c1*rr+xc2)*rr+c3)*rr+c4
+      dmk(j)=fmass(j)-fmass(i)
+      dmp(j)=((3.d0*c1*rr+two*xc2)*rr+c3)*dr
+      if(j.eq.jmax) dmp(j)=0.5d0*dmp(j)
+      enddo
+c     keyzons=2
+      elseif(keyzons.eq.2) then
+      dmf=fmassc/n*stepr
+      jm=rmedia*jmax+1
+      jm=max (jm,2)
+      call  div  (fmassc,dmf,dmk,dmp,fmass,jm,jmax)
+c     keyzons=3
+      elseif(keyzons.eq.3) then
+      fmassc=cmass*solmas
+      fmasst=smass*solmas
+      jz=jmax-jcore
+      n=jcore-1
+      dmf=fmassc/n*stepr
+      jm=rmedia*jcore+1
+      jm=max (jm,2)
+      call  div  (fmassc,dmf,dmk,dmp,fmass,jm,jcore)
+      az=stepr
+      sz=fmasst-fmassc
+      q=1.5d0
+      call  newton (q,zanav)
+      print *,q
+      do   j=1,jz
+      dmk(jcore+j)=az*q**j
+      enddo
+      jmx=jmax-1
+      do   j=2,jmx
+      dmp(j)=0.5d0*(dmk(j)+dmk(j+1))
+      fmass(j)=fmass(j-1)+dmk(j)
+      enddo
+      dmp(jmax)=0.5d0*dmk(jmax)
+      fmass(jmax)=fmass(jmx)+dmk(jmax)
+      print *,'  n     dmk       dmp      fmass        q'
+      do   j=1,jmax
+      i=max (1,j-1)
+      rat=dmk(j)/dmk(i)
+      print 939,j,dmk(j),dmp(j),fmass(j),rat
+939   format(i3,4f10.3)
+      enddo
+c     keyzons=4
+      elseif(keyzons.eq.4) then
+      fm3=smass*solmas
+      fm1=fmass1*solmas
+      fm2=(fmass1+fmass2)*solmas
+      frnz3=1d0-(frnz1+frnz2)
+      if(fm2.ge.fm3)  then
+                      print *,'invalid fm1 fm2 ',fm1,fm2
+                      stop    'invalid fm1 fm2 '
+                      endif
+      if(frnz3.le.0d0)  then
+                       print *,'invalid frz...',frnz1,frnz2,frnz3
+                       stop 'invalid frz...'
+                       endif
+      call  zoning4(fmass,dmk,dmp,jmax,fm1,fm2,fm3,frnz1,frnz2,frnz3)
+      print *,'  n     dmk       dmp      fmass        q'
+      do   j=2,jmax
+      i=max (2,j-1)
+      rat=dmk(j)/dmk(i)
+      print 939,j,dmk(j)/solmas,dmp(j)/solmas,fmass(j)/solmas,rat
+      enddo
+c     keyzons.ge.5
+      elseif(keyzons.ge.5) then
+      print *,'  undefined  keyzons=',keyzons
+      stop  'undefined keyzons'
+      endif
+c-----------------------------------------------------------------
+      call  plotdiv(fmass,dmk,jmax)
+c-----------------------------------------------------------------
+c     inprof has 2 digits : the 2nd stands for keyets in setup
+c     the first is for the initial configutation
+c     1  isentrope
+c     2  isothermal
+c     3  wzw call wwconf
+c     4  arnett,s 1.5 m  call arconf
+c     5  wzw      1.5 m  call wzconf
+c     8  nomoto9         call nmconf
+c     9  s15s7b2         call wznconf
+      keyets0=mod(inprof,10)
+      if(keyets0.le.0 .or. keyets0.ge.4) then
+                                         print *,'wrong inprof'
+                                         stop 'wrong inprof'
+                                         endif
+      inprof=inprof/10
+      if(inprof.eq.1)  then
+c                       call  coret
+c                       such a subroutine has to be written
+                        print *,'invalid option'
+                        stop    'invalid option'
+      elseif(inprof.eq.2) then
+      do   j=2,jmax
+      ye(j)=yein
+      ynu(j)=0.d0
+      ynub(j)=0.d0
+      enddo
+      ta(2)=5d9
+      call  cores (roc,szero,ah0,zh0,yein,ra,roa,ea,pa,ta,dmk,dmp
+     1,keosn,jmax)
+      pext=pa(jmax)
+      szk=szero/rgas
+      print  906,szero,szk
+906   format(' initial entropy=',e12.5,' =',f10.5,' in boltzman units')
+      elseif(inprof.ge.3) then
+                          call  inconf
+     1                    (inprof,jmax,fmass,ea,fmue,pa,ra,roa
+     2                   ,ta,ye,vela,keosn,s,xn,xp,xal,xhv,ahv,z)
+                          else
+                          print *,' undefined inprof',inprof
+                          stop  ' undefined inprof'
+                          endif
+      if (pexter .lt. 0d0) then
+	    pext = pa(jmax)
+      endif
+
+      if(keydump.ne.0)   call  wrtro (jmax,ngmax,nxx)
+      if(iprizun.ne.0)   call  ckizun(ra,fmass,pa,dmp,jmax,pext)
+      time=zero
+      dta=zero
+      dtnext=1d10
+      if(iprntin.ne.0)  print  920
+920   format('   j     r',11x,'ro',10x,'e',11x,'p',11x,'t'
+     1,11x,'s',11x,'gamma',7x,'dmk',9x,'dmp',9x,'fmass')
+      vela(1)=0.0d0
+      do 400  j=2,jmax
+      vela(j)=vela(j)+velnot*ra(j)/ra(jmax)
+      ye(j)=ye(j)-dyein
+      ea(j)=ea(j)*(one-edel)
+      fmunu(j)=-10.d0
+      xmue=fmue(j)
+      xmunu=fmunu(j)
+      keyets=keyets0
+      keyeos=keosn(j)
+      jzone=j
+      call  state
+     1( roa(j),ea(j),ta(j),pa(j),s(j),sound
+     2, tr,te,pr,pe,sr,se
+     3, ahv(j),z(j),ye(j),ynu(j),xn(j),xp(j),xal(j),xhv(j)
+     *,keyets)
+      fmue(j)=xmue
+      fmuhat(j)=xmuhat
+      yep(j)=yepos
+      if (pa(j) .gt. 0d0) then
+         gama(j)=roa(j)/pa(j)*sound**2
+      else
+         gama(j)=0d0
+      endif
+      if(iprntin.ne.0)
+     1 print 911,j,ra(j),roa(j),ea(j),pa(j),ta(j),s(j),gama(j)
+     2,dmk(j),dmp(j),fmass(j)
+      i=j-1
+      if (sound .gt. 0d0) then
+         dtbb=(ra(j)-ra(i))/sound
+      else
+         dtbb=3d-5
+      endif
+
+      dtnext= min (dtnext,dtbb)
+      eb(j)    =ea(j)
+      pb(j)    =pa(j)
+      rb(j)    =ra(j)
+      rob(j)   =roa(j)
+      tb(j)    =ta(j)
+      velb(j)  =vela(j)
+      eprev(j) =ea(j)
+      yeprev(j)=ye(j)
+      sgma(j)=0d0
+      sgmb(j)=0d0
+      do  nut=1,numax
+      heatnue(j,nut)=zero
+      krates(j,nut)=1
+      enddo
+400   continue
+      dtb=stabil*dtbb
+      dtb=min(dtb,dtmax)
+      dta=dtb
+      ra2=ra(2)
+      ram=ra2
+      kro=log10(roa(2))
+      kro=kro+1
+      rocpr=kro
+      eout=0.d0
+      eprs=0.d0
+      etot0=1d-10
+      call  enrbal (jmax,ngmax,nxx)
+      etot0=etot
+      print 925,etot,egrav,ekin,etrm,eout,eprs,dlifen,enutot
+925   format(' first balance after input'
+     1/' etot=',1pe12.3,'  egrav=',e12.3,'  ekin=',e12.3
+     2,'  etrm=',e12.3,'  eout=',e12.3,'  eprs=',e12.3
+     3/'  dlifen=',e12.3,'  enutot=',e12.3
+     4/'  etot0 set to etot')
+700   continue
+c Initial rotation
+
+      zjsa(1:jmax) = 0d0
+      if (krotate .ne. 0) then
+         rpa(1:jmax) = ra(1:jmax)
+         velpa(1:jmax) = vela(1:jmax)
+         sgmpa(1:jmax) = sgma(1:jmax)
+         if (inrotin .eq. 1) then
+            zjsa(1:jmax) = 2d0 * pai * ra(1:jmax) ** 2d0 * frotin
+         endif
+      endif
+      rpb(1:jmax) = rpa(1:jmax)
+      velpb(1:jmax) = velpa(1:jmax)
+      sgmpb(1:jmax) = sgmpa(1:jmax)
+      zjsb(1:jmax) = zjsa(1:jmax)
+
+      call  restrt (jmax,ngmax,nxx)
+c
+      if (pexter .lt. 0d0) then
+	    pext = pa(jmax)
+      endif
+
+      if(keygr.eq.0)  then
+                      do j=2,jmax
+                      alprev(j)=1d0
+                      alpa(j)=1d0
+                      alpb(j)=1d0
+                      enddo
+                      endif
+c
+
+      ya0(2:jmax,1:ngmax,1:numax)
+     &	=ya(2:jmax,1:ngmax,1:numax)
+      ydotpj(2:jmax,1:ngmax,1:numax)=0d0
+      abstpj(2:jmax,1:ngmax,1:numax)=0d0
+
+      do  j=2,jmax
+      ynub(j)=0d0
+      do  ng=1,ngmax
+      ynub(j)=ynub(j)+ya(j,ng,2)/rob(j)/avo
+      enddo
+      enddo
+
+      if(kchkdif.eq.1) then
+                       nuemis=keynue
+                       if(keynue.ge.2)  then
+                                        kpr=0
+                    call  makeenu(enu1,enumax,ngmax,enu,denu,yfull,kpr)
+                                        endif
+                       endif
+c
+      if(dtck.lt.0.d0)  then
+                        timeck=time
+                        dtck=abs(dtck)
+                        endif
+      if(inrelag.ne.0)  then
+                        if(keyzons.eq.2)  then
+                        kzoning=2
+                        param(1)=fmass1
+                        nparm(1)=jmax*frnz1
+                        param(2)=0d0
+                        nparm(2)=0
+                                          endif
+                        if(keyzons.eq.4)  then
+                        kzoning=4
+                        param(1)=fmass1
+                        param(2)=fmass1+fmass2
+                        param(3)=frnz1
+                        param(4)=frnz2
+	elseif (keyzons .eq. 5 .or. keyzons .eq. 6) then
+	    kzoning = keyzons
+                                          endif
+         call  relager (jmax,ngmax,nxx,kzoning,param,nparm)
+                        endif
+      if(nrelag.eq.0)  then
+                       krelag=0
+                       else
+                       krelag=1
+c     rearrange relager times
+                       nt=5
+                       do  n=1,nt
+                       if(timerlg(n).le.timelg) timerlg(n)=0d0
+                       enddo
+                       nn=0
+                       do  n=1,nt
+                       if(timerlg(n).gt.0d0) then
+                                             nn=nn+1
+                                             else
+                                             if(n.lt.nt) then
+                                               timerlg(n)=timerlg(n+1)
+                                               timerlg(n+1)=0d0
+                                                         endif
+                                             endif
+                       enddo
+                       print *,' relager times',(timerlg(n),n=1,nn)
+                       endif
+      write (77,*) ' job name =', name	
+      write (77,*) 'end input'
+      return
+802   format(bz,a8,2x,10i5)
+911   format(' ',i4,1p10e12.4)
+990   continue
+      print *,' end encountered in input'
+      stop    ' end encountered in input'
+      end

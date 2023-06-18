@@ -1,0 +1,47 @@
+*deck findfk
+      subroutine  findfk(fmu,x0,fk)
+*call implic
+      parameter(lmax=8)
+      dimension fk(lmax),tl(lmax),al(lmax)
+      if(fmu.gt.x0) go to 400
+      arg=x0-fmu
+      call findtl(arg,tl)
+      do 40 kx=1,lmax
+      jx=kx-1
+      fac=1.0
+      do 20 l=1,kx
+      al(l)=fac*tl(l)
+   20 fac=(kx-l)*fac
+   40 fk(kx)=poly(x0,al,jx,lmax)
+      go to 799
+c
+  400 continue
+      arg=fmu-x0
+      call findtl(arg,tl)
+      do 440 kx=1,lmax
+      jx=kx-1
+      fac=1.0
+      do 420 l=1,kx
+      al(l)=fac*tl(l)
+  420 fac=-(kx-l)*fac
+  440 fk(kx)=poly(x0,al,jx,lmax)
+      arg=0.0
+      call findtl(arg,tl)
+      do 480 kx=1,lmax
+      jx=kx-1
+      fac=1.0
+      do 460 l=1,kx
+      al(l)=fac*tl(l)
+  460 fac=-(kx-l)*fac
+  480 fk(kx)=fk(kx)-poly(fmu,al,jx,lmax)
+      do 580 kx=1,lmax
+      jx=kx-1
+      fac=1.0
+      do 560 l=1,kx
+      al(l)=fac*tl(l)
+  560 fac=(kx-l)*fac
+  580 fk(kx)=fk(kx)+poly(fmu,al,jx,lmax)+(fmu**kx-x0**kx)/kx
+c
+  799 continue
+      return
+      end

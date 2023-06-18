@@ -1,0 +1,4 @@
+#!/bin/sh 
+
+tail -10000 $1 > /tmp/emacs.$$
+emacs /tmp/emacs.$$

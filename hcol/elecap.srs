@@ -1,0 +1,60 @@
+*deck elecap
+      subroutine  elecap (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call corct
+*call par
+*call chemp
+      data  konv /0/
+      data  block  /40d+0/
+      do  100  j=jmin,jmax
+      temp=tb(j)/tmev
+      if(ynu(j).ge.1d-5)  then
+                          etanue=fmunu(j)/temp
+      call  eosnu(rob(j),tb(j),ynu(j),enux,pnu,snu
+     1,er,et,pr,pt,sr,st,ey,py,sy)
+                          fmunu(j)=etanue*temp
+                          endif
+      ah=ahv(j)
+      zh=z(j)
+c      fmuhat(j)=btmuhat(rob(j),ye(j))
+      delta(j)=fmue(j)-fmunu(j)-fmuhat(j)
+      fmuh=fmuhat(j)
+      if(xn(j).eq.zero .and. xp(j).eq.zero)  fmuh=zero
+      fmunud= max (fmunu(j),0d0)
+      fmuh  = max (fmuh    ,0d0)
+      fmued =fmue(j)
+      delta(j)=fmued-fmunud-fmuh
+      if(rob(j).lt.roecapt)  then
+      call  ecapt (fmued,fmunud,fmuh,xp(j),xhv(j),ah,zh
+     1,temp,block,rob(j),delta(j)
+     2,yedot(j),yedoth,yedotp,eav,eavh,eavp)
+      if(yedot(j).gt.0d0)    yedot(j)=-1d-7
+                          goto   100
+                          endif
+      ce=fmue(j)/ye(j)**shlish
+      delta(j)=0d0
+      if(ce.le.0d0)   then
+                      yedot(j)=0d0
+                      else
+                      y00=ye(j)+ynu(j)
+                      xye=ye(j)
+                      call  newtye (xye,kinus,y00,ce,fmuh)
+                      if(kinus.eq.0)  then
+                                      print *, 'newtye diverge'
+                                      yedot(j)=0d0
+                                      konv=konv+1
+                          if(konv.gt.1000)  stop 'elecap not converges'
+                                      goto 100
+                                      endif
+                      deltay=xye-ye(j)
+                      eps99=epsdye*0.99
+                      if(abs(deltay/ye(j)).gt.eps99) then
+                                       deltay=sign(eps99*ye(j),deltay)
+                                                     endif
+                      yedot(j)=deltay/dtb
+                      endif  !  ce.gt.0
+100   continue
+      return
+      end

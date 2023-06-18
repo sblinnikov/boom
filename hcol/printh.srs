@@ -1,0 +1,316 @@
+*deck printh
+      subroutine  printh (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call par
+*call keyeos
+*call corct
+*call chemp
+*call grvec
+      character*1 ch
+      dimension  ipr(40)
+      data  ken22 /0/
+      data  epssgm /0.01d0/
+      print 910,name(1:10),ntime,time,dtlast,dta
+910   format('  Hydro table 1    name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+      print  920
+920   format('  i',4x,'r',8x,'ro',8x,'vel',6x,'t',7x,'s',8x,'e',8x,'p'
+     1,8x,'q',6x,'mue',3x,'muhat',3x,'xn',3x,'xp',3x,'xhv',4x,'a'
+     2,5x,'z',4x,'mass',3x,'i k' )
+      lastpr=ntime
+      do  100  j=2,jmax
+      fm=fmass(j)/solmas
+      if (pa(j) .gt. 0d0) then	
+         sgm=sgma(j)/pa(j)
+         if(abs(sgm).lt.epssgm) then
+            sgm=0.0d0
+         else
+            sgm=sgma(j)/pa(j)*100.
+         endif
+      else
+         sgm=0d0
+      endif
+      sk=s (j)/rgas
+c
+c     eg=grav*fmass(j)*dmp(j)/ra(j)
+c     ek=0.5*dmp(j)*vela(j)**2
+c     et=ea(j)*dmk(j)
+c     p5=ek/1e51
+c     p6=(et+ek-eg)/1e52
+c
+      print 930,j,ra(j),roa(j),vela(j),ta(j),sk,ea(j),pa(j)
+     1,sgm,fmue(j),fmuhat(j),xn(j),xp(j),xhv(j),ahv(j),z(j)
+     2,fm,j,keosn(j)
+930   format(i4,1p2e9.2,e10.2,e9.2,0pf7.3,1pe10.2,e9.2
+     1,0p3f7.2,f5.2,f7.4,f5.2,2f6.1,f6.3,i4,i2)
+100   continue
+      print 931
+931   format(65('-='))
+      print 911,name(1:10),ntime,time,dtlast,dta
+911   format('  Hydro table 2    name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+      print  921
+921   format('  i',4x,'r',8x,'ro',7x,'t',6x,'ye',5x,'yep',5x
+     1,'v',9x,'c',9x,'escv'
+     2,5x,'-v/r',7x,'acc',7x,'ag',8x,'N*N',4x,'Gamma',2x,'mass',3x,'i')
+      do  110  j=2,jmax
+      fm=fmass(j)/solmas
+      vor=-vela(j)/ra(j)
+      esc=sqrt(two*grav*fmass(j)/ra(j))
+      temp=ta(j)/tmev
+      sound=sqrt(gama(j)*pa(j)/roa(j))
+      agj=-grav*fmass(j)/ra(j)**2
+c
+      if(ken22.ne.0) then
+      keyets=1
+      keyeos=keosn(j)
+      jzone=j
+      ro2=roa(j)
+      e2=ea(j)
+      t2=ta(j)
+      ye2=ye(j)
+      ynu2=ynu(j)
+      call  state
+     1(ro2,e2,t2,p2,s2,sound2
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv2,z2,ye2,ynu2,xn2,xp2,xal2,xhv2
+     *,keyets)
+      if(kesfail.ne.0)  print *,' state fail in zone ',j,' printh'
+                     endif
+c
+      if(j.eq.2)  then
+      en2=0d0
+      en22=0d0
+      ch='-'
+      elseif(j.eq.jmax) then
+      en2=0d0
+      en22=0d0
+      ch='-'
+                        else
+      k=j+1
+      i=j-1
+      agi=-grav*fmass(i)/ra(i)**2
+      accij=0.5*(acc(i)+acc(j))
+      agij=0.5*(agi+agj)
+      geff=agij-accij
+      dlnro=0.5d0*log(roa(k)/roa(i))
+      if (pa(i) .gt. 0d0) then
+         dlnp =0.5d0*log(pa(k)/pa(i))
+         dr=ra(j)-ra(i)
+         a=(dlnro-dlnp/gama(j))/dr
+      else
+         dlnp=0d0
+         dr=0d0
+         a=0d0
+      endif
+c     Ledoux criterion, conv. instab. for a>0
+      if(a.gt.0d0)  then
+                    ch='+'
+                    else
+                    ch='-'
+                    endif
+c     en2=geff*a
+      en2=agij*a
+c
+      if(ken22.ne.0)  then
+c     another way to calculate N**2
+      ds=0.5*(s(k)-s(i))
+      eps=0d0
+      if(dsdro.eq.0d0)  eps=1e-10
+      dpdros=gama(j)*pa(j)/roa(j)
+      dpdsro=(dpdro-dpdros)/(dsdro+eps)
+      if (pa(j) .gt. 0d0) then
+         en22=-geff/gama(j)*dpdsro/pa(j)*ds/dr
+      else 
+         en22=0d0
+      endif
+      en2=en22
+                      endif
+c
+                        endif
+c
+      print 933,j,ra(j),roa(j),temp,ye(j),yep(j),vela(j),sound,esc,vor
+     1,acc(j),agj,en2,gama(j),fm,j,ch
+933   format(i4,1p2e9.2,0pf7.3,2f7.4,1p7e10.2,0pf6.3,f6.3,i4,1x,a1)
+110   continue
+      if (inkeygr .ne. 0) then
+         print 931
+         print 912,name(1:10),ntime,time,dtlast,dta
+ 912     format('  GR table 2    name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+ 934     format(i4,f7.4,f7.4,f6.3,f6.3)
+ 922     format('  i',3x,'alpa',3x,'bgam',3x,'emp',3x,'mass')
+         print 922
+         do  j=2,jmax
+            print 934,j,alpa(j), bgpa(j), empa(j)/solmas, 
+     &           fmass(j)/solmas
+         enddo
+         print 931
+      endif
+      if (krotate .ne. 0) then
+         print 931
+         print 913,name(1:10),ntime,time,dtlast,dta
+ 913     format('  Rotation table    name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+ 935     format(i4,1p,5e9.2,2e10.2,0p,f5.2,f6.3,i4)
+ 926     format('  i',3x,'zjsa',6x,'vrot',4x,'period',3x,'acc',3x, 
+     &	 'rpa', 3x, 'velpa', 3x, 'accp', 3x, 'sgmpa', 3x, 'mass',6x,'i')
+         print 926
+         do  j=2,jmax
+            fm=fmass(j)/solmas	
+            if (pa(j) .gt. 0d0) then	
+               sgm=sgmpa(j)/pa(j)
+               if(abs(sgm).lt.epssgm) then
+                  sgm=0.0d0
+               else
+                  sgm=sgmpa(j)/pa(j)*100.
+               endif
+            else
+               sgm=0d0
+            endif
+
+	    vrot = zjsa(j)/ra(j)
+            print 935,j, zjsa(j), vrot, 
+     &	    2*pai * ra(j) ** 2d0 / zjsa(j), vrot*vrot/ra(j),
+     ^	    rpa(j), velpa(j), accp(j), sgm, fm, j
+         enddo
+         print 931
+      endif
+      if(nuemis.eq.0)  goto  700
+c---------------------------------------------------------------------
+      if (nuemis.eq.1) then
+                       print  940
+                       else
+                       print  941
+                       endif
+940   format(/'  j',4x,'ro',7x,'t',9x,' mue',6x,' munu',5x
+     1,'muhat',5x,'delta',5x,'ye',8x,'yedot',5x,'yeconv',4x
+     2,'ynu',7x,'pnu')
+941   format(/'  j',4x,'ro',7x,'t',9x,' mue',6x,' munu',5x
+     1,'muhat',5x,'delta',5x,'ye',8x,'yedot',5x,'yeconv', 4x
+     2,'ynu',7x,'ynub')
+      etanue=1d0
+      do j=2,jmax
+      temp=ta(j)/tmev
+c     sound=sqrt(gama(j)*pa(j)/roa(j))
+      fmunup=fmunu(j)
+      deltap=delta(j)
+      pnux=0d0
+      if(ynu(j).gt.1d-5)  then
+      if(nupress .ne. 0) then
+		 call  eosnu(roa(j),ta(j),ynu(j),enux,pnux,snux
+     1		 ,er,et,pr,pt,sr,st,ey,py,sy)
+      endif
+      if(nuemis.ge.2) then
+      fmunup=etanue*temp
+c     fmuhat(j)=btmuhat(roa(j),ye(j))  ! from Bethe
+      deltap=fmue(j)-fmunup-fmuhat(j)
+                      endif
+                          endif
+c
+      if(nuemis.eq.1)  then
+      print 944,j,roa(j),temp,fmue(j),fmunup,fmuhat(j),deltap
+     1,ye(j),yedot(j),yeconv(j),ynu(j),pnux
+                       else
+      print 944,j,roa(j),temp,fmue(j),fmunup,fmuhat(j),deltap
+     1,ye(j),yedot(j),yeconv(j),ynu(j),ynub(j)
+                       endif
+944   format(' ',i3,1p2e9.2,9e10.2)
+      enddo
+      print 931
+      if(nuemis.eq.1)  goto  700
+c---------------------------------------------------------------------
+
+      do nut=1,numax
+      print *,' neutrino type=',nut
+      print 950
+950   format(/'   j',3x,'ro',7x,'T',9x,'e',8x,'Heat-Nu',4x
+     1,'dheat',5x,'dye',7x,'anu',7x,'fip2m',5x,'pneut')
+      do   j=2,jmax
+      temp=ta(j)/tmev
+      dye1=-dtb*prody(j,nut)/rob(j)/avo
+      dheat=-prode(j,nut)*dtb/rob(j)*emev
+      an=aneut(j,nut)
+
+      print 951,j,roa(j),temp,eb(j),heatnue(j,nut),dheat,dye1,an
+     1,fip2m(j,nut),pneut(j,nut)
+951   format(' ',i3,1p2e9.2,9e10.2)
+      enddo
+      enddo
+c---------------------------------------------------------------------
+c     print luminosities
+
+      do nut=1,numax
+         print  952, nut
+ 952     format(/,100('-'),/,' Luminosity table neutrino=',i3/)
+         print  953
+ 953     format(/'   j',3x,'ro',7x,'T',8x,'r',8x
+     1        ,'Lum-nu',4x,'Lum-e',5x,'BB-lum',4x,'enu-av')
+         coeff=7d0/15d0*pai**6*boltz**4/(clite**2*planck**3)
+         do   j=2,jmax
+            temp=ta(j)/tmev
+            bblum=coeff*ra(j)**2*ta(j)**4
+c     calculate average energy
+            eavrg=sum(ya(j,1:ngmax,nut)*enu(1:ngmax))
+            ytotj=sum(ya(j,1:ngmax,nut))
+
+            if (ytotj .gt. 0d0) then 
+               eavrg=eavrg/ytotj
+            else
+               eavrg = 0d0
+            endif
+c     
+            print 954,j,roa(j),temp,ra(j),flumn(j,nut),
+     +           flume(j,nut),bblum,eavrg
+ 954        format(' ',i3,1p3e9.2,9e10.2)
+         enddo
+      enddo                     ! nut
+      print 931
+c---------------------------------------------------------------------
+c     print log y
+      ngmx=min (ngmax,20)
+      do nut=1,numax,2
+         print 955,(i,i=1,20),(i,i=1,20)
+ 955     format(/' j  log y/denu(nu=1)',50x,'log y/denu(nu=2)'/
+     1        ,3x,20i3,1x,20i3)
+         do  j=2,jmax
+	    ipr(1:40) = 1d-99
+            do   ng=1,ngmx
+               yl= min(1d99,max(ya(j,ng,nut)/denu(ng),1d-99))
+               ipr(ng)=log10(yl)
+               if(numax.ge.nut+1)  then
+                  yl= min(1d99,max(ya(j,ng,nut+1)/denu(ng),1d-99))
+                  ipr(ng+20)=log10(yl)
+               endif
+            enddo
+            if(numax.eq.nut)  then
+               npr=ngmx
+            else
+               npr=20+ngmx
+            endif
+            print 956,j,(ipr(i),i=1,npr)
+ 956        format(i3,20i3,1x,20i3)
+         enddo
+      enddo
+c------------------------------------------------------------------------
+c     print  occupation
+      do  nut=1,numax
+      call  printoc (jmax,ngmax,nut)
+      print 931
+      enddo
+c---------------------------------------------------------------------
+700   continue
+      print 980
+980   format(/,7('end tables ..... '))
+      return
+      end
+
+
+
+
+
+
+
+

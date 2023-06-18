@@ -1,0 +1,38 @@
+*deck bfinpl
+      subroutine  bfinpl (np,lngplt,nt,ntplot)
+*call implic
+*call vc
+      character*10 word
+      if(lngplt.le.0)  return
+      ncolm=lenvc/np
+      lngbuf=ncolm*np
+      nbufpl=(lngplt-1)/ncolm+1
+      ncolst=lngplt-(nbufpl-1)*ncolm
+      lnbfst=ncolst*np
+      rewind  ntplot
+      do  100  n=1,nbufpl
+      ncol=ncolm
+      lnbuf=lngbuf
+      if(n.lt.nbufpl)  goto   10
+      if(ncolm.eq.ncolst)  goto   10
+      ncol=ncolst
+      lnbuf=lnbfst
+10    continue
+      ntype=2
+      nw=lnbuf
+      word='plot'
+      read  (nt,end=10000) ntype,nw,word
+      read  (nt,end=10000)  (vc(i),i=1,lnbuf)
+c     write  on  ntplot
+      do  20  m=1,ncol
+      i1=1+(m-1)*np
+      i2=m*np
+      write  (ntplot)  ( vc(i),i=i1,i2 )
+20    continue
+100   continue
+      print *,' bfinpl reads ',nbufpl,'  records.'
+      return
+10000 continue
+      print *,'error on read vc'
+      stop 'bfinpl error'
+      end

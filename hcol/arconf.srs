@@ -1,0 +1,120 @@
+*deck arconf
+      subroutine  arconf (fmass,r,u,t,ro,ye,jmax)
+*call implic
+      dimension  fmass(jmax),r(jmax),u(jmax),t(jmax),ro(jmax),ye(jmax)
+      dimension  ra(103),ua(103),ta(103),roa(103),yea(103)
+      dimension  dma(103)
+      dimension  pa (103)
+      dimension  x56(103),fmassw(103)
+*call const
+*call keyeos
+      print  911
+911   format(' initial configuration from arnett 4 s.m.')
+      np=103
+      do  10  j=1,np
+      read (2,801,end=10000) i,ra(j),ua(j),ta(j),pa(j)
+10000 if(i.ne.j)  stop 'arconf i.ne.j in read ra'
+10    continue
+      do  20  j=1,np
+      read (2,801,end=10001) i,dma(j),d,dd,v
+10001 if(i.ne.j)  stop 'arconf i.ne.j in read dma'
+      if(j.eq.1)  goto   20
+      if(v.eq.0.d0)  goto  20
+      roa(j)=1.d0/v
+20    continue
+      do  30  j=1,np
+      read (2,801,end=10002) i,yea(j),d,dd,ddd
+10002 if(i.ne.j)  stop 'arconf i.ne.j in read yea'
+30    continue
+      do  40  j=1,np
+      read (2,801,end=10003) i,d,dd,ddd,dddd
+10003 if(i.ne.j)  stop 'arconf i.ne.j in read d'
+40    continue
+      do  50  j=1,np
+      read (2,801,end=10004) i,ysi,y56,d,dd
+801   format(bz,i6,4e15.7)
+10004 if(i.ne.j)  stop 'arconf i.ne.j in read ysi'
+      x56(j)=y56*56.d0
+50    continue
+      fmassw(1)=0.d0
+      do  60  j=2,np
+      fmassw(j)=fmassw(j-1)+dma(j)
+60    continue
+      print 910
+910   format('1  arnett,s initial configuration 1.5 sol. mass')
+      print 900
+900   format('  i    r(km)  u/1e8   ro        t(mev)   ye     p'
+     1,'dm       fmass  x56 ')
+      do  70  j=2,jmax
+      fm=fmassw(j)/solmas
+      rr=ra(j)/1d5
+      uu=ua(j)/1d8
+      tt=ta(j)/tmev
+      dm=dma(j)/solmas
+      print 901,j,rr,uu,roa(j),tt,yea(j),pa(j),fm,x56(j)
+901   format(i4,f8.2,f7.3,1pe10.2,0pf7.3,f7.3,1pe10.2
+     1,0pf6.3,f7.3,f6.3)
+70    continue
+      ynu=0.d0
+      xn=0.d0
+      xp=0.d0
+      xal=0.d0
+      xhv=1.d0
+      ahv=56.d0
+      z=26.d0
+      print 905
+905   format('   j   ro',8x,'t',7x,'tcor',3x,'ye',6x,'p',9x,'plat',6x,'p
+     1zig'        ,6x,'dp')
+      jmxeq1=40
+      do  80  j=2,jmax
+      keyets=2
+      keyeos=1
+      jzone=j
+      call  state
+     1( roa(j),e,ta(j),pzig,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yea(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      keyeos=2
+      call  state
+     1( roa(j),e,ta(j),p,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yea(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      dp=(p-pa(j))/pa(j)
+      tx=ta(j)
+      if(j.le.jmxeq1)  then
+                       keosz=2
+                       else
+                       keosz=1
+                       endif
+      call  trop
+     1 (roa(j),e,tx,pa(j),s,snd
+     a, j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,yea(j),xn,xp,xa,xh
+     *)
+      tt=ta(j)/tmev
+      tp=tx/tmev
+c     ta(j)=tx
+      print 970
+970   format(' t not modified to adjust p ')
+      print 902,j,roa(j),tt,tp,yea(j),pa(j),p,pzig,dp
+902   format(i4,1pe10.2,0p3f8.3,1p4e10.2)
+80    continue
+      fmass(1)=0.d0
+      r(1)=0.d0
+      u(1)=0.d0
+      t(1)=0.d0
+      ro(1)=0.d0
+      ye(1)=0.d0
+      do  90  j=2,jmax
+      fmass(j)=fmassw(j)
+      r(j)=ra(j)
+      u(j)=ua(j)
+      t(j)=ta(j)
+      ro(j)=roa(j)
+      ye(j)=yea(j)
+90    continue
+      return
+      end

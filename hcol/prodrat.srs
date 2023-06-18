@@ -1,0 +1,84 @@
+*deck prodrat
+      subroutine  prodrat(ro,t,xye,xmue,ngmax, j, qtot)
+*call implic
+	intent (IN) :: ro, t, xye, xmue, ngmax, j
+	intent (OUT) :: qtot
+*call const
+*call corct
+*call dim
+*call compair
+*call pairscat
+      parameter (ca=0.5d0,cv=0.5d0+2d0*sthw2)
+      parameter (cvpca2=(cv+ca)**2,cvmca2=(cv-ca)**2)
+      parameter (cv2ca2=cv**2+ca**2)
+      parameter (coeff=1.55d-33)
+      parameter (con= coeff/pai/facdis**2)
+     
+c............................................................................
+      tmp=t/tmev
+c
+      qtot=zero
+
+      ydotp(1:ngmax,1:2)=zero
+      abstp(1:ngmax,1:2)=zero
+
+      do  ng=1,ngmax
+      w=enu(ng)
+      do  ngp=1,ngmax
+      wp=enu(ngp)
+      call  nunup0(w,wp,tmp,xmue,prod0i(j, ng,ngp),abs0i(j, ng,ngp),
+     1	    prod0ii(j, ng,ngp),abs0ii(j, ng,ngp))
+      end do
+      end do
+
+
+c  This is the rate for nu_e.
+c      abs=cvpca2*fj0i+cvmca2*fj0ii
+
+      nt=1
+      ntp=2
+      do ng=1,ngmax
+      do ngp=1,ngma
+      prod0 = cvpca2 * prod0i(j,ng,ngp) + cvmca2 * prod0ii(j,ng,ngp)
+      abs0 = cvpca2 * abs0i(j,ng,ngp) + cvmca2 * abs0ii(j,ng,ngp)
+      dwpwpsq=denu(ngp)*enu(ngp)**2
+      ydotp(ng,nt)=ydotp(ng,nt)+yopen(ngp,ntp)*prod0*dwpwpsq
+      abstp(ng,nt)=abstp(ng,nt)
+     1            +(1d0-yopen(ngp,ntp))*abs0*dwpwpsq
+      end do
+      end do
+c
+      do ngp=1,ngmax
+      do ng=1,ngmax
+      prod0 = cvmca2 * prod0i(j,ng,ngp) + cvpca2 * prod0ii(j,ng,ngp)
+      abs0 = cvmca2 * abs0i(j,ng,ngp) + cvpca2 * abs0ii(j,ng,ngp)
+      dwwsq=denu(ng)*enu(ng)**2
+      ydotp(ngp,ntp)=ydotp(ngp,ntp)
+     1            +yopen(ng,nt)*prod0*dwwsq
+      abstp(ngp,ntp)=abstp(ngp,ntp)
+     1            +(1d0-yopen(ng,nt))*abs00*dwwsq
+      end do
+      end do
+c
+      do ng=1,ngmax
+      dwwsq=denu(ng)*enu(ng)**2
+      ydotp(ng,nt)=con*ydotp(ng,nt)*dwwsq
+      abstp(ng,nt)=con*facdis*abstp(ng,nt)
+      ydotp(ng,ntp)=con*ydotp(ng,ntp)*dwwsq
+      abstp(ng,ntp)=con*facdis*abstp(ng,ntp)
+      end do
+c
+      do ng=1,ngmax
+      qtot=qtot+(ydotp(ng,nt)+ydotp(ng,ntp))*enu(ng)*emev
+      end do
+c
+c      do ng=1,ngmax
+c      print 901,(prod0(ng,ngp),ngp=1,5)
+c      print 901,(prod0(ng,ngp),ngp=6,10)
+c      print*,'  '
+c      end do
+c
+ 799  continue
+      return
+ 901  format(1p5e15.6)
+      end

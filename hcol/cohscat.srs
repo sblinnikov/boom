@@ -1,0 +1,76 @@
+*deck cohscat
+      subroutine  cohscat(enu,ro,xn,xp,xal,xh,a,z,b1is)
+*call implic
+*call const
+      real*8 n
+      parameter (cgv=1d0,cga=1.23d0,ca=0.5d0)
+      parameter (cv=0.5d0+2.d0*sthw2)
+c     parameter (b=4.8d-6*4d0**(2d0/3d0))
+      parameter (b=1.209524207899078d-5)
+c*********************************************************
+c                       units                            *
+c                                                        *
+c          enu................           Mev             *
+c          b1isn,b1isp........           cm-1            *
+c          constsc............           sec/cm4 Mev3    *
+c                                                        *
+c*********************************************************
+        data cg2 /1.2d-65/
+        data aal /4.0/
+c       constsc=2d0*pai/clite/(planck*clite/emev)**3        ! sec/cm4/Mev3
+        constsc=0.5d0/(clite*facdis)
+        hvp= 0.5d0-2d0*sthw2
+        hvn=-0.5
+        hap= 0.5*cga
+        han=-0.5*cga
+        cv0= 0.5*(hvp+hvn)
+        cv1=      hvp-hvn
+        ca0= 0.5*(hap+han)
+        ca1=      hap-han
+c
+        dnn=xn*ro*avo
+        dnp=xp*ro*avo
+        dnal=xal*ro*avo/aal
+c       dna is defined later only when a>0 (xh>0):   dna=xh*ro*avo/a
+c------------------------------------------------------------
+        fi0nk=pai4*cg2*dnn*(hvn*hvn+3.*han*han)
+        fi0pk=pai4*cg2*dnp*(hvp*hvp+3.*hap*hap)
+        fi1nk=pai4*cg2*dnn*(hvn*hvn-han*han)/3.
+        fi1pk=pai4*cg2*dnp*(hvp*hvp-hap*hap)/3.
+c               b1isn=constsc*enu*enu*(fi1nk-fi0nk)   !  cm-1
+c               b1isp=constsc*enu*enu*(fi1pk-fi0pk)   !  cm-1
+c------------------------------------------------------------
+        coefal=pai2*cg2*dnal*aal**2*cv0**2
+c       b=4.8d-6*aal**(2./3.)                ! Mev-2
+c       b is defined in a parameter statement
+        y=4.*b*enu*enu
+        y2=y*y
+        y3=y2*y
+c       fi0a=coef*(2.*y-1.+exp(-2.*y))/y2
+c       fi1a=coef*(2.-3.*y+2.*y2-(2.+y)*exp(-2.*y))/y3
+c       deltafi=fi1a-fi0a
+        deltaal=2.*(1.-y-(1.+y)*exp(-2.*y))/y3
+c               b1isal=constsc*enu*enu*coefal*deltaal
+c------------------------------------------------------------
+        if(a.gt.0d0)  then
+        dna=xh*ro*avo/a
+        n=a-z
+        coefa=pai2*cg2*dna*a**2*(cv0+0.5*(n-z)*cv1/a)**2
+c       a mistake in spanish guy's code :z-n
+        ba=4.8d-6*a**(2./3.)                ! Mev-2
+        y=4.*ba*enu*enu
+        y2=y*y
+        y3=y2*y
+c               fi0a=coef*(2.*y-1.+exp(-2.*y))/y2
+c               fi1a=coef*(2.-3.*y+2.*y2-(2.+y)*exp(-2.*y))/y3
+        deltaa =2.*(1.-y-(1.+y)*exp(-2.*y))/y3
+c               b1isa =constsc*enu*enu*coefa* deltaa
+                      else
+                      coefa =0d0
+                      deltaa=0d0
+                      endif
+      b1is=constsc*enu**2*((fi1nk-fi0nk)+(fi1pk-fi0pk)
+     1                      +coefal*deltaal+coefa*deltaa)
+  799 continue
+      return
+      end

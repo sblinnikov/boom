@@ -1,0 +1,22 @@
+*deck fgs
+c
+c This subroutine is used by the energy group solver to calculate the size of the energy group
+c Each energy group is sized q ** (ng-1).  To calculate q we take the equation for the 
+c geometric sum and run it through a Newton solver to make the sum equal to the outer 
+c boundary of the largest energy group.
+c
+c In order to remove the q=1 root which we do not want, we divide (q-1) from the function.
+c
+c This may break if q < 1.0 which is going to happen if enu1 > enumax / ngroups
+c
+
+      subroutine  fgs (q,f,df)
+*call implic
+      common  /ngs/ n
+      common  /gs/  a,s
+      qn1=q**(n-1)
+      sa=s/a
+      f=(qn1*q-sa*q+sa-1.d0)/(q-1d0)
+      df=-(-qn1 * q *n  + n * qn1 + qn1 * q -1d0) / (q -1d0)**2d0
+      return
+      end

@@ -1,0 +1,21 @@
+*deck fgam
+      subroutine  fgam(w,wp,e0,e1,e2,fgam0,fgam1)
+*call implic
+      w2=w*w
+      wp2=wp*wp
+      wmwp=w-wp
+      wwp=w*wp
+      wmwp2=wmwp*wmwp
+      wmwp3=wmwp*wmwp2
+      wmwp4=wmwp*wmwp3
+      wmwp5=wmwp*wmwp4
+      a2=40d0*wmwp *(w2+    wwp+    wp2)
+      a1=20d0*wmwp2*(w2+2d0*wwp+3d0*wp2)
+      a0= 4d0*wmwp3*(w2+3d0*wwp+6d0*wp2)
+      fgam0=(a2*e2+a1*e1+a0*e0)/15d0             !!! [YB77.A6]
+      a2=28d0*wmwp3*( 4d0*w2+ 7d0*wwp+ 4d0*wp2)
+      a1=14d0*wmwp4*( 7d0*w2+14d0*wwp+ 9d0*wp2)
+      a0= 2d0*wmwp5*(11d0*w2+27d0*wwp+18d0*wp2)
+      fgam1=(a2*e2+a1*e1+a0*e0)/105d0            !!! [YB77.A8]
+      return
+      end

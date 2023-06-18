@@ -1,0 +1,68 @@
+*deck viscosity
+c This function should be called after all of the thermo variables
+c are set
+      subroutine viscosity(jmax, ngmax)
+*call implic
+*call dim
+*call par
+*call asdro
+*call grvec
+*call const
+*call chemp
+*call corct
+*call keyeos
+
+      if(mshulz.eq.0) then
+	do j=jmin,jmax
+           i = j-1
+c Use artificial viscosity of Richtmeyer and Landshoff
+c Journal of Computational Physics 144, 70-97 (1998)
+	   sound = sqrt(gama(j)*pb(j)/rob(j))
+	   
+           if (velb(j) .le. velb(i)) then
+              sgmb(j)=
+     &             asig*((velb(j) - 
+     &             velb(i)))**2 * rob(j)
+     &		   + asig2*sound*rob(j)*abs(velb(j)-velb(i))
+           else
+              sgmb(j) = 0.0d0
+           endif
+        enddo
+      else
+         do  260  k=jmin,jmax
+            l=k+1
+            j=k-1
+            i=j-1
+            sgmb(k)=zero
+c            if(rob(k).lt.roa(k))  goto   260
+            if (k .gt. 2) then
+               velin = (velb(k-1) + velb(k-2)) / 2d0
+            else
+               velin = 0d0
+            endif 
+            if (k .lt. jmax) then
+               velout = (velb(k) + velb(k+1)) / 2d0
+            else
+               velout = velb(k)
+            endif
+
+            dvelk=velout - velin
+            if( dvelk.ge.zero )  goto   260
+            if(k.eq.2)  goto   253
+            if(k.eq.jmax)  goto   256
+            dvelkk=0.5d0*( abs(velb(l)-velb(k)-velb(k)+velb(j) )
+     1           +abs(velb(k)-velb(j)-velb(j)+velb(i) )  )
+            goto   259
+ 253        continue
+            dvelkk=0.5d0*abs(velb(l)-velb(k)-velb(k) )
+            goto   259
+ 256        continue
+            dvelkk=0.5d0*( abs(-velb(k)-velb(k)+velb(j) )
+     1           +abs(velb(k)-velb(j)-velb(j)+velb(i) )  )
+ 259        continue
+            sgmb(k)=asig*rob(k)*abs(dvelk)*dvelkk
+ 260     continue
+      endif
+      sgmb(2) = 0d0
+      end
+

@@ -1,0 +1,62 @@
+*deck ddnu2
+      subroutine  ddnu2(ri,rj,rk,yj,yk,rsj,rsk,ydotj,ydotk,yf
+     1                 ,djk,amujk,amusqjk,keyflux)
+c-----------------------------------------------------
+c     ddnu2 is a modified version of ddnu0
+c     mainly doesnt assume diffusion limit at small y
+c-----------------------------------------------------
+*call implic
+*call const
+      data  fddlow /1d-16/
+      data  epsocc /1d-26/
+      data  epsy   /1d3/
+c
+      occuj=yj/yf
+      occuk=yk/yf
+      ojkmx=max(occuj,occuk)
+      yjkmx=max(yj,yk)
+      if(ojkmx.le.epsocc.and.yjkmx.le.epsy)  then
+                                             djk=zero
+                                             amujk=zero
+                                             amusqjk=shlish
+                                             goto 799
+                                             endif
+      ym=0.5*(yj+yk)
+      occum=ym/yf
+      if(keyflux.eq.0) then
+      if(occum.gt.epsocc) then
+                          rsm=0.5*(rsj*yj+ydotj+rsk*yk+ydotk)/ym
+                          else
+                          rsm=0.5*(rsj+rsk+ydotj/yj+ydotk/yk)
+                          endif
+      djk=shlish*clite**2/rsm
+      amujk=zero
+      amusqjk=shlish
+      go to 799
+      end if
+c
+      dr=0.5d0*(rk-ri)
+      dy=abs(yk-yj)
+      dydr=dy/dr
+      if(occum.gt.epsocc) then
+                          rsm=0.5*(rsj*yj+rsk*yk)/ym
+                          else
+                          rsm=0.5*(rsj+rsk)
+                          endif
+      ydotm=0.5*(ydotj+ydotk)
+      totrate=ydotm+rsm*ym
+      dydr=max(dydr,(fddlow*totrate/clite),fddlow)
+      if(totrate.gt.0d0) then
+                         u=clite*dydr/totrate
+                         else
+                         u=0d0
+                         endif
+      f=(2d0+u)/(u*(3d0+u)+6d0)
+      amusqjk=f*(1d0+f*u**2)
+c     amujk .ne. f and not defined here so we set it to zero
+      amujk=0d0
+      djk=f*clite**2*ym/(ydotm+rsm*ym)
+c
+  799 continue
+      return
+      end

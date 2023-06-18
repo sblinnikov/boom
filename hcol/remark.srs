@@ -1,0 +1,9 @@
+*deck remark
+      subroutine  remark(line,nt)
+*call implic
+      character*80  line
+      write (nt,1)  line
+1     format(1x,a)
+      call flush(nt)
+      return
+      end

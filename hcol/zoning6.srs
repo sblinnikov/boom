@@ -1,0 +1,31 @@
+*deck zoning6
+      subroutine  zoning6(fmassn,dmkn,dmpn,jmax)
+*call implic
+*call dim
+*call corct
+*call const
+*call par
+      dimension  dmkn(jmax),dmpn(jmax),fmassn(jmax)
+      frz1 = frnz1
+      frz2 = frnz2
+      frz3 = frnz3
+
+      fmshock = fmassn(khelem)
+      fin = fmshock - fzconst1 * solmas
+      fout = fmshock + fzconst2 * solmas
+
+      if (fout .gt. fmassn(jmax)) then
+         fout = (fmassn(jmax) + fmassn(khelem)) / 2d0
+      endif
+      fm1 = fin
+      fm2 = fout
+      fm3 = fmassn(jmax)
+
+      call  zoning4(fmassn,dmkn,dmpn,jmax,
+     +     fm1,fm2,fm3,frz1,frz2,frz3)		
+      if (khelem .ne. 0) then
+         kwin1 = khelem - 5
+         kwin2 = khelem + 5
+      endif
+      return
+      end

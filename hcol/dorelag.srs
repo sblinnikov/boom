@@ -1,0 +1,32 @@
+c This routine determines if there need to be a rezoning
+c If there does, then kdorelag is set to 1
+c Otherwise they are set up 0
+
+*deck dorelag
+      subroutine dorelag (kdorelag)
+*call implic
+      INTENT(OUT) kdorelag
+*call dim
+*call corct
+      kdorelag = 0
+      if(krelag.gt.0)  then
+         if(time.lt.timerlg(krelag))  return
+         if(timerlg(krelag).le.0d0)  then
+            krelag=0
+            return
+         endif
+         timelg=time
+ 250     continue
+         krelag=krelag+1
+         if(krelag.gt.5)  then
+            krelag=0
+            return
+         endif
+         if(timerlg(krelag).le.0d0)  then
+            krelag=0
+            return
+         endif
+         if(timerlg(krelag).le.time)  goto  250
+      endif
+      return
+      end

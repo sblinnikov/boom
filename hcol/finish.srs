@@ -1,0 +1,57 @@
+*deck finish
+      subroutine  finish (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+*call corct
+      call  printh  (jmax,ngmax,nxx)
+      if(nuemis.ge.2.and.nuprnt.gt.0)
+     1 call printn  (jmax,ngmax,nxx)
+      if(keydump.ne.0)  then
+                        call  dump   (jmax,ngmax,nxx)
+                        call  wrtprof(jmax,ngmax,nxx)
+                        endif
+      call  wrtflux(jmax,ngmax,nxx)
+      call  wrtalex(jmax,ngmax,nxx)
+      call  wrtconv(jmax,ngmax,nxx)
+      call  wrtshock(jmax, ngmax, nxx)
+
+      rewind   9
+
+      close(unit=9)
+      if(keydump.ge.2)  then
+                        rewind  10
+                        close(unit=10)
+                        endif
+      rewind  12
+      rewind  13
+      rewind  15
+      rewind  25
+      rewind  35
+      rewind  45
+      rewind  55
+      close(unit=12)
+      close(unit=13)
+      close(unit=15)
+      close(unit=25)
+      close(unit=35)
+      close(unit=45)
+      close(unit=55)
+      close(unit=45)
+      close(unit=77)
+1111  print *,' finish'
+      tx=second()
+      if(tx.ge.runtime) then
+         print *,' cpu time exceeded runtime=',runtime
+      endif
+
+      if(keyexit.eq.0)  then
+         print *,' well-end'
+         close(unit=6)
+         stop 'well-end'
+      else
+         print *,'keyexit=',keyexit
+         close(unit=6)
+         stop 1111
+      endif
+      end

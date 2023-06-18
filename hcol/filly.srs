@@ -1,0 +1,38 @@
+*deck filly
+      subroutine filly(key,jmax,ngmax)
+*call implic
+*call dim
+*call par
+*call const
+      data fillmin  /0.001d0/
+      if(key.eq.0) return
+      do 100 j=2,jmax
+      prody(j,nutype)=0d0
+      prode(j,nutype)=0d0
+      do  ng=1,ngmax
+      blockj=max(one-ya(j,ng,nutype)/yfull(ng),zero)
+      dcaptg=ccapt(j,ng,nutype)*ya(j,ng,nutype)
+      dsourg=ydot(j,ng,nutype)*blockj
+      dprodg=dsourg-dcaptg
+      dprodg=max(dprodg,0d0)
+      yb(j,ng,nutype)=dtb*dprodg+ya(j,ng,nutype)
+      prody(j,nutype)=prody(j,nutype)+dprodg
+      prode(j,nutype)=prode(j,nutype)+enu(ng)*dprodg
+      enddo
+  100 continue
+c     ------------------
+      do  j=2,jmax
+      ynuj=0d0
+      do  ng=1,ngmax
+      ynuj=ynuj+yb(j,ng,nutype)/rob(j)/avo
+      enddo
+      if(ynuj.gt.fillmin) then
+                          call refilly(2,jmax,ngmax)
+                          key=0
+              print *,' no filly after ynuj=',j,' > ',fillmin
+                          goto  900
+                          endif
+      enddo ! j loop
+900   continue
+      return
+      end

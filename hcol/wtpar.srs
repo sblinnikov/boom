@@ -1,0 +1,20 @@
+*deck wtpar
+      subroutine  wtpar (nt)
+*call implic
+      character*10 word
+*call par
+      ntype=2
+      nw=paralen+0.5d0
+      word='para'
+      write (nt) ntype,nw,word
+      write (nt) paralen
+*call parac
+      ntype=1
+      nw=lenpari
+      word='pari'
+      write (nt) ntype,nw,word
+      write (nt) lenpari, ntindif
+*call paric
+      call flush(nt)
+      return
+      end

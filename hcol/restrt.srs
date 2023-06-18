@@ -1,0 +1,99 @@
+*deck restrt
+      subroutine  restrt (jmax,ngmax,nxx)
+      implicit none
+*call corct
+*call par
+*call vc
+*call dim
+*call grvec
+      integer*4, intent(inout) :: jmax, ngmax, nxx
+      integer*4, parameter :: nt77=77
+      character*80 ::  line
+      character*10 ::  jobx, word
+      character*10, parameter :: b10 = '          '
+      character*10, parameter :: endfile = 'endfile'
+      integer*4 :: lastprf, nt, ntimex, mone
+      integer*4 :: ntype,nw,i,keof
+      write (6,907) job,ntime
+907   format(' entering restrt. job=',a8,5x,'ntime=',i6)
+      if(job.eq.b10)  job=name(1:10)
+      if(ntime.eq.0)  goto   500
+c     ------------------------------------------------------------------
+      lastprf=0
+      nt=ntapin
+      if(ntime.le.-10)  ntime=-1
+      if(ntime.gt.0)  goto   9
+      lastprf=1
+      ntime=1111111
+9     continue
+      jobx=job
+      ntimex=ntime
+      job=b10
+      ntime=0
+      mone=0
+10    continue
+      read (nt,end=917) ntype,nw,word
+      if(nw.eq.0 .and. word.eq.endfile)  goto  16
+      read (nt,end=917) job,name,datex,clockx,version
+      if (ntype .ge. 4) then
+         read(nt,end=917) jmax,ngmax, numax
+      endif
+      call  rdpar(nt)
+      mone=mone+1
+      if(jobx.ne.job) go to 15
+      if(ntimex.lt.0) go to 12
+      if(lastprf.gt.0)  lastprf=ntime
+      if(ntimex.ne.ntime) go to   15
+12    continue
+c     file found
+      print 914,job,ntime
+914   format('0 profile ',a10 ,i5,5x,'found')
+915   format(a10,i6,4x,5hfound,15x)
+      write (line,915)  job,ntime
+      call  remark(line,nt77)
+      do 13 i=1,40
+13    line(i:i)='.'
+      call  remark(line,nt77)
+      go to 22
+15    continue
+      print 935,mone,job,ntime,nt
+935   format(' file ',i3,'   ',a10,i6,'  on tape ',i2)
+      call  loceof (nt,keof)
+      if(keof.eq.0)  goto  10
+16    continue
+c     end of information
+      if(lastprf.gt.0)  goto   19
+17    continue
+      print 18,jobx,ntimex,nt
+18    format('0 profile ',a10,i10,' not found on tape ',i2)
+      stop  'restrt profile not found'
+19    continue
+c     second sweep
+      ntime=lastprf
+      job=jobx
+      rewind  nt
+      lastprf=0
+      goto   9
+22    continue
+      call  rddim (nt,jmax,ngmax,numax,nxx,keygr)
+! Load in a fresh set of rates
+!      krates(2:jmax,1:numax) = 1
+      print 910
+910   format(/' all commons are restarted')
+      if(keydump.ge.2)   call  locendb(10)
+      return
+500   continue
+      rewind  15
+      write (15,900)  header
+      rewind 25
+      write (25,900) header
+      rewind 35
+      write (35,900) header
+      rewind 45
+      write (45,900) header
+900   format(10a10)
+      return
+917   continue
+      print *,' restrt end on read header'
+      goto  17
+      end

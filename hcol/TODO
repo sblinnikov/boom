@@ -1,0 +1,12 @@
+* move chemp potential values out of common block and put into state
+  calling
+
+* There seems to be an asymmetry here.  I'm handling pair production
+  as a separate process for nu and nubar but not for tau and mu's.
+  Need to fix this after I get everything sort of working.
+
+* Look at energy totals
+
+
+
+

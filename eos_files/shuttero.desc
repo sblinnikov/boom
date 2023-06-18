@@ -1,0 +1,6 @@
+This model is shutter with ftest7 and ftest3 switched.  The reason for
+this is to "workaround" a bug in colapse.  This bug has been fixed,
+but I can't compile the new version due to disk problems, and so I'm
+trying to get results using this other method.
+
+

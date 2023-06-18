@@ -1,0 +1,222 @@
+*deck bartdf
+      subroutine  bartdf (ro,t,e,p,s
+     1,  dedrot,dedtro,dpdrot,dpdtro,dsdrot,dsdtro
+     2,  ahin,zhin,yein,xn,xp,xa,xh
+     3,  dxndro,dxndt,dxpdro,dxpdt
+     4,  dxadro,dxadt,dxhdro,dxhdt )
+*call implic
+*call barion
+*call azy
+*call const
+*call noperk
+*call chemp
+c
+c     all physical quantities are in cgs, except fmun,fmup which are in MeV
+c
+      data xmin/1.d-6/
+      ye0=26.d0/56.d0+ .02d0
+c
+      ah=ahin
+      zh=zhin
+      ye=yein
+c
+      en=0.0d0
+      pn=0.0d0
+      sn=0.0d0
+      ep=0.0d0
+      pp=0.0d0
+      sp=0.0d0
+      ea=0.0d0
+      pa=0.0d0
+      sa=0.0d0
+      eh=0.0d0
+      ph=0.0d0
+      sh=0.0d0
+      dendro=0.0d0
+      dpndro=0.0d0
+      dsndro=0.0d0
+      depdro=0.0d0
+      dppdro=0.0d0
+      dspdro=0.0d0
+      deadro=0.0d0
+      dpadro=0.0d0
+      dsadro=0.0d0
+      dehdro=0.0d0
+      dphdro=0.0d0
+      dshdro=0.0d0
+      dendt=0.0d0
+      dpndt=0.0d0
+      dsndt=0.0d0
+      depdt=0.0d0
+      dppdt=0.0d0
+      dspdt=0.0d0
+      deadt=0.0d0
+      dpadt=0.0d0
+      dsadt=0.0d0
+      dehdt=0.0d0
+      dphdt=0.0d0
+      dshdt=0.0d0
+c
+      call  barpf(ro,t)
+c
+      if(noperk.ne.0)  go to   20
+      if(ye .gt. ye0)  go to   20
+      if(t  .le. 5d8)  go to   20
+c
+      call  peruk(ro,t
+     1, xn,xp,xa,xh
+     2, dxndt,dxpdt,dxadt,dxhdt
+     3, dxndro,dxpdro,dxadro,dxhdro)
+      go to   30
+   20 continue
+      xn=0.d0
+      xp=0.d0
+      xa=0.d0
+      xh=1.d0
+      dxndt=0.d0
+      dxpdt=0.d0
+      dxadt=0.d0
+      dxhdt=0.d0
+      dxndro=0.d0
+      dxpdro=0.d0
+      dxadro=0.d0
+      dxhdro=0.d0
+c
+   30 continue
+      boltzt=boltz*t
+      bolzt2=boltzt*t
+      rect=1.d0/t
+      recro=1.d0/ro
+      rol= log(ro)
+c
+c   neutrons
+      if(xn.lt.xmin) go to 100
+      xoan=xn
+      xnl= log(xn)
+      dlxndt=dxndt/xn
+      dlxndr=dxndro/xn
+c
+      un=bolzt2*dpfnl
+      dundt=2.d0*un*rect+bolzt2*d2pfnl
+      en=avo*xoan*un
+      dendt=en*(dlxndt+dundt/un)
+      dendro=en*dlxndr
+c
+      pn=avo*ro*boltzt*xoan
+      dpndt=pn*(rect+dlxndt)
+      dpndro=pn*(recro+dlxndr)
+c
+      fn=boltzt*(rol+xnl+avol-1.d0-pfnl)
+      fmun=(fn+boltzt)/emev
+      dfndt=fn*rect-boltzt*dpfnl
+      dfndro=boltzt*(recro+dlxndr)
+c
+      sgag=avo*xoan/t
+      sn=sgag*(un-fn)
+      dsndt=sn*(dlxndt-rect)+sgag*(dundt-dfndt)
+      dsndro=sn*dlxndr-sgag*dfndro
+c
+c   protons
+  100 continue
+      if(xp.lt.xmin) go to 200
+      xoap=xp
+      xpl= log(xp)
+      dlxpdt=dxpdt/xp
+      dlxpdr=dxpdro/xp
+c
+      up=bolzt2*dpfpl
+      dupdt=2.d0*up*rect+bolzt2*d2pfpl
+      ep=avo*xoap*up
+      depdt=ep*(dlxpdt+dupdt/up)
+      depdro=ep*dlxpdr
+c
+      pp=avo*ro*boltzt*xoap
+      dppdt=pp*(rect+dlxpdt)
+      dppdro=pp*(recro+dlxpdr)
+c
+      fp=boltzt*(rol+xpl+avol-1.d0-pfpl)
+      fmup=(fp+boltzt)/emev
+      dfpdt=fp*rect-boltzt*dpfpl
+      dfpdro=boltzt*(recro+dlxpdr)
+c
+      sgag=avo*xoap/t
+      sp=sgag*(up-fp)
+      dspdt=sp*(dlxpdt-rect)+sgag*(dupdt-dfpdt)
+      dspdro=sp*dlxpdr-sgag*dfpdro
+c
+c   alfa
+  200 continue
+      if(xa.lt.xmin) go to 300
+      xoaa=xa/4.d0
+      xal= log(xa)
+      dlxadt=dxadt/xa
+      dlxadr=dxadro/xa
+c
+      ua=bolzt2*dpfal
+      duadt=2.d0*ua*rect+bolzt2*d2pfal
+      ea=avo*xoaa*ua
+      deadt=ea*(dlxadt+duadt/ua)
+      deadro=ea*dlxadr
+c
+      pa=avo*ro*boltzt*xoaa
+      dpadt=pa*(rect+dlxadt)
+      dpadro=pa*(recro+dlxadr)
+c
+      fa=boltzt*(rol+xal-2.d0*twol+avol-1.d0-pfal)
+      fmua=fa+boltzt
+      dfadt=fa*rect-boltzt*dpfal
+      dfadro=boltzt*(recro+dlxadr)
+c
+      sgag=avo*xoaa/t
+      sa=sgag*(ua-fa)
+      dsadt=sa*(dlxadt-rect)+sgag*(duadt-dfadt)
+      dsadro=sa*dlxadr-sgag*dfadro
+c
+c   heavy
+  300 continue
+      if(xh.lt.xmin) go to 400
+      xoah=xh/ah
+      xhl= log(xh)
+      dlxhdt=dxhdt/xh
+      dlxhdr=dxhdro/xh
+c
+      uh=bolzt2*dpfhl
+      duhdt=2.d0*uh*rect+bolzt2*d2pfhl
+      duhdr=bolzt2*pfhltr
+      eh=avo*xoah*uh
+      dehdt=eh*(dlxhdt+duhdt/uh)
+      dehdro=eh*(dlxhdr+duhdr/uh)
+c
+      pph=avo*ro*boltzt*xoah
+      ph=pph*(1.0d0-ro*pfhlr)
+      dphdt=ph*(rect+dlxhdt)-pph*ro*pfhltr
+      dphdro=ph*(recro+dlxhdr)-pph*(pfhlr+ro*pfhlrr)
+c
+      ahl= log(ah)
+      fh=boltzt*(rol+xhl-ahl+avol-1.d0-pfhl)
+      fmuh=fh+boltzt
+      dfhdt=fh*rect-boltzt*dpfhl
+      dfhdro=boltzt*(recro+dlxhdr-pfhlr)
+c
+      sgag=avo*xoah/t
+      sh=sgag*(uh-fh)
+      dshdt=sh*(dlxhdt-rect)+sgag*(duhdt-dfhdt)
+      dshdro=sh*dlxhdr-sgag*dfhdro
+c
+c   --------------------------------------------------------------------
+c
+  400 continue
+      e=en+ep+ea+eh
+      dedtro=dendt+depdt+deadt+dehdt
+      dedrot=dendro+depdro+deadro+dehdro
+c
+      p=pn+pp+pa+ph
+      dpdtro=dpndt+dppdt+dpadt+dphdt
+      dpdrot=dpndro+dppdro+dpadro+dphdro
+c
+      s=sn+sp+sa+sh
+      dsdtro=dsndt+dspdt+dsadt+dshdt
+      dsdrot=dsndro+dspdro+dsadro+dshdro
+c
+      return
+      end

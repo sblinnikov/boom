@@ -1,0 +1,33 @@
+*deck wrtalex
+      subroutine  wrtalex (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+*call const
+c
+      print *,'wrtalex'
+      ntpr=35
+      call wrthead(jmax, ngmax, ntpr)
+      write (ntpr,920) ( ea     (i),i=1,jmax)
+      write (ntpr,920) ( fmass  (i),i=1,jmax)
+      write (ntpr,920) ( pa     (i),i=1,jmax)
+      write (ntpr,920) ( ra     (i),i=1,jmax)
+      write (ntpr,920) ( roa    (i),i=1,jmax)
+      write (ntpr,920) ( ta     (i),i=1,jmax)
+      write (ntpr,920) ( vela   (i),i=1,jmax)
+      write (ntpr,920) ( ye     (i),i=1,jmax)
+      write (ntpr,920) ( ynu    (i),i=1,jmax)
+c
+920   format(1p5e15.7)
+c
+      write (ntpr,920) ( enu  (i)*emev,i=ngmax,1,-1)
+      write (ntpr,920) ( denu (i)*emev,i=ngmax,1,-1)
+c
+      do  nut=1,numax
+        do  ng=ngmax,1,-1
+        write (ntpr,920) ( ya  (i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+      enddo   !  numax
+      call flush(ntpr)	
+      return
+      end

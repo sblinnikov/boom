@@ -1,0 +1,25 @@
+Model information
+
+test3 - A model with nu only. 
+anti3 - A model with nu/nubar only.
+tau3 - A model with all neutrinos
+
+test3c - convection / nu only
+anti3c - convection / nu and nubar
+tau3c - convection / all neutrinos
+
+test3nd - A model with nu only but no downscattering
+
+test5/anti5/tau5 are models with different initial zoning.  These
+models tend to break because the zoning near the shock is not
+sufficient during the time of interest.
+
+test3nr - A neutrino only model in which the adaptive meshing is
+turned off
+
+
+
+
+
+
+

@@ -1,0 +1,66 @@
+*deck setnup
+      subroutine  setnup (jmax,ngmax,keyflux)
+*call implic
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+      dimension ams(ngmaxm), p2m(ngmaxm), fi(ngmaxm)
+
+      if (keynue .eq. 0) then
+         return
+      endif
+      jequil = 1
+      do  j=2,jmax
+         if(rob(j).ge.roequil)  jequil=j
+      enddo
+
+      ddnue(2:jequil,1:ngmax,1:numax)=0d0
+      edd(1:jequil,1:ngmax,1:numax)=shlish
+      fxi(1:jequil,1:ngmax,1:numax)=0d0
+
+      do  nut=1,numax
+         if(numax.ge.2 .and. infall.eq.0)  then
+            call ratesp(jmax,ngmax)
+         else
+c This section might look unncecessary but its not
+c The problem is that adaptlag may fill these arrays with NaN's
+c which will cause problems later on.  (Namely random numerical 
+c errors).  -joe 19980803
+	    ydotpj(2:jmax, 1:ngmax, nut) = 0d0
+            abstpj(2:jmax, 1:ngmax, nut) = 0d0
+         endif
+
+         call rates(jmax,ngmax,nut)
+         do j=jequil+1,jmax-1
+            i=j-1
+            k=j+1
+            do  ng=1,ngmax
+               call ddnu4(rb(i),rb(j),rb(k),
+     +              ya(j,ng,nut),ya(k,ng,nut)
+     1              ,cscat(j,ng,ng,nut),cscat(k,ng,ng,nut)
+     2              ,ydot(j,ng,nut),ydot(k,ng,nut),yfull(ng)
+     3              ,ddnue(j,ng,nut),amj,edd(j,ng,nut),keyflux)
+            enddo
+         enddo
+
+         edd(jmax,1:ngmax,nut)=
+     +        min(edd(jmax-1,1:ngmax,nut),1d0)
+         fxi(1:jequil,1:ngmax,nut)=0d0	
+         do j=2,jmax
+            ams(1:ngmax)=
+     +           0.5d0*(edd(j-1,1:ngmax,nut)+
+     +           edd(j,1:ngmax,nut))
+            p2m(1:ngmax)=0.5d0*(3.0d0*ams(1:ngmax)-1d0)
+            fi(1:ngmax)=yb(j,1:ngmax,nut)*enu(1:ngmax)
+            fip2m(j,nut)=sum(fi(1:ngmax)*p2m(1:ngmax))*emev
+            pneut(j,nut)=sum(fi(1:ngmax)*ams(1:ngmax))*emev
+            flumn(j,nutype)=sum(flum(j,1:ngmax,nutype))
+            flume(j,nutype)=sum(flum(j,1:ngmax,nutype) *
+     &           enu(1:ngmax))*emev
+         enddo
+      enddo   !  numax
+c     
+      return
+      end

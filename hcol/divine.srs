@@ -1,0 +1,83 @@
+*deck divine
+      subroutine  divine(nu,ferm,der,fk)
+*call implic
+      dimension  a12(2),a22(2),a32(2),a42(2),a52(2),a62(2)
+      dimension  b12(3),b22(3),b32(3),b42(3),b52(3),b62(3)
+      real*8  nu
+      data alf /2.6971154d0/
+      data a12 /0.0d0 , 0.0d0/
+      data a22 /0.0d0 , 0.0d0/
+      data a32 /4.0444771d0 , 8.6132186d0/
+      data a42 /24.116961d0 , 13.082903d0/
+      data a52 /57.584337d0 , 18.075336d0/
+      data a62 /14.168719d0 , 17.573004d0/
+      data b12 /0.0d0 , 0.0d0 , 1.5832098d0/
+      data b22 /0.0d0 , 0.0d0 , 0.0d0/
+      data b32 /4.2063999d0 , 11.629816d0 , 7.0770719d0/
+      data b42 /17.804124d0 , 21.782148d0 , 8.7784752d0/
+      data b52 /28.101809d0 , 29.560025d0 , 10.160539d0/
+      data b62 /4.2945570d0 , 8.7744807d0 , 5.2799708d0/
+      if(fk.eq.(0.5d0)) go to  5
+      if(fk.eq.(1.0d0)) go to 10
+      if(fk.eq.(1.5d0)) go to 15
+      if(fk.eq.(2.0d0)) go to 20
+      if(fk.eq.(2.5d0)) go to 25
+      if(fk.eq.(3.0d0)) go to 30
+      stop 'fk error'
+    5 continue
+      a0=a12(1)
+      a1=a12(2)
+      b0=b12(1)
+      b1=b12(2)
+      b2=b12(3)
+      go to 99
+   10 continue
+      a0=a22(1)
+      a1=a22(2)
+      b0=b22(1)
+      b1=b22(2)
+      b2=b22(3)
+      go to 99
+   15 continue
+      a0=a32(1)
+      a1=a32(2)
+      b0=b32(1)
+      b1=b32(2)
+      b2=b32(3)
+      go to 99
+   20 continue
+      a0=a42(1)
+      a1=a42(2)
+      b0=b42(1)
+      b1=b42(2)
+      b2=b42(3)
+      go to 99
+   25 continue
+      a0=a52(1)
+      a1=a52(2)
+      b0=b52(1)
+      b1=b52(2)
+      b2=b52(3)
+      go to 99
+   30 continue
+      a0=a62(1)
+      a1=a62(2)
+      b0=b62(1)
+      b1=b62(2)
+      b2=b62(3)
+      go to 99
+c
+   99 continue
+      fl=fk+1.0d0
+      flh=fl/2.0d0
+      u=nu*(nu*(nu+a1)+a0)
+      d=nu*(nu*(nu+b2)+b1)+b0
+      p=(alf+nu)**flh
+      ferm=u*p/(d*fl)
+      deru=nu*(3.0d0*nu+2.0d0*a1)+a0
+      derd=nu*(3.0d0*nu+2.0d0*b2)+b1
+      derp=flh*p/(alf+nu)
+      der=deru/u+derp/p-derd/d
+      der=der*ferm
+      return
+      end

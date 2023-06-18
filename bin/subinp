@@ -1,0 +1,9 @@
+#!/usr/bin/perl
+
+foreach $model (split(/\s+/, $ARGV[0])) {
+    foreach $file (split(/\s+/, `ls $model.[0-9]`)) {
+	print "$file\n";	# 
+	` cp $file $file.bak
+	   sed -e "s|$ARGV[1]|$ARGV[2]|g" < $file.bak > $file`;
+    }
+}

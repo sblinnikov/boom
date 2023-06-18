@@ -1,0 +1,22 @@
+*deck her3
+      subroutine  her3(x,x1,x2,y1,y2,dy1,dy2,y)
+      implicit real*8 (a-h,o-z)
+c     ---------------------------------------------
+c     polynom of degree 3 connecting points 1 and 2
+c     ---------------------------------------------
+      sumx=x2+x1
+      difx=x2-x1
+      sumy=y2+y1
+      dify=y2-y1
+      sumdy=difx*(dy2+dy1)/2d0
+      difdy=difx*(dy2-dy1)/2d0
+c
+      d=sumdy-dify
+      c=difdy
+      b=3d0*dify-sumdy
+      a=2d0*sumy-difdy
+c
+      xee=(2d0*x-sumx)/difx
+      y=(((d*xee+c)*xee+b)*xee+a)/4d0
+      return
+      end

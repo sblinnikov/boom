@@ -1,0 +1,58 @@
+*deck rotov
+      subroutine  rotov
+     *( roc,s,dm2,dmp,dm3,ro2,e2,p2,t2
+     a, fmue2,fmue3,keosz
+     1, ah,zh,ye,xn,xp,xa,xh)
+*call implic
+*call chemp
+*call const
+*call keyeos
+      data  ipr  /0/
+      data  eps  /1d-6/
+      keysof=0
+      dsdm=4.1d-26
+      dsdm=0.0d0
+      do 10  j=1,100
+      xmue=fmue2
+      keyets=3
+      keyeos=keosz
+      ynu=0.d0
+      jzone=2
+      call  state
+     1 (ro2,e2,t2,p2,s,snd
+     2 ,tr,te,pr,pe,sr,se
+     3 ,ah,zh,ye,ynu,xn,xp,xa,xh
+     * ,keyets)
+      fmue2=xmue
+      r2=(3.d0*dm2/ro2/pai4)**shlish
+      pg2=grav*dm2*dmp/r2**4/pai4
+      p3=p2-pg2
+      ro3=ro2
+      s3=s+dsdm*dmp
+      e3=e2
+      t3=t2
+      call  rosp
+     1 (ro3,e3,t3,p3,s3,snd
+     a, fmue3,3,keosz
+     2 ,tr,te,pr,pe,sr,se
+     3 ,ah,zh,ye,xn,xp,xa,xh
+     *)
+      rom=(ro2*dm3+ro3*dm2)/(dm2+dm3)
+      ronew=0.5d0*(roc+rom)
+      err=abs((ronew-ro2)/ro2)
+      ro2=ronew
+      if(keysof.ne.0) go to 20
+      if(err.le.eps) keysof=1
+10    continue
+      print 901,roc,ro2,err
+      print 903
+903   format(' no convergence in rotov')
+      stop    'no convergence in rotov'
+20    continue
+      if(ipr.eq.0) return
+      print 902,j,roc,ro2,e2,p2
+      return
+901   format(' no convergence in rotov. roc,ro2,err ',1p3e12.4)
+902   format(' rotov converged after',i4,' iterations.  roc=',1pe12.4
+     1,' ro2=',e12.4,' e2=',e12.4,' p2=',e12.4)
+      end

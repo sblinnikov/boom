@@ -1,0 +1,80 @@
+*deck newtn2
+      subroutine  newtn2(xa,xb,fun,kinus,it)
+*call implic
+*call funcnam
+*call xnpah
+      external  fun
+      data  rel/0.1d0/
+      data  eps/1d-8/
+c
+      kprm=0
+      if(kinus.lt.0)  kprm=1
+      kpr=0
+      xainit=xa
+      xbinit=xb
+ 2000 continue
+      xa=xainit
+      xb=xbinit
+      kinus=0
+      mone=0
+1     mone=mone+1
+      do 100 itt=1,99
+      it=itt
+      call  fun(xa,xb,fa,fb,faa,fab,fba,fbb)
+      det=faa*fbb-fab*fba
+      if(det.ne.0.d0)  goto  5
+      if(mone.gt.1)  goto   4
+      xa=0.1d0
+      xb=0.1d0
+      goto   1
+4     continue
+      print 902,funk,it,xa,xb,fa,fb,faa,fab,fba,fbb,dxa,dxb
+      return
+5     continue
+      dxa=(+fb*fab-fa*fbb)/det
+      dxb=(-fb*faa+fa*fba)/det
+      ra=abs(dxa/xa)
+      rb=abs(dxb/xb)
+      if(ra.lt.rel.and.rb.lt.rel) go to 10
+      rr= max (ra,rb)
+      dxa=rel*xa*(ra/rr)*sign(1.0d0,dxa)
+      dxb=rel*xb*(rb/rr)*sign(1.0d0,dxb)
+   10 continue
+      if(kpr.eq.0)  goto  11
+      print 902,funk,it,xa,xb,fa,fb,faa,fab,fba,fbb,dxa,dxb
+902   format(1h ,a4,1x,i2,1p10e12.4)
+11    continue
+      xa=xa+dxa
+      xb=xb+dxb
+      if(ra.ge.eps.or.rb.ge.eps) go to 100
+      call  fun(xa,xb,fa,fb,faa,fab,fba,fbb)
+      sumx=x1+x2+x3+x4
+      if(abs(sumx-1.d0).le.1.d-6) go to 90
+      if(kprm.eq.0) go to 150
+      if(kpr.gt.0) go to 920
+      kpr=1
+      go to 2000
+   90 continue
+      kinus=1
+      go to 150
+  100 continue
+      if(kprm.eq.0) go to 150
+      if(kpr.gt.0) go to 990
+      kpr=1
+      go to 2000
+  150 continue
+      return
+c
+c   zarot
+  990 continue
+      print 901
+  901 format(1h ,'no convergence in double newton raphson')
+  900 format(1h ,1p6e15.5)
+      return
+c
+  920 continue
+      print 921,funk,x1,x2,x3,x4
+  921 format('  sum of x differs from 1. funk=',a4
+     1/'  x1, x2, x3, x4 ',1p4e15.6)
+      return
+      end

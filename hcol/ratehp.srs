@@ -1,0 +1,24 @@
+*deck ratehp
+      subroutine  ratehp (xp,xh,ah,zh,fmuh,fmue,temp,ro
+     1,enu,denu,ydot,ccapt)
+*call implic
+*call const
+c     temperature in MeV
+      yedotp=0d0
+      yedoth=0d0
+      if(xp.le.0d0)  goto  10
+      call  ratep (xp,fmue,temp,enu,denu,yedotp)
+ 10   continue
+      if(xh.le.0d0 .or. ah.le.0d0)  goto   20
+      call  rateh (xh,ah,zh,fmuh,fmue,temp,enu,denu,yedoth)
+ 20   continue
+      yedot=yedotp+yedoth
+      arg=(enu-fmue+fmuh)/temp
+      arg=min(arg, 600d0)
+      arg=max(arg,-600d0)
+      ex=exp(arg)
+      ydot=max(-yedot*avo*ro,0d0)
+      yfull=enu**2*denu/facdis
+      ccapt=ydot/yfull*ex
+      return
+      end

@@ -1,0 +1,29 @@
+*deck eos141
+      subroutine  eos141 (ro,t,k,e,p,s
+     1,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+*call implic
+*call hiro
+      rorom=ro/rom
+      b=b00(k)*t**abb(k)
+      dbdt=abb(k)*b/t
+      roromb=rorom**(-b)
+      pc=akk(k)*ro**gamah
+      pt=p00(k)*t**app(k)*rorom*roromb
+      p=pc+pt
+      dpdro=(gamah*pc+(1.d0-b)*pt)/ro
+      tmp1= log(rorom)*dbdt
+      dpdt=pt*(app(k)/t-tmp1)
+      aft=aff(k)/t
+      f2=f00(k)*t**aff(k)*roromb
+      f3=aft-tmp1
+      s=f2*f3
+      dsdro=-(s+f2*abb(k)/t)*b/ro
+      dsdt=s*(aft-tmp1)-f2/t*(aft+(abb(k)-1.d0)*tmp1)
+      ec=pc/ro/(gamah-1.d0)+cee(k)
+      ft=-f2
+      f=ft+ec
+      e=f+t*s
+      dedro=p/ro**2+t*dsdro
+      dedt=t*dsdt
+      return
+      end

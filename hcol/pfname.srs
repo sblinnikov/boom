@@ -1,0 +1,26 @@
+*deck pfname
+      subroutine  pfname(name1,name2,lng)
+*call implic
+      parameter  (maxlen=50)
+      character*(*)     name1
+      character*(*)     name2
+      lename1=len(name1)
+      lename2=len(name2)
+      lename=min(lename1,lename2)
+      lename=min(lename,maxlen)
+      name2(1:lename)=name1(1:lename)
+c
+      do  i=1,lename
+      l=lename+1-i
+      if(name2(l:l) .ne. ' ' )  goto  1
+      enddo
+      print *,' pfname blank name ',name1
+      lng=0
+      return
+ 1    continue
+      lng=l
+      do  l=1,lng
+      if(name2(l:l) .eq. ' ')   name2(l:l) = '_'
+      enddo
+      return
+      end

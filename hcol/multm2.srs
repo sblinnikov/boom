@@ -1,0 +1,28 @@
+*deck multm2
+      subroutine  multm2(a,b,c,fsign)
+*call implic
+      dimension a(2,2),b(2,2),c(2,2)
+      data eps/1d-16/
+      aaa=max(abs(a(1,1)),abs(a(2,2)),abs(a(1,2)),abs(a(2,1)))
+      aaa=max(aaa,eps)
+      if(abs(a(1,2)/aaa).le.eps.and.abs(a(2,1)/aaa).le.eps) then
+                                                            a(1,2)=0d0
+                                                            a(2,1)=0d0
+                                                            end if
+      bbb=max(abs(b(1,1)),abs(b(2,2)),abs(b(1,2)),abs(b(2,1)))
+      bbb=max(bbb,eps)
+      if(abs(b(1,2)/bbb).le.eps.and.abs(b(2,1)/bbb).le.eps) then
+                                                            b(1,2)=0d0
+                                                            b(2,1)=0d0
+                                                            end if
+      do 10 jl=1,2
+      do 10 jc=1,2
+   10 c(jl,jc)=0.0
+      do 20 jl=1,2
+      do 20 jc=1,2
+      do 18 jrun=1,2
+      c(jl,jc)=c(jl,jc)+fsign*a(jl,jrun)*b(jrun,jc)
+   18 continue
+   20 continue
+      return
+      end

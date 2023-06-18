@@ -1,0 +1,114 @@
+*deck zoning2
+      subroutine  zoning2 (mold,dmko,rold,roold,jmaxold,massin,nin
+     1,mnew,dmkn,dmp,rnew,ronew,jmaxnew)
+*call implic
+      real*8 mnew,mold,massin
+*call const
+*call par
+      dimension mold(jmaxold),dmko(jmaxold),rold(jmaxold),roold(jmaxold)
+      dimension mnew(jmaxnew),dmkn(jmaxnew),rnew(jmaxnew),ronew(jmaxnew)
+      dimension  dmp(jmaxnew)
+c
+      common  /nzan/n
+      common  /zan/ az,sz
+      external  zanav
+c
+c----------------------------------------------------------------
+c     nin eq. mnew zoning to massin at r1
+c     nout zones from massin to mass2 at r2 geometrically spaced
+      nout=jmaxnew-nin
+      mnew(1)=0d0
+      dmkn(1)=0d0
+      dmp(1) =0d0
+c
+      dm1=massin/(nin-1)
+      do  j=2,nin
+      dmkn(j)=dm1
+      mnew(j)=mnew(j-1)+dmkn(j)
+      enddo
+c
+c     now find r1(massin)
+c
+      do   jold=1,jmaxold
+      rold(jold)=rold(jold)**3
+      enddo
+c
+c
+      dma    =0d0
+      rnew(1)=0d0
+c
+      do   jnew=2,nin
+      inew=jnew-1
+c
+      do   jold=2,jmaxold
+      if(mold(jold).ge.mnew(jnew)) go to 10
+      enddo
+      jold=jmaxold
+c
+10    continue
+      dmb=mold(jold)-mnew(jnew)
+      rnew(jnew)=rold(jold)-dmb/roold(jold)/pai43
+      ronew(jnew)=(mnew(jnew)-mnew(inew))/(rnew(jnew)-rnew(inew))/pai43
+c
+      enddo
+      do  j=2,nin
+      rnew(j)=rnew(j)**shlish
+      enddo
+      drlast=rnew(nin)-rnew(nin-1)
+      router=rold(jmaxold)**shlish-rnew(nin)
+      n=nout
+      az=drlast
+      sz=router
+      q=1.5d0
+      call  newton (q,zanav)
+      print *,' zoning2  ntime=',ntime,'  q=',q
+      do   j=nin+1,jmaxnew
+      drk=az*q**(j-nin)
+      rnew(j)=rnew(j-1)+drk
+      enddo
+      do  j=2,jmaxnew
+      rnew(j)=rnew(j)**3
+      enddo
+c
+      do  jnew=nin+1,jmaxnew
+      inew=jnew-1
+c
+      do   jold=2,jmaxold
+      if(rold(jold).ge.rnew(jnew)) go to 20
+      enddo
+      rnew(jnew)=rold(jmaxold)
+      jold=jmaxold
+c
+20    continue
+      dmb=roold(jold)*pai43*(rold(jold)-rnew(jnew))
+      mnew(jnew)=mold(jold)-dmb
+      ronew(jnew)=(mnew(jnew)-mnew(inew))/(rnew(jnew)-rnew(inew))/pai43
+c
+      enddo
+c
+c
+      do   j=2,jmaxold
+      rold(j)=rold(j)**shlish
+      enddo
+c
+      do   j=2,jmaxnew
+      rnew(j)=rnew(j)**shlish
+      dmkn(j)=mnew(j)-mnew(j-1)
+      enddo
+c
+      do   j=2,jmaxnew-1
+      dmp(j)=0.5d0*(dmkn(j)+dmkn(j+1))
+      enddo
+      dmp(jmaxnew)=0.5d0*dmkn(jmaxnew)
+c
+      print *,' j      rold   roold    dmkold    mold'
+     1,         '      rnew   ronew    dmknew    mnew    drnew'
+      do   j=2,jmaxnew
+      print 906,j,rold(j)/1d5,roold(j),dmko(j)/solmas,mold(j)/solmas
+     1,rnew(j)/1d5,ronew(j),dmkn(j)/solmas,mnew(j)/solmas
+     2,((rnew(j)-rnew(j-1))/1d5)
+906   format(i3,2(1x,f9.3,1pe10.2,0p2f8.4),f9.3)
+      enddo
+c
+      return
+      end

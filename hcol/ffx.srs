@@ -1,0 +1,17 @@
+*deck ffx
+      subroutine  ffx(x,f,fx)
+*call implic
+*call cfnp
+      expm(arg)=exp(max(min(arg,argmax),-argmax))
+      data  argmax /600d0/
+c
+      xh=1.d0-x
+      xa=ye2*x
+      cnl=c11l+(d11-1.d0)* log(xa)+d12* log(xh)
+      cn=expm(cnl)
+c     cn=c11*xa**(d11-1.)*xh**d12
+      xn=cn*xa
+      f=ye21*x-xn
+      fx=ye21-d11*ye2*cn+d12*xn/xh
+      return
+      end

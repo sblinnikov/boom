@@ -1,0 +1,48 @@
+*deck trimat
+      subroutine  trimat(am,bm,cm,dv,xv,aam,bbv,nx,ndimat)
+*call implic
+      parameter(one=1.d0)
+      dimension am(2,2,ndimat),bm(2,2,ndimat),cm(2,2,ndimat)
+      dimension dv(2,ndimat)
+      dimension xv(2,ndimat),scr1(2,2),scr2(2,2),v1(2)
+      dimension aam(2,2,ndimat),bbv(2,ndimat)
+      call invers2(bm(1,1,nx),scr1)
+      if(nx.eq.1) go to 700
+      fsign=-one
+      call multm2(scr1,am(1,1,nx),aam(1,1,nx),fsign)
+      fsign=+one
+      call multv2(scr1,dv(1,nx),bbv(1,nx),fsign)
+      do 20 j=2,nx
+      n=nx+2-j
+      m=n-1
+      fsign=+one
+      call multm2(cm(1,1,m),aam(1,1,n),scr2,fsign)
+      call addm2(bm(1,1,m),scr2,scr2,fsign)
+      call invers2(scr2,scr1)
+c     in scr1: denom**(-1)
+      fsign=-one
+      call multm2(scr1,am(1,1,m),aam(1,1,m),fsign)
+c     aam(m) calculated
+      fsign=+one
+      call multv2(cm(1,1,m),bbv(1,n),v1,fsign)
+      v1(1)=dv(1,m)-v1(1)
+      v1(2)=dv(2,m)-v1(2)
+      call multv2(scr1,v1,bbv(1,m),fsign)
+c     bb(m) calculated
+   20 continue
+      xv(1,1)=bbv(1,1)
+      xv(2,1)=bbv(2,1)
+      do 40 n=2,nx
+      m=n-1
+      fsign=+one
+      call multv2(aam(1,1,n),xv(1,m),v1,fsign)
+      xv(1,n)=v1(1)+bbv(1,n)
+      xv(2,n)=v1(2)+bbv(2,n)
+   40 continue
+      go to 799
+  700 continue
+      fsign=+one
+      call multv2(scr1,dv,xv(1,nx),fsign)
+  799 continue
+      return
+      end

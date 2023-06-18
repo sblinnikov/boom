@@ -1,0 +1,32 @@
+joe2kr3
+  150    5    1
+             -1
+'/d1/tao/joe'
+'/home/alla/joe/eos_files/eostab.6.3'
+
+&cor
+ keycomp=1,
+ smass=2.20, keyzons=4, fmass1=0.8, fmass2=1.0, frnz1=0.1, frnz2=0.7,
+ ntimax=5000000,timax=52.00,runtime=7200.,
+ keygr=0,kchkdif=0,
+ keynue=5,keynup=0,keyrate=1,keyscat=3,kdnscat=0,
+ enu1=5.,enumax=250.,
+ epsdifq=1.0e-5,kfluxlm=1,kschifa=0,
+ epsdye=5.0e-2,
+ nuprnt=1000, nwtprof=5000,
+ roshakf=2.0e12,
+ keos=7,jmxeos1=176,
+ dmping=5000.,
+ dtck=0.05, dtplot=0.0002,
+ iprntin=1, mprnt=1000, nprnt=5000,
+ keyplt=-2,
+ inprof=92,jmaxinp=1000,yeinmax=0.43,
+ ntapin=9,
+ edel=0.01,dyein=0.001, pexter=3.48e+21, mxjmin=1,
+ stab=0.3, dtflux=0.05, keyjoe=22, zvisbase=1.0e+6,keyjout=10000
+/
+
+
+
+
+

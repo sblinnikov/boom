@@ -1,0 +1,27 @@
+*deck abcd0
+      subroutine  abcd0(w,wp,a,b,c,d)
+*call implic
+      save  /wpowers/
+      common/wpowers/w2,w3,w4,wp2,wp3,wp4,wwp,w2wp2,w2wp,w2wp3,w3wp2
+     1               ,w3wp
+      parameter(f83=8d0/3d0,f43=4d0/3d0,f415=4d0/15d0,f163=16d0/3d0)
+      dimension a(3:5),b(0:5),c(0:2),d(0:2)
+      a(3)=+f83/w2
+      a(4)=-f43/w2wp
+      a(5)=+f415/w2wp2
+      wplwp2=(w+wp)**2
+      wplwp3=wplwp2*(w+wp)
+      b(0)=+f415*(1d0/w2-3d0/wwp+6d0/wp2)*wplwp3
+      b(1)=-f43 *(1d0/w2-2d0/wwp+3d0/wp2)*wplwp2
+      b(2)=+f83*(w3+wp3)/w2wp2
+      b(3)=-a(3)
+      b(4)=-a(4)
+      b(5)=-a(5)
+      c(0)=+f83*w+4d0*w2/wp+1.6*w3/wp2
+      c(1)=-f163*w/wp-4d0*w2/wp2
+      c(2)=+f83*w/wp2
+      d(0)=+f415*wp3/w2
+      d(1)= -f43*wp2/w2
+      d(2)= +f83*wp /w2
+      return
+      end

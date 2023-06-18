@@ -1,0 +1,195 @@
+*deck plotr
+      program plotr
+      implicit none
+*call dim
+*call par
+      character xxx*10
+      integer*4, parameter :: ndim1=500,ndim2=3000
+      integer*4 :: ngmax
+      real*8 dy, x, y
+      integer*4 ipl, kdilul, loc, lng, ntp, iargc
+      real*8 :: tmin, tmax, ox, oy, xmin, dx, ymin, tbounce
+      integer*4 l, nb, n, ntype, nw, j, npt, n1
+      integer*4 n2, jmax, nlines,ii,nword, i, istartline
+      
+      real*8, dimension(ndim1,ndim2) :: r
+      real*8, dimension(ndim2) :: rshock, tshock
+      real*8, dimension(ndim2) :: rgain, tgain
+      real*8, dimension(ndim1) :: fmass1, fmassin, rin
+      integer*4 :: imassread, imass1len, iprevj, nshock
+      integer*4 :: ngain
+ 
+      dimension  ipl(ndim1)
+      character*10 :: word,endfile
+      character*10 :: hx,hy,hp
+      character*80 :: namef,namein
+      character*30 :: path, dilf
+      integer numargs
+
+      tbounce = 0d0      
+      imassread = 0 
+      numargs = iargc()
+      if (numargs .eq. 1) then
+         call getarg(1, namef)
+         kdilul = 10
+      elseif (numargs .eq. 2) then
+         call getarg(1, namef)
+         call getarg(2, dilf)
+         read(dilf,*) kdilul
+      else
+         stop 'Wrong number of arguments: plotr <filename> <dilution>'
+      endif
+
+      open(unit=12,file=namef,status='old'
+     1,access='sequential')
+      ntp=12
+      rewind ntp
+      hx=' time'
+      hy=' log(r)'
+      ox=24.
+      oy=15.
+      xmin=0.
+      dx=0.005
+      ymin=5.4
+      dy=0.2
+      l=index(namein,' ')-1
+      nb=0
+      nb=nb+1
+      n=0
+      nshock=1
+      ngain=1
+      if(nb.gt.1) n=n+1
+ 200  continue
+      xxx = ''
+      do while (xxx .ne. 'zzzzzzzzzz')  
+         read(ntp,909,end=217) xxx
+      enddo
+  909 format(a10)
+      read(ntp,*) namein,ntime,time,dtlast,dta,jmax,ngmax,
+     &		  numax,khelem,kgainr
+c 910   format(a10,i10,1pe13.6,2e12.4,4i10)
+c      print 910,namein,ntime,time,dtlast,dta
+      xxx = ''
+      do while (xxx .ne. 'rrrrrrrrrr')  
+         read(ntp,909,end=217) xxx
+      enddo
+      nw = jmax
+      read (ntp,*,end=217)  ( rin(j),j=1,nw)
+      read (ntp,*,end=217)  ( fmassin(j),j=1,nw)
+  920 format(1p10e10.2)
+      if (khelem .gt. 2) then
+         rshock(nshock) = rin(khelem)
+	 tshock(nshock) = rin(1)
+	 nshock = nshock+1
+      endif
+
+      if (kgainr .gt. 2 .and. kgainr .lt. khelem-1) then
+         rgain(ngain) = rin(kgainr)
+	 tgain(ngain) = rin(1)
+	 ngain = ngain+1
+      endif
+
+      if (imassread .eq. 0) then
+         imassread = 1
+         fmass1 = fmassin
+         imass1len = nw
+	 tmin = rin(1)
+	 tmax = rin(1)
+      endif
+      iprevj = 1
+      r(1,n) = rin(1)
+      if (rin(1) .gt. tmax) tmax = rin(1)
+      do i=2,imass1len
+         r(i,n) = 0d0
+         do j=2,nw-1
+            if (fmassin(j) .le. fmass1(i) .and.
+     ^           fmass1(i) .le. fmassin(j+1)) then
+               r(i,n) = rin(j) + (fmass1(i) - fmassin(j)) /
+     &              (fmassin(j+1) - fmassin(j)) * (rin(j+1) - rin(j));
+               iprevj = j
+	       exit
+            endif
+         enddo
+      enddo
+
+      n=n+1
+      if(n.lt.ndim2)  goto  200
+ 217  continue
+      npt=n
+      print *,'// block #',nb,'  number of t points=',npt
+      n1=1
+      n2=npt
+      jmax=imass1len
+c-------------------------------------------------------
+      nlines=jmax/kdilul
+      if(nlines.eq.jmax)   nlines=nlines-1
+      ipl(nlines)=jmax
+      do   ii=2,nlines
+         i=nlines+1-ii
+         ipl(i)=ipl(i+1)-kdilul
+      enddo
+c-------------------------------------------------------
+      print *,'#proc areadef'
+      print *,'   title: t vs log-r'
+      print *,'   xrange: ', tmin - tbounce,' ', tmax - tbounce
+      print *,'   xaxis.label: time (seconds)'
+      print *,'   xaxis.stubs: inc l 0.1'
+      print *,'   yrange: 5 9'
+      print *,'   yaxis.stubs: inc l 1'
+      print *,'   yaxis.label: log-r'
+
+      do i=1,nlines
+         j=ipl(i)
+         print *, '#proc line'
+	 istartline = 1
+         do n=n1,n2
+            x=r(1,n) - tbounce
+            y=r(j,n)
+	    if (x .ne. -tbounce .or. y .ne. 0d0) then
+            if (istartline .eq. 1) then
+               print *, 'notation: scaled'
+               print *, 'points: ', x, y
+	       istartline = 0
+            else
+               print *, '        ', x, y
+            endif
+	    endif
+         enddo
+         print *, ' '
+      enddo
+
+      do i=1,nshock
+         if (i .eq. 1) then
+         print *, '#proc getdata'
+         print *, 'data: ', tshock(i), rshock(i)
+	 elseif (rshock(i) .gt. 0d0) then
+         print *, '        ', tshock(i), rshock(i)
+	 endif
+      enddo
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 2'
+      print *, 'linedetails: style=2'
+      print *, 'label: Shock'
+
+      do i=1,ngain
+         if (i .eq. 1) then
+         print *, '#proc getdata'
+         print *, 'data: ', tgain(i), rgain(i)
+	 elseif (rgain(i) .gt. 0d0) then
+         print *, '        ', tgain(i), rgain(i)
+	 endif
+      enddo
+
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 2'
+      print *, 'linedetails: style=2'
+      print *, 'label: Gain'
+      if(npt.lt.ndim2)  goto  400
+      do  350  j=1,nw
+      r(j,1)=r(j,ndim2)
+350   continue
+400   continue
+c      call  sium
+      end

@@ -1,0 +1,87 @@
+*deck printbal
+      subroutine  printbal (jmax,ngmax)
+      implicit none
+*call dim
+*call const
+*call corct
+*call par
+      integer*4, intent(inout) :: jmax
+      integer*4, intent(in) :: ngmax
+      integer*4 :: i,j,k,ng
+
+      real*8 :: egrava, egravb, degravdt
+      real*8 :: etrma, etrmb, detrmdt
+      real*8 :: ekina, ekinb, dekindt, debaldt
+      real*8, dimension(jmaxm) :: totflume, enutota, enutotb, work
+      real*8, dimension(jmaxm) :: enudens
+      real*8 :: denudt, diflume, dwork, pjk, rm, dvel
+
+      real*8 :: workj,dtm
+      real*8 :: lum,nut
+
+      if (nprntbal .eq. 0 .or. mod(ntime,nprntbal) .ne. 0) then
+         return
+      endif
+      dtm = (dta+dtb)/2d0
+      totflume(1) = zero
+      do j=2,jmax
+         i=j-1
+	 k=j+1
+	 rm = (ra(j) + rb(j)) / 2
+	 pjk = (pa(j) + pb(j) + pa(k) + pb(j)) / 4d0 +
+     ^	   (sgma(j) + sgmb(j) + sgma(k) + sgma(k)) / 4d0
+	 work(j) = pai4 * rm * rm * velb(j) * pjk
+         totflume(j) = flume(j,1) + flume(j,2) +
+     ^        4d0 * flume(j,3)
+         enutota(j) = zero
+         enutotb(j) = zero
+	 enudens(j) = zero
+         do ng=1,ngmax
+	 do nut=1,numax
+            enutotb(j)=enutotb(j)+yb(j,ng,nut) * enu(ng)*
+     ^           (rb(j)**3d0 - rb(i)**3d0)*fnufac(nut)
+            enutota(j)=enutota(j)+ya(j,ng,nut) * enu(ng)*
+     ^           (ra(j)**3d0 - ra(i)**3d0)*fnufac(nut)
+            enudens(j)=enudens(j)+(ya(j,ng,nut) + ya(k,ng,nut))
+     +	    * enu(ng)/2.0 * fnufac(nut)
+         enddo
+         enddo
+      enddo
+      enudens(1:jmax) = enudens(1:jmax)*emev
+      enutota(1:jmax) = enutota(1:jmax)*emev*pai43
+      enutotb(1:jmax) = enutotb(1:jmax)*emev*pai43
+
+      print 900,name(1:10),ntime,time,dtlast,dta
+900   format(/' Energy balance   name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+ 910  format('  j',4x,'degdt',4x,'detdt',4x,'dekdt',4x,
+     ^     'denudt',4x,'diflume',4x,'dwork', 4x, 'dvel', 4x, 
+     +     'debal', 4x, 'j   ')
+ 920  format(i4,1p8e10.2,i4)
+      print 910
+      do j=2,jmax
+         i = j-1
+         k = j+1
+         egravb=       (0.5d0*(rb(j)**2-rb(i)**2)*
+     &        (fmass(i)-pai43*rob(j)*rb(i)**3)
+     1        +pai4/15.d0*rob(j)*(rb(j)**5-rb(i)**5) ) * rob(j)
+         egrava=       (0.5d0*(ra(j)**2-ra(i)**2)*
+     &        (fmass(i)-pai43*roa(j)*ra(i)**3)
+     1        +pai4/15.d0*roa(j)*(ra(j)**5-ra(i)**5) ) * roa(j)
+         degravdt = -(egravb - egrava) / dtb * grav * pai4
+         etrma = ea(j) * dmk(j)
+         etrmb = eb(j) * dmk(j)
+         detrmdt = (etrmb - etrma) / dtb
+         dekindt = dmp(j) * velb(j) * acc(j)
+         denudt = (enutotb(j)-enutota(j)) / dtb
+	 diflume = (totflume(j) - totflume(i))
+	 dwork = (work(j) - work(i))
+	 dvel = - pai4* ra(j) * ra(j) * velb(j) * enudens(j) +
+     +        pai4* ra(i) * ra(i) * velb(i) * enudens(i)  
+
+	 debaldt = degravdt + detrmdt + dekindt + denudt +
+     ^	 diflume + dwork + dvel
+         print 920, j, degravdt, detrmdt, dekindt, denudt, 
+     &	 diflume, dwork, dvel, debaldt, j
+      enddo
+      end

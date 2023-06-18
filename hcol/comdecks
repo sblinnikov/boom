@@ -1,0 +1,425 @@
+*comdeck implic
+      implicit real*8 (a-h,o-z)
+c     -------------------------
+*comdeck asdro
+      real*8, parameter :: asig = 4.0 ! Ritchmeyer visocity parameter
+      real*8, parameter :: asig2 = 0.2d0 ! linear visocity parameter
+      real*8, parameter :: dromin = 0.015d0
+      real*8, parameter :: dromax = 0.03d0
+c========================================================================
+*comdeck azy
+      save  /azy/
+      common /azy/ ah,zh,yeh,ye
+c========================================================================
+*comdeck barion
+      save  /barion/
+      common /barion/ wn,wp,wa,wh
+     1,pfnl,pfpl,pfal,pfhl
+     2,dpfnl,dpfpl,dpfal,dpfhl,d2pfnl,d2pfpl,d2pfal,d2pfhl
+     3,pfhlr,pfhlrr,pfhltr
+c========================================================================
+*comdeck cfnp
+      save  /cfnp/
+      common /cfnp/ ca,cb,cal,cbl,calr,calt,cblr,cblt
+     1,c11,c13,c14,c21,c23,c24
+     c,c11l,c21l
+     d,c11lr,c11lt,c21lr,c21lt
+     e,d11,d12,d21,d22
+     f,alfa,beta
+     g,ye2,ye2l,ye21,ye21l
+c========================================================================
+*comdeck chemp
+      real*8 :: etaelc,etanue, xmue,xmunu,xmun,xmup,xmuhat
+      real*8 :: yepos
+      save    /chemp/
+      common  /chemp/  etaelc,etanue
+      common  /chemp/  xmue,xmunu,xmun,xmup,xmuhat
+      common  /chemp/  yepos
+c     chemical potentials in mev
+c========================================================================
+*comdeck const
+      real*8 :: twol, avol, pai2l, contl, planckl, boltzl, c2 
+      save  /const/
+      common /const/ twol
+     a, avol,pai2l
+     c, contl
+      real*8, parameter :: zero=0d0
+      real*8, parameter :: one=1d0
+      real*8, parameter :: two=2d0
+      real*8, parameter :: shlish=1d0/3d0
+      real*8, parameter :: half=0.5d0
+      real*8, parameter :: avo=6.022045d23
+      real*8, parameter :: boltz=1.380662d-16
+      real*8, parameter :: charge=4.80286d-10
+      real*8, parameter :: clite=2.99792458d10
+      real*8, parameter :: emev=1.6021892d-6
+      real*8, parameter :: fmelctr=9.10953d-28 ! mass of the electron
+      real*8, parameter :: planck=6.62618d-27 ! planck constant
+      real*8, parameter :: grav=6.627259d-8 ! gravitational constant
+      real*8, parameter :: solmas=1.99d33 ! solar mass 
+      real*8, parameter :: solrad=6.96d10 ! solar radius
+      real*8, parameter :: tmev=emev/boltz ! temperature of an MeV
+      real*8, parameter :: rgas=avo*boltz ! Gas constant
+      real*8, parameter :: clite2=clite**2 ! C**2
+      real*8, parameter :: fmbarion=1d0/avo !
+      real*8, parameter :: enbrst=fmbarion*clite**2
+      real*8, parameter :: enerst=fmelctr*clite**2 ! rest mass of e-
+      real*8, parameter :: enelmev=enerst/emev ! mass energy of e- (MeV
+      real*8, parameter :: qmev = 1.2935d0 ! p/n mass difference (MeV)
+      real*8, parameter :: pai=3.1415926535897932384626433 ! pi
+      real*8, parameter :: pai2=two*pai
+      real*8, parameter :: pai4=4d0*pai
+      real*8, parameter :: pai43=pai4*shlish
+      real*8, parameter :: facdis=(planck*clite/emev)**3/pai4
+      real*8, parameter :: sthw2=0.23d0  ! sine of weinberg angle
+      real*8, parameter ::
+     &	       arad=8.d0/15d0*pai**5*boltz/(planck*clite/boltz)**3
+c========================================================================
+*comdeck corct
+*call cora
+*call cori
+c      end corct (cora+cori)
+c========================================================================
+*comdeck cora
+      real*8 :: coralen
+*call corac
+      save  /cora/
+      common /cora/ coralen
+*call corac
+      real*8 :: timerlg(5)
+c========================================================================
+*comdeck corac
+c see input.srs for defaults and what these variables do
+     a,ah0
+     a,adnearshock, admminsplit, admminmerge
+     a,adrmax1a,adrmax1b,adrmax1c,adrmax2a,adrmax2b
+     a,adrmax2c,adrmax3a,adrmax3b,adrmax3c
+     a,admergeplim,admergevlim,adshlim,adsplitrholim
+     a,adsplitrlim,admaxmass,adsplityelim
+     c,confro,confye,confgam,conft
+     c,confro1,confye1,conft1
+     c,confrb0,confrb1,confefac
+     d,dtmax,dtmin,dtprnt,dtplot,dtck,dmping,dtprof,dtflux,dtconv
+     e,edel,enumax,enu1,epsdifq,epsdye
+     f,fmass1,fmass2,frnz1,frnz2
+     f,fzconst1,fzconst2,fzconst3,fzconst4,fzconst5
+     f,fconml,fconmr,fconrs, fconrye, fconas, fconaye, fconldx
+     f,fconper, fconasym, fcondis, fconbra, fcontp, frotin
+     f,fneuscat,fneuemis,fneuabs
+     f,ftest0,ftest1,ftest2,ftest3,ftest4,ftest5,ftest6,ftest7
+     f,ftest8,ftest9
+     f,finput0,finput1,finput2,finput3,finput4,finput5,finput6
+     f,finput7,finput8,finput9
+     p,pexter
+     r,rmedia,roc,rstop,roatum,roecapt,roshakf,runtime,roequil
+     r,rnumeas
+     s,stepm,stepr,stab,smass,cmass,szero,sedove,sedovm
+     t,timax,tprnt,tplot
+     v,velnot
+     y,ydotmax,ykatan,yein,yeinmax,dyein
+     z,zcor,zh0,zjoecons,zjclim,zsalt,zoverti,zoverma
+c     Convective constants for Gemehyr convection routine
+c     See Astron. Astrophys. 253, 100 (1992)
+     z,zalmlt,zalc, zalt, zalnu, zallam, zcd, zvisbase, zald
+     z,zalturb
+c========================================================================
+*comdeck cori
+      integer*4 :: lencori
+*call coric
+      save  /cori/
+      common /cori/ lencori
+*call coric
+c========================================================================
+*comdeck coric
+c see input.srs for defaults and what these variables do
+     i,inprof,iprnt1,iprntin,iprizun,iprcor,inrelag, inrotin
+     j,jmxeos1,jmaxinp,jcore
+     k,kadntime,kadnearshock
+     k,keyplt,keyzons,keyrate,kchkdif,keydump,kfluxlm,kschifa
+     k,kchkcon,keype,knunumt
+     k,keos,keynue,keynup,kshulz,keygr,keycomp,keytemp,keyscat,kdnscat
+     k,keyjoe,keyjout,keynuad,keyyecv,keycvro,kadaptlag,keypp
+     k,knograv, kdilbru
+     k,ktest0,ktest1,ktest2,ktest3,ktest4,ktest5,ktest6,ktest7
+     k,ktest8,ktest9
+     k,kbrem
+     k,kprobug, krotate
+     m,mxjmin,mprnt,mdrelag
+     n,nprnt,nprnt0,ntimax,ntapin,ntplot,nocprnt,nuprnt,nuprnt1
+     n,nwtprof,nrelag,nprntbal
+     n,nwtflux,nwtconv,nwtscat
+     z,izcor
+c========================================================================
+*comdeck dim
+c Note if you change numaxm, you need to change ntindif in 
+c comdeck pari
+      integer*4, parameter  :: jmaxm=512,ngmaxm=32,numaxm=6
+      integer*4, dimension(jmaxm) :: keosn
+      integer*4, dimension(jmaxm,numaxm) :: krates
+      integer*4, dimension(numaxm) :: kgainrn
+      save   /kdim/
+      common /kdim/ keosn, krates,kgainrn
+
+      real*8, dimension(jmaxm) :: acc, ahv, delta, dmk, dmp, ea, eb,
+     &     eprev, fmass, fmue, fmuhat, fmunu, gama,
+     &     pa, pb, ra, rb, rlog, roa, rob, s, sgma, sgmb, snu1,
+     &     ta, tb, vela, velb, xal, xhv, xn, xp, ye, yedot, yep,
+     &     yeprev, ynu, ynub,z
+      real*8, dimension(ngmaxm) :: denu, enu, enume, yfull
+      real*8, dimension(jmaxm,numaxm) :: aneut, fip2m, heatnue,
+     &     pneut, prode, prody, flume, flumn
+      real*8, dimension(jmaxm,ngmaxm,numaxm) :: prodyg, prodeg, escatg,
+     &     csig, ccapt, cscatis, ddnue, edd, flum, ya, ya0, yb, ydot,
+     &     ydotnu, ydotpj, abstpj, ynet, fxi
+      real*8, dimension(jmaxm,ngmaxm,ngmaxm,numaxm) :: cscat
+      real*8, dimension(jmaxm) :: aconv, econv, tconv, yeconv,
+     &     roconv, pconv
+      real*8, dimension(jmaxm,ngmaxm,numaxm) :: yconv
+c     Gehmeyr convective variable
+      real*8, dimension(jmaxm) :: eturba, eturbb, znut, fluxturb,
+     &     fluxye, fluxts, fluxro
+      real*8, dimension(jmaxm,ngmaxm,numaxm) :: fluxy
+c     Joe's convective variables
+      real*8, dimension(jmaxm) :: vplusa, vminusa, hplusa, hminusa,
+     &     roplusa, rominusa, yeplusa, yeminusa, asyma, smpa, smma,
+     &     vplusb, vminusb, hplusb, hminusb, 
+     &     roplusb, rominusb, yeplusb, yeminusb, asymb, smpb, smmb,
+     &     dvpdt, dvmdt, dhpdt, dhmdt, dropdt, dromdt,
+     &     dyepdt, dyemdt
+      real*8, dimension(jmaxm,ngmaxm,numaxm) :: yplusa, yminusa,
+     &     yplusb, yminusb, dypdt, dymdt
+      real*8, dimension(jmaxm) :: zjsa, zjsb, accp, rpa, rpb, velpa,
+     &	      velpb, sgmpa, sgmpb
+
+      save   /dim/
+      common /dim/  acc, ahv, delta, dmk, dmp, ea, eb,
+     &     eprev, fmass, fmue, fmuhat, fmunu, gama,
+     &     pa, pb, ra, rb, rlog, roa, rob, s, sgma, sgmb, snu1,
+     &     ta, tb, vela, velb, xal, xhv, xn, xp, ye, yedot, yep,
+     &     yeprev, ynu, ynub,z
+      common /dim/ denu, enu, enume, yfull
+      common /dim/ aneut, fip2m, heatnue,
+     &     pneut, prode, prody, flume, flumn
+      common /dim/ prodyg, prodeg, escatg,
+     &     csig, ccapt, cscatis, ddnue, edd, flum, ya, ya0, yb, ydot,
+     &     ydotnu, ydotpj, abstpj, cscat
+      common /dim/ aconv, econv, tconv, yeconv,
+     &     roconv, pconv, yconv
+      common /dim/ eturba, eturbb, znut, fluxturb, 
+     &     fluxye, fluxts, fluxro, fluxy
+      common /dim/ vplusa, vminusa, hplusa, hminusa,
+     &     roplusa, rominusa, yeplusa, yeminusa, asyma, smpa, smma,
+     &     vplusb, vminusb, hplusb, hminusb, 
+     &     roplusb, rominusb, yeplusb, yeminusb, asymb, smpb, smmb,
+     &     dvpdt, dvmdt, dhpdt, dhmdt, dropdt, dromdt,
+     &     dyepdt, dyemdt
+      common /dim/ yplusa, yminusa,
+     &     yplusb, yminusb, dypdt, dymdt
+      common /dim/ ynet,zjsa,zjsb, accp, rpa, rpb, velpa, velpb,
+     &	     sgmpa, sgmpb,fxi
+c========================================================================
+*comdeck grnewt
+      save  /grnewti/
+      common /grnewti/ jjj
+      save  /grnewt/
+      common /grnewt/ grnewt1
+     a,ahvj,zj,yej,ynuj,xnj,xpj,xalj,xhvj
+     d,dmkj,dmpi,dmpj
+     e,eji,empif,fmuej,fmunuj
+     g,gamj,gif,gjf
+     p,pji,pjf
+     q,qq
+     r,rj,roji,rojf,sjf,sound
+     t,tvm,tjf
+     v,vel
+c========================================================================
+*comdeck grvec
+      real*8, dimension(jmaxm) :: wq, alprev, alpa, alpb,
+     &     empa, empb, bgpa, bgpb
+      save  /grvec/
+      common   /grvec/ wq, alprev, alpa, alpb,
+     &     empa, empb, bgpa, bgpb
+c========================================================================
+*comdeck hiro
+      save  /hiro/
+      common  /hiro/  akk(6),cee(6),f00(6),aff(6),p00(6),app(6),b00(6)
+     1,abb(6)
+     2,gamah,rom
+c========================================================================
+*comdeck int
+      save  /int/
+      common  /int/  ar,at,ay,rox,tx,yex
+c========================================================================
+*comdeck kesher
+      save  /kesherk/
+      common  /kesherk/ kesher
+      save  /kesherc/
+      common  /kesherc/ roh1,roh2,bh1,bh2
+c========================================================================
+*comdeck keyeos
+      integer*4 :: jzone,keyeos,keycoul,kesfail,nupress,ntryeos
+      save    /keyeosc/
+      common  /keyeosc/  jzone,keyeos,keycoul,kesfail,nupress,ntryeos
+      save    /eossub/
+      common  /eossub/ eossubf
+      character eossubf*10
+c========================================================================
+*comdeck l
+      save  /l/
+      parameter  (lecs=114000)
+      common  /l/  ecs (lecs)
+c========================================================================
+*comdeck names
+      save  /names/
+      common /names/ tabname
+      character tabname*80
+c========================================================================
+*comdeck noperk
+      save  /noperkc/
+      common /noperkc/ noperk
+c========================================================================
+*comdeck nunu
+      save  /nunu/
+      common  /nunu/  nu,dnudr,dnudb,eta,detadnu,nup
+      double precision  nu,nup
+c========================================================================
+*comdeck par
+      integer*4, parameter :: numaxmp=3
+      save  /char/
+      common  /char/ job,name   ,datex,clockx,version
+      character  job*10,name*80,datex*10,clockx*10,version*50
+c
+      save  /header/
+      common  /header/ header(10)
+      character header*10
+*call para
+*call pari
+c
+c========================================================================
+*comdeck para
+      real*8, dimension(20) ::  rmin,rmax
+      real*8 :: paralen
+*call parac
+      real*8, dimension(numaxmp) :: dlifn, dlife, ynun, enut,fnufac
+      save  /para/
+      common /para/  paralen
+*call parac
+      common /para/ dlifn, dlife, ynun, enut, fnufac
+c========================================================================
+*comdeck parac
+     c,cputime
+     d,dtlast,dta,dtb,dtnext,dlifnu,dlifen,dlifnub,dlifenb
+     f,stabfc,yetot
+     e,ynutot, yl
+     e,eblow,eblowk,eblowg
+     e,ebal,egrav,egrav1,egrav2,ekin,ekin1,eout,eprs,etot,etot0,etrm
+     e,enutot,emisst
+     f,fmassc,fmasst,fmantle
+     p,pext
+     r,rocpr,ram,ra2
+     s,stabil
+     t,time,timea,timeck,tplotp,xminp,timelg,tprof,tflux,tplotc
+     z,zpar
+c
+c========================================================================
+*comdeck pari
+      integer*4, dimension(6) ::  ntindif
+      integer*4 :: lenpari
+*call paric
+      save  /pari/
+      common  /pari/  lenpari, ntindif
+*call paric
+c========================================================================
+*comdeck paric
+c kpeid - ID of the current processor element
+c kpen - Total number of processing elements
+     i,imaxp1,iref,inkeygr,infall
+     j,jmin,jmxeq1,jequil
+     k,kmin,kromin,kromax,ku,mshulz,keydif,khelem,kstab,krelag,keyexit
+     k,keyets0,kpeid,kpen,kgainr
+     l,lngplt,lastpr
+     n,ntime,ndmp,nuemis,nueosp,nutype,numax,nupstrt
+     z,izpar
+     k,kwin1,kwin2,kwin3
+c========================================================================
+c     end comdeck par
+c========================================================================
+*comdeck pebkc
+      save  /pebkc/
+      common /pebkc/  pe,pb,pk,pc,pnu,pcoul
+     1,               ee,eb,ek,ec,enu,ecoul
+c========================================================================
+*comdeck roerop
+      save  /roerop/
+      common  /roerop/  roem,roep,dromdb,dropdb,dromdnu,dropdnu
+c========================================================================
+*comdeck vc
+      integer*4, parameter :: lenvc=9999
+      real*8 :: vc(lenvc)
+c========================================================================
+*comdeck version
+      version='30.07.93'
+c========================================================================
+*comdeck xnpah
+      save  /xnpah/
+      common /xnpah/ x1,x2,x3,x4,x31,x32,x41,x42
+c========================================================================
+*comdeck funcnam
+      save  /funcnam/
+      character funk*12
+      common  /funcnam/  funk
+c========================================================================
+*comdeck krdwtdm
+      integer*4 :: krd, kwt
+      save  /krdwtdm/
+      common /krdwtdm/ krd,kwt
+c========================================================================
+*comdeck compair
+      real *8, dimension(ngmaxm, numaxm) :: ydotp, abstp, yopen
+      save  /compair/
+      common /compair/ ydotp, abstp, yopen
+c========================================================================
+*comdeck viscinfo
+       save /viscinfo/
+       common /viscinfo/ sgme(jmaxm)
+c========================================================================
+*comdeck bal
+       save /bal/
+       common /bal/ dentdt, petot, dentdtj(jmaxm), petotj(jmaxm)
+       common /bal/ enutotprj(jmaxm), test1(jmaxm), test2(jmaxm)
+       common /bal/ test3(jmaxm), test4(jmaxm, ngmaxm, numaxm)
+       common /bal/ test5(jmaxm, ngmaxm, numaxm) 	
+       common /bal/ test6(jmaxm, ngmaxm, numaxm) 	
+       common /bal/ test7(jmaxm, ngmaxm, numaxm) 	
+       common /bal/ test8(jmaxm, ngmaxm, numaxm) 	
+       common /bal/ test9(jmaxm, ngmaxm, numaxm) 	
+c========================================================================
+*comdeck rrttyy
+      save   /rrttyy/
+      common /rrttyy/  romin,romax,tmin,tmax,yemin,yemax
+c========================================================================
+*comdeck nrntny
+      save   /nrntny/
+      common /nrntny/  nromax,ntmax,nyemax
+c========================================================================
+*comdeck ndimrty
+      integer*4,parameter :: ndimr=100,ndimt=120,ndimy=120
+c========================================================================
+*comdeck pairscat
+c
+c The anti-neutrino scattering rates are the same as the tau and mu 
+c scattering rates to a factor.  To keep the system from calculating
+c The result several times, I store the values in this array.
+      save /pairscat/
+      real*8, dimension(jmaxm,ngmaxm,ngmaxm) :: 
+     &	      prod0i, abs0i, prod0ii, abs0ii
+      common /pairscat/ prod0i, abs0i, prod0ii, abs0ii
+c========================================================================
+*comdeck expm
+      real*8, parameter :: argmax=600d0
+      real*8 :: expm, xarg
+      expm(xarg)=exp(max(min(xarg,argmax),-argmax))
+c========================================================================
+*comdeck epsblok
+      real*8, parameter :: epsblok=1d-4, epsdown=1d-4
+      real*8, parameter :: epsblok0=1d-4

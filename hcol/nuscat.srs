@@ -1,0 +1,79 @@
+*deck nuscat
+      subroutine  nuscat(ro,t,fmue,ye,xn,xp,xa,xhv,a,z,en
+     1,scel,scn,scp,sche,schv,scat)
+c
+c     fmue  and  en  given in mev
+c     ro  and  t  in cgs
+c     cross sections in  1/cm
+c
+*call implic
+c
+      save  face2,signa,sin2tw,ca,cv,a0,a1,alfa,delta,deltas
+      save  cp0,cp1,cp,cn,che,ce1,ce2,ce3,ce31
+      save  ax,fn,gama,chv
+c
+      data  ntry   /0/
+      data  ax     /-1.d0/
+      data  avogad /0.6025d24/
+      data  face   /0.511d0/
+      data  sig0   /1.7d-44/
+c--------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      face2=face**2
+      signa=sig0*avogad
+      sin2tw=0.35d0
+      ca=0.5d0
+      cv=ca+2.d0*sin2tw
+      a0=0.5d0*(ca-cv)
+      a1=2.d0-ca-cv
+      alfa=1.21d0
+      delta=(cv-1.d0)/alfa/(1.d0-ca)
+      deltas=delta**2
+      cp0= alfa**2*(deltas+3.d0) / 16d0
+      cp1=-alfa**2*(1.d0-deltas) / 16d0
+      cp=(cp0-cp1/3d0)/face2
+      cn=0.25d0       /face2
+      che=4d0*a0**2   /face2
+      ce1=0.51d0
+      ce2=1.49d0
+      ce3=0.2d0
+      ce31=3d0
+      ce1=ce1*signa
+      ce2=ce2*signa
+      ce3=ce3*signa
+      cn =cn *signa
+      cp =cp *signa
+      che=che*signa/4d0
+                      endif
+c--------------------------------------------
+      if(a.eq.ax)   goto   5
+      if(a.le.0d0)  goto   2
+      ax=a
+      fn=a-z
+      gama=(a0*a+0.5d0*a1*(z-fn))**2
+      chv=gama/4d0
+      chv=chv*signa/a /face2
+      goto   5
+2     continue
+      chv=0d0
+5     continue
+      en2=en*en
+      roen2=ro*en2
+      t9=t/1d9
+      scn=cn*xn*roen2
+      scp=cp*xp*roen2
+      sche=che*xa*roen2
+      schv=chv*xhv*roen2
+      scel1=ce1*en*t9
+      if(fmue.gt.0d0)  then
+                       scel2=ce2*en*fmue
+             scel3=ce3*en*t9/fmue*(1.d0+ce31*en2/t9)*(1.d0+t9/en)
+                       else
+                       scel2=0d0
+                       scel3=0d0
+                       endif
+      scel= min (scel1,scel2,scel3)*ro*ye
+      scat=scel+scn+scp+sche+schv
+      return
+      end

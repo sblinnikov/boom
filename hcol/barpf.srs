@@ -1,0 +1,48 @@
+*deck barpf
+      subroutine  barpf(ro,t)
+*call implic
+*call barion
+*call azy
+*call const
+c
+      save  pinl,a4l,facpf
+c
+      data ntry  /0/
+c-----------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     pinl=twol
+                     a4l=2d0*twol
+                     facpf=1d0
+                     endif
+c-----------------------------------
+c
+      tl= log(t)
+      ahl= log(ah)
+      boltzt=boltz*t
+      qn=wn/boltzt
+      qa=wa/boltzt
+      qh=wh/boltzt
+      call  bindh (ro,bh,bhr,bhrr)
+      qqh=qh
+      qh=qh*bh
+      call  tubspf(t,pf,dpf,ddpf,facpf)
+      pfl= log(pf)
+      pfnl=1.5d0*(contl+tl)+pinl-qn
+      pfpl=pfnl
+      pfal=1.5d0*(contl+tl+a4l)-qa
+      pfhl=1.5d0*(contl+tl+ahl)-qh+pfl
+      dpfnl=(1.5d0+qn)/t
+      dpfpl=dpfnl
+      dpfal=(1.5d0+qa)/t
+      dpfhl=(1.5d0+qh)/t+dpf/pf
+      t2=t**2
+      d2pfnl=(-1.5d0-2.d0*qn)/t2
+      d2pfpl=d2pfnl
+      d2pfal=(-1.5d0-2.d0*qa)/t2
+      d2pfhl=(-1.5d0-2.d0*qh)/t2+(ddpf*pf-dpf**2)/pf**2
+      pfhlr=-qqh*bhr
+      pfhlrr=-qqh*bhrr
+      pfhltr=-pfhlr/t
+      return
+      end

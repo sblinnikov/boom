@@ -1,0 +1,28 @@
+*deck cheos
+      subroutine  cheos (keos2,kzone,jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+*call keyeos
+      j=kzone
+      t=ta(j)
+      call  trop
+     1 (roa(j),e,t,pa(j),s,snd,j,keos2
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye(j),xn,xp,xa,xh)
+      if(kesfail.ne.0)  then
+                      print *,' trop failed in cheos, kesfail=',kesfail
+                      stop    ' trop failed in cheos'
+                      endif
+      deltae=(e-ea(j))*dmk(j)
+      de=deltae/etot0
+      etot0=etot0+deltae
+      print 901,ntime,j,keos2,ea(j),e,ta(j),t,de
+901   format(' eos modified at ntime=',i5,'  zone=',i4,' to keos=',i1,
+     1/,'  e-old e-new=',1p2e11.3,' t-old t-new=',1p2e11.3,
+     2 '  de/etot0=',1pe10.2)
+      ea(j)=e
+      ta(j)=t
+      keosn(j)=keos2
+      return
+      end

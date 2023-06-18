@@ -1,0 +1,12 @@
+#!/bin/csh -f
+
+set root=$1
+set appendix=$2
+set directory=/home/joe/boom/outputs
+
+
+foreach file ($directory/$root.t??)
+    cp $file.$2.bz2 $file.bz2
+    bunzip2 -f $file.bz2
+end
+

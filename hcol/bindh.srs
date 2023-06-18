@@ -1,0 +1,34 @@
+*deck bindh
+      subroutine  bindh (ro,bh,bhr,bhrr)
+*call implic
+*call kesher
+      kesher=0
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      if(kesher.eq.0)  goto  100
+      if(ro.le.roh1)   goto  200
+      if(ro.ge.roh2)   goto  300
+      r1=(ro-roh2)/(roh1-roh2)
+      r2=(ro-roh1)/(roh2-roh1)
+      b1=r1**2*bh1*(1.d0+2.d0*r2)
+      b2=r2**2*bh2*(1.d0+2.d0*r1)
+      bh=b1+b2
+      b1r=2.d0*bh1*r1*(1.d0+2.d0*r2-r1)/(roh1-roh2)
+      b2r=2.d0*bh2*r2*(1.d0+2.d0*r1-r2)/(roh2-roh1)
+      bhr=b1r+b2r
+      b1rr=2.d0*bh1*(1.d0+2.d0*r2-4.d0*r1)/(roh1-roh2)**2
+      b2rr=2.d0*bh2*(1.d0+2.d0*r1-4.d0*r2)/(roh2-roh1)**2
+      bhrr=b1rr+b2rr
+      return
+100   continue
+      bh=1.d0
+      goto   500
+200   continue
+      bh=bh1
+      goto   500
+300   continue
+      bh=bh2
+500   continue
+      bhr=0.d0
+      bhrr=0.d0
+      return
+      end

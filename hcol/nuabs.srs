@@ -1,0 +1,69 @@
+*deck nuabs
+      subroutine  nuabs(ro,t,fmue,xn,xhe,xhv,ahv,zhv
+     1,en,absn,abshe,abshv,abst)
+c
+c     fmue en and q in mev
+c     ro  and  t   in cgs.
+c     absorption cross-sections in 1/cm .
+c
+*call implic
+c
+      save  bolt,signa,cn,che,chv,qn1,qn2,qn3,qhe1,qhv1
+c
+      data  alfa    /1.21d0    /
+      data  avogad  /0.6025d24 /
+      data  sig0    /1.7d-44   /
+      data  face    /1.d0      /
+      data  ntry    /0         /
+      data  qnp     /1.293d0   /
+      data  qhe     /25.d0     /
+      data  qhv     /10.d0     /
+      data  boltz   /8.6167d-11/
+c-----------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      signa=sig0*avogad
+      cn=3.8d0*(0.75d0*alfa**2+0.25d0)*face**2 *signa
+      che=cn/250d0             *face
+      chv=cn/250d0             *face
+      qn1=qnp/face
+      qn2=2d0*qn1
+      qn3=qn1**2-1d0
+      bolt=boltz/face
+      qhe1=qhe/face
+      qhv1=qhv/face
+                     endif
+c-----------------------------------------------------------
+      en2=en*en
+      roen2=ro*en2
+      roen3=roen2*en
+      temp=bolt*t
+      abst=0d0
+      if(xn .le. 0d0)  goto   2
+      psin =(fmue-en-qn1 )/temp
+      psin= min (psin,24d0)
+      f3n=1d0
+      if(psin.gt.-24.d0)  f3n=1.d0/(1d0+exp(psin))
+      absn=cn*xn*roen2*(1d0+qn1/en)*sqrt(1d0+qn2/en+qn3/en2)*f3n
+      abst=abst+absn
+2     continue
+      if(xhe.le. 0d0)  goto   3
+      psihe=(fmue-en-qhe1)/temp
+      psihe= min (psihe,24d0)
+      f3he=1d0
+      if(psihe.gt.-24d0)  f3he=1d0/(1d0+exp(psihe))
+      abshe=che*xhe*roen3*(1d0+qhe1/en)**2 * f3he
+      abshe=abshe/4d0
+      abst=abst+abshe
+3     continue
+      if(xhv.le. 0d0 .or. ahv.le.0d0)  goto   4
+      psihv=(fmue-en-qhv1)/temp
+      psihv= min (psihv,24d0)
+      f3hv=1.d0
+      if(psihv.gt.-24d0)  f3hv=1d0/(1d0+exp(psihv))
+      abshv=chv*xhv*roen3*(1d0+qhv1/en)**2 * f3hv
+      abshv=abshv/ahv
+      abst=abst+abshv
+4     continue
+      return
+      end

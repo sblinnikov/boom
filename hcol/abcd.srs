@@ -1,0 +1,19 @@
+*deck abcd
+      subroutine  abcd(fml,fmr,xm,stepm,step1,a,b,c,d)
+*call implic
+      d = fml
+      dm = fmr-fml
+      rm = stepm-1.0d0
+      r1 = step1-1.0d0
+      a11 = 3.0d0+r1
+      a12 = 2.0d0+r1
+      a21 = 3.0d0*xm*xm+rm
+      a22 = 2.0d0*xm+rm
+      b1 = r1*dm
+      b2 = rm*dm
+      det = a11*a22-a12*a21
+      a = (b1*a22-b2*a12)/det
+      b = (b2*a11-b1*a21)/det
+      c = dm-(a+b)
+      return
+      end

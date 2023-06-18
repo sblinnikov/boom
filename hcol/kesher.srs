@@ -1,0 +1,41 @@
+*deck kesher
+      subroutine  kesher (message)
+*call implic
+      character*(*) message
+      character*20 namef
+      character*50 sname
+*call const
+*call corct
+*call par
+      data  mailing  /99/
+      message='none'
+      call  pfname(name,namef,lng)
+      sname=namef(1:lng)//'.st'
+      open(unit=mailing,file=sname,iostat=ier
+     &      ,form='formatted',err=98,status='unknown')
+      read(mailing,'(a)',end=20,err=20) message
+      if(index(message,'comunication').ne.0) then
+      message='none'
+      else
+      print *,'('' mailing message='',a)',message
+      endif
+      if(message.eq.'abort'.or.message.eq.'kill') then
+      stop 'abort by toggle'
+      endif
+20    continue
+      rewind mailing
+      write(mailing,*) 'comunication with job=',sname
+      write(mailing,*) '----------- list of commands ------------'
+      write(mailing,*) 'abort or kill'
+      write(mailing,*) 'stop'
+      write(mailing,*) 'dump'
+      write(mailing,*) 'dumpstop'
+      write(mailing,*) 'print'
+      write(mailing,*) 'kelet ...... end'
+      close (unit=mailing)
+      return
+   98 continue
+      print *,' comunic ier=',ier
+      print *,' cannot open comunication file=',sname
+      stop  ' open error in comunic'
+      end

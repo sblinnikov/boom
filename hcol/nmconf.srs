@@ -1,0 +1,173 @@
+*deck nmconf
+      subroutine  nmconf (fmass,r,u,t,ro,ye,jmax)
+*call implic
+*call keyeos
+*call const
+*call corct
+      dimension  fmass(jmax),r(jmax),u(jmax),t(jmax),ro(jmax),ye(jmax)
+      dimension  xmw(199),rw(199),uw(199),tw(199),row(199),yew(199)
+      dimension  dmw(199)
+      dimension  pw (199)
+      knusave=nupress
+      kcoul=keycoul
+      nt=2
+      read  (nt,*,end=10000) (dmw(j),j=2,jmax)
+10000 read  (nt,*,end=10001) ( rw(j),j=2,jmax)
+10001 read  (nt,*,end=10002) ( uw(j),j=2,jmax)
+10002 read  (nt,*,end=10003) ( tw(j),j=2,jmax)
+10003 read  (nt,*,end=10004) (row(j),j=2,jmax)
+10004 read  (nt,*,end=10005) (yew(j),j=2,jmax)
+10005 read  (nt,*,end=10006) ( pw(j),j=2,jmax)
+10006 continue
+      jcut=0
+      print 901,row(2),tw(2),yew(2)
+901   format(' initial configuration from Nomoto '
+     1,/'  roc=',1pe10.2,'  tc=',e10.2,'  yec',0pf8.4)
+      print 902
+902   format('   j    dm',10x,'r',11x,'u',11x,'t',11x,'ro',10x
+     1         ,'ye',10x,'p',9x,'mass-error     mass')
+      rw(1)=0d0
+      r3i=0d0
+      fmass(1)=0d0
+      do    j=2,jmax
+      xmw(j)=0d0
+      r3o=rw(j)**3
+      dmm=row(j)*pai43*(r3o-r3i)
+      dm=dmm/solmas
+      er=(dm-dmw(j))/dmw(j)
+      dmw(j)=dmm
+      fmass(j)=fmass(j-1)+dmw(j)
+      fmassp=fmass(j)/solmas
+      if(jcut.eq.0 .and. fmassp.ge.smass)  jcut=j
+      r3i=r3o
+      print 903,j,dmw(j),rw(j),uw(j),tw(j),row(j),yew(j),pw(j),er,fmassp
+903   format(i4,1p8e12.4,0pf10.3)
+      enddo
+c
+c     cut configuration at fmassp gt smass
+      if(jcut.eq.0)  then
+            print *,' mass in Nomoto conf. lt smass',fmassp,smass
+            stop 'nmconf jcut=0'
+                     else
+                     jmax=jcut
+                     print *,' j of initial config changed to ',jcut
+                     endif
+c
+      if(jmaxinp.lt.0) stop ' jmaxinp not specified, nmconf'
+      jmxeq1=jmaxinp
+c
+      do   j=2,jmax
+      yew(j)=min(yew(j),0.499d0)
+      enddo
+c
+      uw(1)=0d0
+      tw(1)=0d0
+      nupress=0
+      keycoul=1
+      ynu=0d0
+      xn=0d0
+      xp=0d0
+      xal=0d0
+      xhv=1.d0
+      ahv=56.d0
+      z=26.d0
+      e=0d0
+c
+      do   j=2,jmax
+      keyets=2
+      keyeos=1
+      jzone=j
+      call  state
+     1( row(j),e1,tw(j),p1,s1,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      keyeos=keos
+      if(keos.eq.2.or.keos.eq.3) keyeos=2
+      if(j.gt.jmxeq1)            keyeos=1
+      call  state
+     1( row(j),e2,tw(j),p2,s2,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  then
+                        keyeos=0
+                        e2=0d0
+                        p2=0d0
+                        s2=0d0
+                        endif
+      dp=(p2-pw(j))/pw(j)
+      tt=tw(j)/tmev
+      if(j.eq.2)  print  915
+      print 917,j,keyeos,row(j),tt,yew(j),pw(j),p1,p2,dp,e1,e2
+917   format(i4,i2,1pe10.2,0p2f8.3,1p6e10.2)
+915   format('   j  k  ro',8x,'t',7x,'ye',6x,'pw',8x,'p1',8x
+     1,'p',9x,'dp',8x,'e1',8x,'e')
+      enddo
+c
+      if(keytemp.ne.0)  then
+      do  80  j=2,jmax
+      keyets=2
+      jzone=j
+                                 keyeos=keos
+      if(keos.eq.2.or.keos.eq.3) keyeos=2
+      if(j.gt.jmxeq1)            keyeos=1
+      call  state
+     1( row(j),e,tw(j),p,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  then
+       print *,' kesfail=',kesfail,' at j=',j,' of Nomotos conf.'
+                        stop 'kesfail nmconf'
+                        endif
+      if(j.le.jmxeq1)  then
+                       keosz=keos
+                       else
+                       keosz=1
+                       endif
+      tx=tw(j)
+      call  trop
+     1 (row(j),e,tx,pw(j),s,snd,j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,yew(j),xn,xp,xa,xh)
+      if(kesfail.ne.0)  then
+                        if(keosz.eq.1)  then
+                                     print *,' trop failed from nmconf'
+                                     stop    ' trop failed from nmconf'
+                                     endif
+                        keosz=1
+                        call  trop
+     1                  (row(j),e,tx,pw(j),s,snd,j,keosz
+     2                  ,tr,te,pr,pe,sr,se
+     3                  ,ah,zh,yew(j),xn,xp,xa,xh)
+                        endif
+      tt=tw(j)/tmev
+      tp=tx/tmev
+      if(keytemp.ne.0)  tw(j)=tx
+      if(j.eq.2)  print  905
+      print 907,j,keosz,row(j),tt,tp,yew(j),pw(j),p
+907   format(i4,i2,1pe10.2,0p3f8.3,1p4e10.2)
+905   format('   j k   ro',8x,'tw',6x,'tcor',3x,'ye',6x,'pw',8x
+     1,'p(tw)')
+80    continue
+                       print *,' temperature is  modified'
+                       else
+                       print *,' temperature not modified'
+                       endif
+      r(1)=0d0
+      u(1)=0d0
+      t(1)=0d0
+      ro(1)=0d0
+      ye(1)=0d0
+      do  90  j=2,jmax
+      r(j)=rw(j)
+      u(j)=uw(j)
+      t(j)=tw(j)
+      ro(j)=row(j)
+      ye(j)=yew(j)
+90    continue
+      nupress=knusave
+      keycoul=kcoul
+      return
+      end

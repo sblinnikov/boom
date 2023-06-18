@@ -1,0 +1,184 @@
+*deck rotepsc
+      subroutine  rotepsc(ro,t,e,p,s
+     1, dedro,dedt2,dpdro,dpdt,dsdro,dsdt
+     2, ahv,zhv,ye2,ynu2,xn2,xp2,xa2,xh2
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+*call implic
+*call keyeos
+*call chemp
+      parameter (ndim = 200)
+      save   /params/
+      save   /nccomp/
+      save   /eossav/
+      save   /isca1/
+      save   /sca1/
+      save   /sca2/
+      save   /sca3/
+      save   /sca4/
+      save   /sca5/
+c
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+      common /nccomp/ xnn(ndim,9),unuc(ndim),nse(ndim)
+c        Equation of state arrays                                      c
+      common /eossav/ uea(ndim),una(ndim),uhata(ndim),thetaa(ndim)
+     *              ,zaa(ndim),xaa(ndim),dtrana(ndim),duesrc(ndim)
+c                                                                      c
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,rhofm,d0,dbdlu,dedt,delbet,dtran,
+     *                 ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,tmev,therm,theta,tsi,u,u1,ue,uhat,uhtra,
+     *                 un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+c                                                                      c
+      real*8 kmev,kfm,kp,ku
+c========================================================================
+c
+      save  yense,yefe
+c
+      data kmev   /8.618e-11/
+      data kfm    /5.974e-16/
+      data kp     /1.602d+33/
+      data ku     /9.570e+17/
+c----------------------------------------------------------------------c
+c        kmev : boltzmann constant ( mev/k )                           c
+c        kfm  : ( # nucleons/gram )( cm3/fm3 )                         c
+c        kp   : ( erg/cm3 ) / ( mev/fm3 )                              c
+c        ku   : ( # nucleons/gram )( erg/mev )                         c
+c----------------------------------------------------------------------c
+      data  ntry  /0/
+      data  pprev /0d0/
+c------------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      gamhv        = 2.5
+      wnm          = - 16.0
+      ws           = 31.5
+      xk0          = 180.0
+      xkzafac      = 2.0
+      yense=0.45
+      yefe=26./56.
+c
+      do  jj = 1,ndim
+      uea(jj)      = 0.0
+      una(jj)      = 0.0
+      uhata(jj)    = 0.0
+      thetaa(jj)   = 0.0
+      zaa(jj)      = 0.0
+      xaa(jj)      = 0.0
+      dtrana(jj)   = 0.0
+      enddo
+      endif
+c------------------------------------------------------------
+      j=jzone
+      nses=1
+      ye=ye2
+      if(ye.gt.yense)  then
+      nses=0
+      xnn(j,1)     = 0d0
+      xnn(j,2)     = 0d0
+      xnn(j,3)     = 0d0
+      xnn(j,4)     = 0d0
+      xnn(j,5)     = 0d0
+      xnn(j,6)     = 1.-xnn(j,1)-xnn(j,2)-xnn(j,3)-xnn(1,4)-xnn(j,5)
+      xnn(j,7)     = 0d0
+      xnn(j,8)     = 0d0
+      xnn(j,9)     = 0d0
+                       endif
+      nse(j)       = nses
+c                                                                      c
+c----------------------------------------------------------------------c
+c        Convert to independent variables of the bck equation          c
+c         of state                                                     c
+c----------------------------------------------------------------------c
+      rhofm        = ro*kfm
+      tmev         = t*kmev
+c----------------------------------------------------------------------c
+c        Load equation of state parameters for zone j                  c
+c----------------------------------------------------------------------c
+      ue           = uea(j)
+      un           = una(j)
+      uhat         = uhata(j)
+      theta        = thetaa(j)
+      za           = zaa(j)
+      xa           = xaa(j)
+      dtran        = dtrana(j)
+      jshel        = j
+c----------------------------------------------------------------------c
+c        Call the bck equation of state                                c
+c----------------------------------------------------------------------c
+      call eos
+      if(kesfail.ne.0)  goto   999
+      if(xn.lt.0.0 .or. xp.lt.0.0 .or. stot.lt.0.0) then
+      dtran = rhofm
+      call eos
+      if(kesfail.ne.0)  goto   999
+      end if
+c----------------------------------------------------------------------c
+c        Store equation of state parameters for zone j                 c
+c----------------------------------------------------------------------c
+      uea   (j)    = ue
+      una   (j)    = un
+      uhata (j)    = uhat
+      thetaa(j)    = theta
+      zaa   (j)    = za
+      xaa   (j)    = xa
+      dtrana(j)    = dtran
+c----------------------------------------------------------------------c
+c        Convert thermodynamic quantities from units of mev and fm     c
+c         to cgs units                                                 c
+c----------------------------------------------------------------------c
+      p0=ptot
+      e0=etot
+      s0=stot
+      p=ptot*kp
+      e=etot*ku
+      s=stot
+      if (rhofm .ge. dtran) then
+                            xn=1.-ye
+                            xp=ye
+                            xh=0.0
+                            endif
+      if (xn .lt. 0.0)  xn=0.0
+      if (xp .lt. 0.0)  xp=0.0
+      if (xh .lt. 0.0)  xh=0.0
+      xn2=xn
+      xp2=xp
+      xh2=xh
+      xmun=un
+      xmup=un-uhat
+      xmuhat=uhat
+      xmue=ue
+      ahv=ah
+      zhv=za*ah
+      if(abs((p-pprev)/p).le.0.001) return
+c                                                                      c
+c     calculate derivatives
+      eps=1d-3
+      dro=eps*rhofm
+      dt=eps*tmev
+      rhofm=rhofm+dro
+      call eos
+      if (xn.lt.0.0 .or. xp.lt.0.0 .or. stot.lt.0.0) then
+                                                     dtran=rhofm
+                                                     call eos
+                                                     end if
+      dpdro=(ptot-p0)/dro*kp*kfm
+      dedro=(etot-e0)/dro*ku*kfm
+      dsdro=(stot-s0)/dro*kfm
+      rhofm=rhofm-dro
+      tmev=tmev+dt
+      call eos
+      if (xn.lt.0.0 .or. xp.lt.0.0 .or. stot.lt.0.0) then
+                                                     dtran=rhofm
+                                                     call eos
+                                                     end if
+      dpdt =(ptot-p0)/dt*kp*kmev
+      dedt2=(etot-e0)/dt*ku*kmev
+      dsdt =(stot-s0)/dt*kmev
+      pprev=p
+999   continue
+      return
+      end

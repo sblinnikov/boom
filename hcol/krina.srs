@@ -1,0 +1,34 @@
+*deck krina
+      subroutine  krina(ro,t,e,p,s
+     1                 ,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+*call implic
+*call const
+c
+      save  arad3,arad43
+c
+      data ntry/0/
+c-------------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     arad3=arad/3d0
+                     arad43=4d0*arad3
+                     endif
+c-------------------------------------
+c
+      rect3=3d0/t
+      rect4=4d0/t
+      t3=t**3
+      t4=t*t3
+      e=arad/ro*t4
+      p=arad3*t4
+      s=arad43/ro*t3
+c
+      dedro=-e/ro
+      dedt =e*rect4
+      dpdro=0.d0
+      dpdt =p*rect4
+      dsdro=-s/ro
+      dsdt =s*rect3
+c
+      return
+      end

@@ -1,0 +1,19 @@
+*deck wrtro
+      subroutine  wrtro (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+      data ntro  /13/
+      if(ntime.eq.0) then
+                     rewind  ntro
+                     write (ntro,900)  header
+                     write (ntro,901) (fmass(j),j=2,jmax)
+                     endif
+      write (ntro,901) time
+      write (ntro,901) (  roa(j),j=2,jmax)
+c
+900   format(10a10)
+901   format(' ',1p5e12.2)
+      call flush(ntro)
+      return
+      end

@@ -1,0 +1,215 @@
+*deck relag
+      subroutine  relag
+     1(jmaxnew,jmaxold,fmo,fmn
+     2,enew,fmue,pn,rnew,ron
+     3,tnew,yen,veln,eturbn,keosnn
+     4,sn,xn,xp,xal,xhv,ahv,z,ynu
+     5,eold,yeo,velo,rold,roo,told,eturbo
+     6,empold,bgpold,alpold,alprold
+     7,empnew,bgpnew,alpnew,alprnew
+     +     ,vplusn, vminusn, hplusn, hminusn
+     +     ,roplusn, rominusn, yeplusn
+     +     ,yeminusn, smpn, smmn, asymn
+     +     ,vpluso, vminuso, hpluso, hminuso
+     +     ,ropluso, rominuso, yepluso
+     +     ,yeminuso, smpo, smmo, asymo
+     8,jmaxm)
+*call implic
+      dimension  fmo(jmaxold),fmn(jmaxnew)
+      dimension  rold(jmaxold),roo(jmaxold),told(jmaxold)
+      dimension  rnew(jmaxnew),ron(jmaxnew),tnew(jmaxnew)
+      dimension  eold(jmaxold),yeo(jmaxold),velo(jmaxold)
+      dimension  enew(jmaxnew),yen(jmaxnew),veln(jmaxnew)
+      dimension  eturbn(jmaxnew),eturbo(jmaxold)
+      dimension  keosnn(jmaxnew)
+      dimension  pn(jmaxnew),sn(jmaxnew),fmue(jmaxnew),z(jmaxnew)
+     1,ahv(jmaxnew),xn(jmaxnew),xp(jmaxnew),xal(jmaxnew),xhv(jmaxnew)
+     2,ynu(jmaxnew)
+c
+      dimension  empold(jmaxold),bgpold(jmaxold)
+      dimension  alpold(jmaxold),alprold(jmaxold)
+      dimension  empnew(jmaxnew),bgpnew(jmaxnew)
+      dimension  alpnew(jmaxnew),alprnew(jmaxnew)
+
+      dimension  vplusn(jmaxnew), vpluso(jmaxold)
+      dimension  vminusn(jmaxnew), vminuso(jmaxold)
+      dimension  hplusn(jmaxnew), hpluso(jmaxold)
+      dimension  hminusn(jmaxnew), hminuso(jmaxold)
+      dimension  roplusn(jmaxnew), ropluso(jmaxold)
+      dimension  rominusn(jmaxnew), rominuso(jmaxold)
+      dimension  yeplusn(jmaxnew), yepluso(jmaxold)
+      dimension  yeminusn(jmaxnew), yeminuso(jmaxold)
+      dimension  smpn(jmaxnew), smpo(jmaxold)
+      dimension  smmn(jmaxnew), smmo(jmaxold)
+      dimension  asymn(jmaxnew), asymo(jmaxold)
+
+*call const
+*call corct
+*call par
+*call chemp
+*call keyeos
+      keos1=keosnn(2)
+      keos2=keosnn(jmaxold)
+      fmaxeq1=0d0
+      do  jold=3,jmaxold
+      if(keosnn(jold).eq.keos1)  fmaxeq1=fmo(jold)
+      enddo
+c
+      do   jold=1,jmaxold
+      rold(jold)=rold(jold)**3
+      enddo
+c
+      jolda=1
+      joldb=2
+      dma    =0.0d0
+      rnew(1)=0.0d0
+c
+      do 500  jnew=2,jmaxnew
+      inew=jnew-1
+c
+      do   jold=joldb,jmaxold
+      jop=jold
+      if(fmo(jold).ge.fmn(jnew)) go to 100
+      enddo
+c
+100   joldb=jop
+      dmb=fmo(joldb)-fmn(jnew)
+      rnew(jnew)=rold(joldb)-dmb/roo(joldb)/pai43
+      ron(jnew)=(fmn(jnew)-fmn(inew))/(rnew(jnew)-rnew(inew))/pai43
+      veln(jnew)=0.0d0
+      yen (jnew)=0.0d0
+      enew(jnew)=0.0d0
+      eturbn(jnew)=0.0d0
+      empnew(jnew)=0.0d0
+      bgpnew(jnew)=0.0d0
+      alpnew(jnew)=0.0d0
+      alprnew(jnew)=0.0d0
+c
+      do   jold=jolda,joldb
+      joldm1=max(jold-1,1)
+      dm=fmo(jold)-fmo(joldm1)
+      if(jold.eq.jolda) dm=dma
+      if(jold.eq.joldb) dm=dm-dmb
+      enew(jnew)=enew(jnew)+dm*eold(jold)
+      eturbn(jnew)=eturbn(jnew)+dm*eturbo(jold)
+
+      vplusn(jnew)=vplusn(jnew)+dm*vpluso(jold)
+      vminusn(jnew)=vminusn(jnew)+dm*vminuso(jold)
+      hplusn(jnew)=hplusn(jnew)+dm*hpluso(jold)
+      hminusn(jnew)=hminusn(jnew)+dm*hpluso(jold)
+      roplusn(jnew)=roplusn(jnew)+dm*ropluso(jold)
+      rominusn(jnew)=rominusn(jnew)+dm*rominuso(jold)
+      yeplusn(jnew)=yeplusn(jnew)+dm*yepluso(jold)
+      yeminusn(jnew)=yeminusn(jnew)+dm*yeminuso(jold)
+      smpn(jnew)=smpn(jnew)+dm*smpo(jold)
+      smmn(jnew)=smmn(jnew)+dm*smmo(jold)
+      asymn(jnew)=asymn(jnew)+dm*asymo(jold)
+
+      yen(jnew)=yen(jnew)+dm*yeo(jold)
+      veln(jnew)=veln(jnew)+dm*velo(jold)
+      if(inkeygr.ne.0) then
+      empnew(jnew)=empnew(jnew)+dm*empold(jold)
+      bgpnew(jnew)=bgpnew(jnew)+dm*bgpold(jold)
+      alpnew(jnew)=alpnew(jnew)+dm*alpold(jold)
+      alprnew(jnew)=alprnew(jnew)+dm*alprold(jold)
+                       endif
+      enddo
+c
+      enew(jnew)=enew(jnew)/(fmn(jnew)-fmn(inew))
+      eturbn(jnew)=eturbn(jnew)/(fmn(jnew)-fmn(inew))
+
+      vplusn(jnew)=vplusn(jnew)/(fmn(jnew)-fmn(inew))
+      vminusn(jnew)=vminusn(jnew)/(fmn(jnew)-fmn(inew))
+      hplusn(jnew)=hplusn(jnew)/(fmn(jnew)-fmn(inew))
+      hminusn(jnew)=hminusn(jnew)/(fmn(jnew)-fmn(inew))
+      roplusn(jnew)=roplusn(jnew)/(fmn(jnew)-fmn(inew))
+      rominusn(jnew)=rominusn(jnew)/(fmn(jnew)-fmn(inew))
+      yeplusn(jnew)=yeplusn(jnew)/(fmn(jnew)-fmn(inew))
+      yeminusn(jnew)=yeminusn(jnew)/(fmn(jnew)-fmn(inew))
+      smpn(jnew)=smpn(jnew)/(fmn(jnew)-fmn(inew))
+      smmn(jnew)=smmn(jnew)/(fmn(jnew)-fmn(inew))
+      asymn(jnew)=asymn(jnew)/(fmn(jnew)-fmn(inew))
+
+      veln(jnew)=veln(jnew)/(fmn(jnew)-fmn(inew))
+      yen(jnew)=yen(jnew)/(fmn(jnew)-fmn(inew))
+      if(inkeygr.ne.0) then
+      empnew(jnew)=empnew(jnew)/(fmn(jnew)-fmn(inew))
+      bgpnew(jnew)=bgpnew(jnew)/(fmn(jnew)-fmn(inew))
+      alpnew(jnew)=alpnew(jnew)/(fmn(jnew)-fmn(inew))
+      alprnew(jnew)=alprnew(jnew)/(fmn(jnew)-fmn(inew))
+      ron(jnew)=ron(jnew)*bgpnew(jnew)
+                       endif
+      jolda=joldb
+      dma=dmb
+500   continue
+c
+      do   jold=1,jmaxold
+      rold(jold)=rold(jold)**shlish
+      enddo
+      do   jnew=1,jmaxnew
+      rnew(jnew)=rnew(jnew)**shlish
+      enddo
+c
+      print 900
+900   format(' relag table: new variables.')
+      print  901
+901   format('   j   fmass',6x,'rnew',7x,'ronew',6x,'enew'
+     1,7x,'yen',8x,'veln')
+c
+      do   jnew=2,jmaxnew
+      fmnj=fmn(jnew)/solmas
+      print 902,jnew,fmnj,rnew(jnew),ron(jnew),enew(jnew)
+     1,yen(jnew),veln(jnew)
+902   format(' ',i3,1p7e11.3)
+      enddo
+c
+      do  j=2,jmaxnew
+      if(fmn(j).le.fmaxeq1) then
+                            keosnn(j)=keos1
+                            else
+                            keosnn(j)=keos2
+                            endif
+      enddo
+c
+      tnew(2)=told(2)
+      do  600  j=2,jmaxnew
+      xn(j)=0.d0
+      xp(j)=0.d0
+      xal(j)=0.d0
+      xhv(j)=1.d0
+      ahv(j)=56.d0
+      z(j)=ahv(j)*yen(j)
+      keyets=1
+      if(j.gt.2)  tnew(j)=tnew(j-1)
+      keyeos=keosnn(j)
+      jzone=j
+      call  state
+     1( ron(j),enew(j),tnew(j),pn(j),sn(j),sound
+     2, tr,te,pr,pde,sr,se
+     3, ahv(j),z(j),yen(j),ynu(j),xn(j),xp(j),xal(j),xhv(j),keyets)
+      if(kesfail.ne.0)  then
+                        if(keyeos.eq.1) then
+      print *,' eos failed in relag (e-loop), kesfail=',kesfail
+      print *,' j=',j,' keyeos=',keyeos,' keyets=',keyets
+      print *,' ro=',ron(j),'  e=',enew(j),'  t=',tnew(j)
+      stop    ' eos failed in relag'
+                                        endif
+                        keyeos=1
+                        keosnn(j)=keyeos
+                        if(tnew(j).le.0.d0)  tnew(j)=tnew(j-1)
+                        call  state
+     1                  (ron(j),enew(j),tnew(j),pn(j),sn(j),sound
+     2                 ,tr,te,pr,pde,sr,se
+     3   ,ahv(j),z(j),yen(j),ynu(j),xn(j),xp(j),xal(j),xhv(j),keyets)
+                        endif
+      fmnj=fmn(j)/solmas
+      if(j.eq.2)  print 904
+904   format('relag table'/
+     &'jnew  fmass',5x,'r',10x,'ro',9x,'ye',5x,'e'
+     &,10x,'t',10x,'p',10x,'mue',7x,'muhat',3x,'keos')
+      print 906,j,fmnj,rnew(j),ron(j),yen(j),enew(j),tnew(j),pn(j)
+     1,xmue,xmuhat,keyeos
+600   continue
+906   format(' ',i3,f7.4,1p2e11.3,0pf7.3,1p3e11.3,0p2f10.3,i4)
+      return
+      end

@@ -1,0 +1,171 @@
+*deck plotenu
+      program plotenu
+      implicit none
+*call dim
+*call par
+      character xxx*10, chart*10
+      integer*4, parameter :: ndim1=500,ndim2=3000
+      integer*4 :: ngmax
+      real*8 dy, x, y
+      integer*4 ipl, kdilul, loc, lng, ntp, iargc, nut
+      real*8 :: tmin, tmax, ox, oy, xmin, dx, ymin, tbounce
+      integer*4 l, nb, n, ntype, nw, j, npt, n1
+      integer*4 n2, jmax, nlines,ii,nword, i, kchart
+
+      real*8, dimension(0:ndim2) :: t
+      real*8, dimension(numaxm,0:ndim2) :: xlumn, xlume, fenu
+      integer*4, dimension(numaxm,0:ndim2) :: kgrn
+      integer*4 :: imassread, imass1len, iprevj, nshock
+
+      dimension  ipl(ndim1)
+      character(10)  word,endfile
+      character(10)  hx,hy,hp
+      character(80)  namef,namein
+      character(30)  path, dilf
+      integer numargs
+      kchart = 2
+      tbounce = 0d0
+      imassread = 0
+      numargs = iargc()
+      if (numargs .eq. 1) then
+         call getarg(1, namef)
+      elseif (numargs .eq. 2) then
+         call getarg(1, namef)
+         call getarg(2, chart)
+         read (chart, *) kchart
+      else
+         stop 'Wrong number of arguments: plotr <filename> <chart>'
+      endif
+
+      open(unit=12,file=namef,status='old'
+     1,access='sequential')
+      ntp=12
+      rewind ntp
+      hx=' time'
+      hy=' log(r)'
+      ox=24.
+      oy=15.
+      xmin=0.
+      dx=0.005
+      ymin=5.4
+      dy=0.2
+      l=index(namein,' ')-1
+      nb=0
+      nb=nb+1
+      n=0
+      nshock=1
+      if(nb.gt.1) n=n+1
+ 200  continue
+      xxx = ''
+      do while (xxx .ne. 'zzzzzzzzzz')
+         read(ntp,909,end=217) xxx
+      enddo
+  909 format(a10)
+      read(ntp,*) namein,ntime,time,dtlast,dta,jmax,ngmax,numax,khelem
+      xxx = ''
+      nut = 1
+      t(n) = time
+      do while (xxx .ne. 'rrrrrrrrrr')
+         read(ntp,909,end=217) xxx
+	 read(ntp,*) xlumn(nut,n), xlume(nut,n), fenu(nut,n),
+     ^	 kgrn(nut,n)
+         if (xlume(nut,n) .lt. 1d40) then
+           fenu(nut,n) = 0d0
+         endif
+	 nut=nut+1
+      enddo
+      xlumn(nut,n)=0d0
+      xlume(nut,n)=0d0
+      fenu(nut,n)=0d0
+      nut=nut-1
+
+      if (imassread .eq. 0) then
+         imassread = 1
+	 tmin = time
+	 tmax = time
+      endif
+      if (time .gt. tmax) tmax = time
+      n=n+1
+      if(n.lt.ndim2)  goto  200
+ 217  continue
+      npt=n
+
+      do n=1,npt
+        x=t(n) - tbounce
+        if (x .ne. -tbounce .or. y .ne. 0d0) then
+        if (n .eq. 1) then
+               print *, '#proc getdata'
+               write(*,111) 'data: ', x, fenu(1,n), fenu(2,n),fenu(3,n),
+     &              abs(xlume(1,n)/1d+51),
+     &		    abs(xlume(2,n)/1d+51),
+     &		    abs(xlume(3,n)/1d+51)
+            else
+               write(*,111) '      ', x, fenu(1,n), fenu(2,n),fenu(3,n),
+     &              abs(xlume(1,n)/1d+51),
+     &		    abs(xlume(2,n)/1d+51),
+     &		    abs(xlume(3,n)/1d+51)
+	    endif
+	    endif
+      enddo
+111   format(a10,1p7e13.6)
+      if (kchart .eq. 1) then
+      print *,'#proc areadef'
+      print *,'   title: Enu vs time'
+      print *,'   xrange: ', tmin - tbounce,' ', tmax - tbounce
+      print *,'   xaxis.label: time (seconds)'
+      print *,'   xaxis.stubs: inc l 0.1'
+      print *,'   yrange: 0 35'
+      print *,'   yaxis.stubs: inc l 1'
+      print *,'   yaxis.label: Enu MeV'
+
+      print *, ' '
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 2'
+      print *, 'linedetails: style=1'
+      print *, 'label: nu-e'
+
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 3'
+      print *, 'linedetails: style=2'
+      print *, 'label: nu-bar'
+
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 4'
+      print *, 'linedetails: style=3'
+      print *, 'label: nu-x'
+      elseif (kchart .eq. 2) then
+      print *,'#proc areadef'
+!      print *,'   title: energy vs time'
+      print *,'   title: Lnu vs time'
+      print *,'   xrange: ', tmin - tbounce,' ', tmax - tbounce
+      print *,'   xaxis.label: time (seconds)'
+      print *,'   xaxis.stubs: inc l 0.1'
+      print *,'   yrange: 0 300'
+      print *,'   yaxis.stubs: inc l 10'
+!       print *,'   yaxis.label: energy (1e+51 ergs)'
+      print *,'   yaxis.label: Lnu 10^51 erg/s'
+      print *, ' '
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 5'
+      print *, 'linedetails: style=1'
+      print *, 'label: nu-e'
+
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 6'
+      print *, 'linedetails: style=2'
+      print *, 'label: nu-bar'
+
+      print *, '#proc lineplot'
+      print *, 'xfield: 1'
+      print *, 'yfield: 7'
+      print *, 'linedetails: style=3'
+      print *, 'label: nu-x'
+      endif
+
+
+      end

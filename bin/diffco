@@ -1,0 +1,15 @@
+#!/bin/csh -f
+
+if (-r RCS/$1,v) then
+   co -l $1
+else
+   co RCS.itamar/$1,v
+   chmod 666 $1
+endif
+
+if (-r RCS/$1.patch,v && !(-r RCS/$1,v)) then
+   co -l $1.patch
+#   patch $1 $1.patch
+    patch -i $1.patch $1
+   rm -f $1.patch $1.orig
+endif

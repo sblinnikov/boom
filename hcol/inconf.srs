@@ -1,0 +1,299 @@
+*deck inconf
+      subroutine  inconf
+     1(kprfin,jnmax,fmn
+     2,en,fmue,pn,rn,ron
+     3,tn,yen,veln,keosnn
+     4,sn,xn,xp,xal,xhv,ahv,z)
+*call implic
+      character*80 filenam
+      parameter (maxjold=250)
+      dimension  dmk(maxjold)
+      dimension  fmo(maxjold),rold (maxjold),roo(maxjold),told (maxjold)
+      dimension  fmn(jnmax)  ,rn   (jnmax)  ,ron(jnmax)  ,tn   (jnmax)
+      dimension  eo(maxjold),yeo(maxjold),velo(maxjold)
+      dimension  en(jnmax)  ,yen(jnmax)  ,veln(jnmax)
+      dimension  keosnn(jnmax)
+      dimension  pn(jnmax),sn(jnmax),fmue(jnmax),z(jnmax),ahv(jnmax)
+      dimension  xn(jnmax),xp(jnmax),xal(jnmax),xhv(jnmax)
+*call const
+*call corct
+*call par
+*call chemp
+*call pebkc
+*call keyeos
+      data  eo /maxjold*0d0/
+c
+      ynu=0d0
+      print *,' inconf'
+      fmxeq1=fmn(jnmax)
+      if(keos.eq.2.or.keos.eq.3) then
+         jjj=max(1,jmxeq1)
+         jjj=min(jnmax,jjj)
+         fmxeq1=fmn(jjj)
+      endif
+      select case (kprfin)
+      case (3)
+         jomax=51
+         call  wwconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case (4)
+         jomax=102
+         call  arconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(5)                   !     5 - wzw12 (12)
+         jomax=51
+         filenam='imodels/model.dat'
+         open(unit=2 ,file=filenam,status='old')
+c        initial configuration
+         call  wzconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(6)                   !c     6 - wzw10 (15)
+         jomax=62
+         call  wzconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(7)                !     7 - wzw13 and wzw25
+         jomax=83
+         call  wzconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(8)                !     8 - nomo9
+         jomax=185
+         filenam='imodels/model.dat'
+         open(unit=2 ,file=filenam,status='old')
+c        initial configuration
+         call  nmconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(9)                !     9 - s15s7b2 (15 smass)
+         jomax=221
+         filenam='imodels/model.dat'
+         open(unit=2 ,file=filenam,status='old')
+c        initial configuration
+         call  wznconf (fmo,rold,velo,told,roo,yeo,jomax)
+      case(10)
+c     Produce either a constant density core for use in testing the hydro
+c     or a two level core for use in testing the neutrino outputs using
+c     the test in Bruenn (1985)
+c
+c     Generally one will use this initial gradient with either knograv
+c     or kchkdif
+
+         if (confro1 .gt. 0d0 .and. confrb1 .gt. 0d0) then
+            jomax=150
+            fjomax=150d0
+            jomaxin=75
+	    fjomaxin=75d0
+         else
+            jomax=150
+            fjomax=150d0
+            jomaxin=150
+            fjomaxin=150d0
+         endif
+
+         do j=1,jomaxin
+            rout =  (j-1) /  (fjomaxin - 1)* confrb0
+            fmo(j) = confro * pai43 * rout ** 3d0
+            velo(j) = 0d0
+	    told(j) = conft 
+            roo(j) = confro
+            yeo(j) = confye
+         enddo
+         if (confro1 .gt. 0d0 .and. confrb1 .gt. 0d0) then
+            do j=jomaxin+1,jomax
+               rout = (j - fjomaxin - 1)/ (fjomax - fjomaxin -1) 
+     +              * (confrb1 - confrb0) + confrb0
+               fmo(j) = confro1 * pai43 * 
+     +              (rout ** 3d0 - confrb0 ** 3d0)
+     +              + confro * pai43 * confrb0 ** 3d0
+               velo(j) = 0d0
+               told(j) = conft1
+               roo(j) = confro1
+               yeo(j) = confye1
+            enddo
+         endif
+            
+      case default
+         print *,'wrong kprfin',kprfin
+         stop 'wrong kprfin'
+      end select
+      dmk(1)=0d0
+      rold(1)=0d0
+      rj3=0d0
+      do  20  j=2,jomax
+      ri3=rj3
+      i=j-1
+      dmk(j)=fmo(j)-fmo(i)
+      rj3=ri3+dmk(j)/roo(j)/pai43
+      rold(j)=rj3**shlish
+20    continue
+      xmue =10d0
+      print  912
+      do  30  j=2,jomax
+      xnj=0d0
+      xpj=0d0
+      xalj=0d0
+      xhvj=1d0
+      ahvj=56d0
+      zj=ahvj*yeo(j)
+      keyets=2
+      if(kprfin.eq.7)  keyets=1
+      keyeos=keos
+      if((keyeos.eq.2.or.keyeos.eq.3).and.(fmo(j).ge.fmxeq1))  keyeos=1
+      if(j.gt.jmaxinp)  keyeos=1
+      jzone=j
+      call  state
+     1( roo(j),eo(j),told(j),poj,sj,sound
+     2, tr,te,pr,pde,sr,se
+     3, ahvj,zj,yeo(j),ynu,xnj,xpj,xalj,xhvj,keyets)
+      if(kesfail.ne.0)  then
+                        if(keyeos.eq.1) then
+                      print *,' eos failed in inconf, kesfail=',kesfail
+                      stop    ' eos failed in inconf'
+                                        endif
+                        keyeos=1
+                        call  state
+     1                 (roo(j),eo(j),told(j),poj,sj,sound
+     2                 ,tr,te,pr,pde,sr,se
+     3                 ,ahvj,zj,yeo(j),ynu,xnj,xpj,xalj,xhvj,keyets)
+                        endif
+                        if (poj .ne. 0) then
+                           gama=roo(j)/poj*sound**2
+                        else
+                           gama=0d0
+                        endif
+      fmoj=fmo(j)/solmas
+      toj=told(j)/tmev
+      sjp=sj/rgas
+      if (poj .gt. 0d0) then
+         ppp=poj
+         pee=pe/ppp
+         pbb=pb/ppp
+         pkk=pk/ppp
+      else
+         pee=0d0
+         pbb=0d0
+         pkk=0d0
+      endif
+      print 911,j,rold(j),roo(j),eo(j),poj,toj,sjp,gama,fmoj
+     1,xnj,xpj,xalj,xhvj,pee,pbb,pkk,keyeos
+911   format(' ',i3,1p8e9.2,2x,0p4f6.3,2x,3f6.3,i5)
+912   format('   j   rold',5x,'roo',6x,'eo',7x,'pn',7x,'to'
+     1,7x,'s',7x,'gama',5x,'fmass',4x,'  xn    xp    xa    xh'
+     2,2x,'    pe    pb    pk    keos')
+30    continue
+      do 80  jo=1,jomax
+80    rold(jo)=rold(jo)**3
+      joaa=1
+      jobb=2
+      dma=0d0
+      rn(1)=0d0
+      eo(1)=0d0
+      do 500  jn=2,jnmax
+      in=jn-1
+      do 100  jo=jobb,jomax
+      jop=jo
+      if(fmo(jo).ge.fmn(jn)) go to 120
+100   continue
+120   jobb=jop
+      dmb=fmo(jobb)-fmn(jn)
+      rn(jn)=rold(jobb)-dmb/roo(jobb)/pai43
+      ron(jn)=(fmn(jn)-fmn(in))/(rn(jn)-rn(in))/pai43
+      veln(jn)=0d0
+      yen(jn)=0d0
+      en(jn)=0d0
+      do 160  jo=joaa,jobb
+      dm=dmk(jo)
+      if(jo.eq.joaa) dm=dma
+      if(jo.eq.jobb) dm=dm-dmb
+      en(jn)=en(jn)+dm*eo(jo)
+      yen(jn)=yen(jn)+dm*yeo(jo)
+      veln(jn)=veln(jn)+dm*velo(jo)
+160   continue
+      en(jn)=en(jn)/(fmn(jn)-fmn(in))
+      veln(jn)=veln(jn)/(fmn(jn)-fmn(in))
+      yen(jn)=yen(jn)/(fmn(jn)-fmn(in))
+      joaa=jobb
+      dma=dmb
+500   continue
+
+      do   jn=1,jnmax
+      rn(jn)=rn(jn)**shlish
+      enddo
+c
+      print  909
+909   format('  j   fmass',6x,'r',10x,'ro',9x,'eo',9x,'yen',8x,'veln')
+c
+      do   jn=2,jnmax
+      fmnj=fmn(jn)/solmas
+      print 910,jn,fmnj,rn(jn),ron(jn),en(jn),yen(jn),veln(jn)
+910   format(' ',i3,1p7e11.3)
+      enddo
+c
+      tn(2)=told(2)
+      print 930
+930   format('  jn  fmass',5x,'r',10x,'ro',9x,'ye',5x,'e'
+     1,10x,'t',10x,'p',10x,'mue',7x,'muhat',3x,'keos')
+      do  600  j=2,jnmax
+      xn(j)=0d0
+      xp(j)=0d0
+      xal(j)=0d0
+      xhv(j)=1d0
+      ahv(j)=56d0
+      z(j)=ahv(j)*yen(j)
+
+
+c     This calculates the amount of energy per gram to be added to 
+c     the interior of the core when a sedov blast simulation is 
+c     underway.  This is here to factor out the variables from the
+c     loop
+c    
+c     I add the energy using a triangular function to avoid 
+c     problems caused by adding the energy in terms of a step 
+c     function.
+
+      if (sedovm .gt. 0d0 .and. sedove .gt. 0d0) then
+         sedovmg = sedovm * solmas
+         egains = 2d0 * sedove / sedovmg * (1d0 - fmn(j-1)/sedovmg)
+      endif
+
+
+c The following adds sedove of energy to the interior sedovm solar
+c masses of the model.  It is used for testing the hydro.
+
+      if (sedovm .gt. 0d0 .and. sedove .gt. 0d0) then
+	if (fmn(j-1) .lt. sedovmg) then
+	   if (fmn(j) .gt. sedovmg) then
+              egain = egains * (sedovmg - fmn(j-1)) / 
+     +             (fmn(j) - fmn(j-1))
+           else
+              egain = egains
+           endif
+           en(j) = en(j) + egain
+        endif
+      endif
+
+      keyets=1
+      if(j.gt.2)  tn(j)=tn(j-1)
+      keyeos=keosnn(j)
+      jzone=j
+      call  state
+     1( ron(j),en(j),tn(j),pn(j),sn(j),sound
+     2, tr,te,pr,pde,sr,se
+     3, ahv(j),z(j),yen(j),ynu,xn(j),xp(j),xal(j),xhv(j),keyets)
+      if(kesfail.ne.0)  then
+       if(keyeos.eq.1 .or. keyeos.eq.7) then
+      print *,' eos failed in inconf (e-loop), kesfail=',kesfail
+      print *,' j=',j,' keyeos=',keyeos,' keyets=',keyets
+      print *,' ro=',ron(j),'  e=',en(j),'  t=',tn(j)
+      stop    ' eos failed in inconf'
+                                        endif
+        
+                        keyeos=1
+                        keosnn(j)=keyeos
+                        if(tn(j).le.0d0)  tn(j)=tn(j-1)
+                        call  state
+     1                  (ron(j),en(j),tn(j),pn(j),sn(j),sound
+     2                 ,tr,te,pr,pde,sr,se
+     3                 ,ahv(j),z(j),yen(j),ynu,xn(j),xp(j),xal(j),xhv(j)
+     *                 ,keyets)
+                        endif
+      fmnj=fmn(j)/solmas
+      print 920,j,fmnj,rn(j),ron(j),yen(j),en(j),tn(j),pn(j),xmue,xmuhat
+     1,keyeos
+
+600   continue
+920   format(' ',i3,f7.4,1p2e11.3,0pf7.3,1p3e11.3,0p2f10.3,i4)
+      return
+      end

@@ -1,0 +1,60 @@
+*deck coscat3
+      subroutine  coscat3(enu,ro,xn,xp,xal,xh,a,z,
+     &	scatn,scatp, scatal, scathv)
+c     this sub. is abbreviated from nuscat
+c     enu  given in mev
+c     cross sections in  1/cm
+c
+*call implic
+      data  ntry   /0/
+      data  avogad /0.6025d24/
+      data  face   /0.511d0/
+      data  sig0   /1.7d-44/
+c
+      save  a0,a1,signa,face2
+      save  cn,cp,cal
+c
+c------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      face2=face**2
+      signa=sig0*avogad
+      sin2tw=0.35d0
+      ca=0.5d0
+      cv=ca+2.d0*sin2tw
+      a0=0.5d0*(ca-cv)
+      a1=2d0-ca-cv
+      alfa=1.21d0
+      delta=(cv-1d0)/alfa/(1d0-ca)
+      deltas=delta**2
+      cp0=alfa**2 * (deltas+3d0) / 16d0
+      cp1=-alfa**2*(1d0-deltas)  / 16d0
+      cp=(cp0-cp1/3d0)/face2
+      cn=0.25d0       /face2
+      cal=4d0*a0**2   /face2
+      ce1=0.51d0
+      ce2=1.49d0
+      ce3=0.2d0
+      ce31=3.d0
+      ce1=ce1*signa
+      ce2=ce2*signa
+      ce3=ce3*signa
+      cn =cn *signa
+      cp =cp *signa
+      cal=cal*signa/4d0
+                 endif
+c------------------------------------------------------
+      if(a.gt.0d0)  then
+         gama=(a0*a+0.5d0*a1*(2d0*z-a))**2
+c     z-n
+         chv=gama/4d0*signa/a/face2
+      else
+         chv=0d0
+      endif
+      roenu2 = ro*enu**2
+      scatn=cn*xn*roenu2
+      scatp=cp*xp*roenu2
+      scatal=cal*xal*roenu2
+      scathv=chv*xh*roenu2
+      return
+      end

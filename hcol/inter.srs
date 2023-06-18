@@ -1,0 +1,24 @@
+*deck inter
+      subroutine  inter (f,dx,dy,dz,v,dvdro,dvdt,dvdye)
+*call implic
+*call int
+      dimension  f(2,2,2),g(2,2),h(2)
+      dimension  dgdx(2,2),dhdx(2),dhdy(2)
+      do  30  k=1,2
+      do  20  j=1,2
+      dgdx(j,k)=f(2,j,k)-f(1,j,k)
+      g(j,k)=f(1,j,k)+dx*dgdx(j,k)
+20    continue
+      dhdy(k)=g(2,k)-g(1,k)
+      h(k)  =g(1,k)  +dy*dhdy(k)
+      dhdx(k)=dgdx(1,k)+dy*(dgdx(2,k)-dgdx(1,k))
+30    continue
+      dvdz=h(2)-h(1)
+      v =h(1)+dz*dvdz
+      dvdy=dhdy(1)+dz*(dhdy(2)-dhdy(1))
+      dvdx=dhdx(1)+dz*(dhdx(2)-dhdx(1))
+      dvdro=dvdx*ar/rox
+      dvdt =dvdy*at/tx
+      dvdye=dvdz*ay
+      return
+      end

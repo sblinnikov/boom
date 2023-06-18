@@ -1,0 +1,171 @@
+*deck plcommon
+      subroutine readentry(ntpr, ieof, jmax, ngmax)
+      implicit none
+*call dim
+*call par
+      character xxx*10
+      integer, intent(in) :: ntpr; 
+      integer, intent(out) :: ieof,jmax, ngmax
+      integer i, nut
+      ieof = 0
+      xxx = ''
+      do while (xxx .ne. 'zzzzzzzzzz')  
+         read(ntpr,909,end=999) xxx
+      enddo
+  909 format(a10)
+      read(ntpr,*)
+     &	name,ntime,time,dtlast,dta,jmax,ngmax,numax,khelem,
+     & kgainr
+910   format(a10,i10,1pe13.6,2e12.4,4i10)
+      print 910,name,ntime,time,dtlast,dta
+      read(ntpr,*) (ahv   (i),i=1,jmax)
+      read(ntpr,*) (ea(i),i=1,jmax)
+      read(ntpr,*) (fmass(i),i=1,jmax)
+      read(ntpr,*) (fmue(i),i=1,jmax) 
+      read(ntpr,*) (fmuhat(i),i=1,jmax)
+      read(ntpr,*) (fmunu(i),i=1,jmax)
+      read(ntpr,*) (gama(i),i=1,jmax)
+      read(ntpr,*) (pa(i),i=1,jmax)
+      read(ntpr,*) (ra(i),i=1,jmax)
+      read(ntpr,*) (roa(i),i=1,jmax)
+      read(ntpr,*) (s(i),i=1,jmax)
+      read(ntpr,*) (ta (i),i=1,jmax)
+      read(ntpr,*) (vela(i),i=1,jmax) 
+      read(ntpr,*) (xhv(i),i=1,jmax)
+      read(ntpr,*) (xn(i),i=1,jmax)
+      read(ntpr,*) (xp(i),i=1,jmax)
+      read(ntpr,*) (ye(i),i=1,jmax)
+      read(ntpr,*) (yedot(i),i=1,jmax)
+      read(ntpr,*) (ynu(i),i=1,jmax)
+      read(ntpr,*) (z(i),i=1,jmax)
+      read(ntpr,*) (snu1(i),i=1,jmax)
+      read (ntpr,*) ( eturba (i),i=1,jmax)
+      read (ntpr,*) ( znut   (i),i=1,jmax)
+      read (ntpr,*) ( fluxturb   (i),i=1,jmax)
+      read (ntpr,*) ( fluxye (i),i=1,jmax)
+      read (ntpr,*) ( tconv (i),i=1,jmax)
+      read (ntpr,*) ( roconv(i), i=1,jmax)
+      read (ntpr,*) ( econv(i), i=1,jmax)
+      read (ntpr,*) ( vplusa(i), i=1,jmax)
+      read (ntpr,*) ( pconv(i), i=1,jmax)	
+      read (ntpr,*) ( hplusa(i), i=1,jmax)
+      read (ntpr,*) ( hminusa(i), i=1,jmax)
+      read (ntpr,*) ( roplusa(i), i=1,jmax)
+      read (ntpr,*) ( roplusb(i), i=1,jmax)
+      read (ntpr,*) ( yeplusa(i), i=1,jmax)
+      read (ntpr,*) ( yeplusb(i), i=1,jmax)
+      read (ntpr,*) ( asyma(i), i=1,jmax)
+      read (ntpr,*) ( asymb(i), i=1,jmax)
+      do  nut=1,numax
+	 xxx = ''
+         do while (xxx .ne. 'nnnnnnnnnn')  
+            read(ntpr,909,end=999) xxx
+         enddo
+	 read (ntpr,*) (flumn(i,nut), i=1,jmax)
+	 read (ntpr,*) (flume(i,nut), i=1,jmax)
+      enddo
+      return
+ 999  continue
+      ieof = 1
+      end
+
+      subroutine readheader(ntpr)
+      implicit none
+*call dim
+*call par
+      integer, intent(in) :: ntpr
+      integer :: jmax, ngmax, keygr, keyeos
+      rewind  ntpr
+      read (ntpr,903) header
+903   format(10a10) 
+      print  901,header
+901   format(5a10)
+      job=header(1) 
+      datex=header(2)
+      clockx=header(3)
+      version(1:10)=header(4) 
+1     format(i10)
+      read  (header(5)(1:10),1) jmax
+      read  (header(6)(1:10),1) ngmax
+      read  (header(7)(1:10),1) keygr
+      read  (header(8)(1:10),1) keyeos
+      read  (header(9)(1:10),1) jmxeq1
+      print 902,jmax,ngmax,keygr,keyeos,jmxeq1
+902   format(5i5)
+
+      end
+
+      subroutine plhead (head,nline,ymin,dy,ymin0,dy0,oy,xmin,dx)
+      character*10 head
+      character*50 line
+      x=xmin+dx
+      y=ymin0+(oy-nline)*dy0      
+      line(1:10)=head
+      i=11
+      l=1
+      j=i+l-1
+      line(i:j)=' '
+      i=j+1
+      l=6
+      j=i+l-1
+      line(i:j)='scale='
+      i=j+1
+      l=4
+      j=i+l-1
+      write (line(i:j),901) dy
+ 901  format(f4.2)
+      i=j+1
+      l=6
+      j=i+l-1
+      line(i:j)=', min='
+      i=j+1
+      l=5
+      j=i+l-1
+      write (line(i:j),902) ymin
+ 902  format(f5.1)
+      x1=xmin+0.75*dx
+      x2=xmin+2.5*dx
+      x3=xmin+3.0*dx
+      x4=xmin+5.0*dx
+      y=ymin0+(oy-nline)*dy0      
+      return
+      end
+      function datef()
+      character*80  command
+      character*50  filename
+      character*28  fulldate
+      character*28  datef
+      nunit=91
+      filename='.date'
+      command='date > '//filename
+      call system(command)
+      open(unit=nunit,file=filename,status='unknown')
+      read (nunit,901) fulldate
+ 901  format(a)
+      close(unit=nunit)
+      datef=fulldate
+      return
+      end
+      function user()
+      character*80  command
+      character*50  filename
+      character*10  user
+      nunit=91
+      filename='.user'
+      command='echo $user > '//filename
+      call system(command)
+      open(unit=nunit,file=filename,status='unknown')
+      read (nunit,'(a)') user
+      close(unit=nunit)
+      return
+      end
+
+      subroutine readxvar(xvar)
+      character xvar*10
+ 22   print *,'type xvar (m, r, or logr)'
+      read (*,'(a10)') xvar
+      if (xvar .ne. 'm' .and. xvar .ne. 'r' .and.
+     &	 xvar .ne. 'logr' .and. xvar .ne. 'r1') then
+	 goto 22
+      endif
+      end

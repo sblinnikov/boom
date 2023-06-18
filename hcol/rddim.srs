@@ -1,0 +1,157 @@
+*deck rddim
+      subroutine  rddim (nt,jmax,ngmax,numax,nxx,keygr)
+      implicit none
+      integer*4, intent(in) :: nt, jmax, ngmax, numax
+      integer*4, intent(in) :: nxx, keygr
+      integer*4 :: nutype, ng, ngm
+*call dim
+*call krdwtdm
+*call grvec
+      character*10 word
+      krd=0
+      call  rdveci (keosn,jmax,word,nt)
+      do  nutype=1,numax
+      call  rdveci (krates(1,nutype),jmax,word,nt)
+      enddo
+      call  rdvec (acc,jmax,word,nt)
+      call  rdvec (dmk,jmax,word,nt)
+      call  rdvec (dmp,jmax,word,nt)
+      call  rdvec (ea,jmax,word,nt)
+      call  rdvec (eb,jmax,word,nt)
+      call  rdvec (eprev,jmax,word,nt)
+      call  rdvec (fmass,jmax,word,nt)
+      call  rdvec (gama,jmax,word,nt)
+      call  rdvec (pa,jmax,word,nt)
+      call  rdvec (pb,jmax,word,nt)
+      call  rdvec (ra,jmax,word,nt)
+      call  rdvec (rb,jmax,word,nt)
+      call  rdvec (roa,jmax,word,nt)
+      call  rdvec (rob,jmax,word,nt)
+      call  rdvec (sgma,jmax,word,nt)
+      call  rdvec (sgmb,jmax,word,nt)
+      call  rdvec (s,jmax,word,nt)
+      call  rdvec (ta,jmax,word,nt)
+      call  rdvec (tb,jmax,word,nt)
+      call  rdvec (vela,jmax,word,nt)
+      call  rdvec (velb,jmax,word,nt)
+      call  rdvec (rlog,jmax,word,nt)
+      call  rdvec (z,jmax,word,nt)
+      call  rdvec (xn,jmax,word,nt)
+      call  rdvec (xp,jmax,word,nt)
+      call  rdvec (xal,jmax,word,nt)
+      call  rdvec (xhv,jmax,word,nt)
+      call  rdvec (ye,jmax,word,nt)
+      call  rdvec (yedot,jmax,word,nt)
+      call  rdvec (yeprev,jmax,word,nt)
+      call  rdvec (ynu,jmax,word,nt)
+      call  rdvec (fmue,jmax,word,nt)
+      call  rdvec (ahv,jmax,word,nt)
+      call  rdvec (fmunu,jmax,word,nt)
+      call  rdvec (fmuhat,jmax,word,nt)
+      call  rdvec (delta,jmax,word,nt)
+      call  rdvec (wq  ,jmax,word,nt)
+      call  rdvec (alprev,jmax,word,nt)
+      call  rdvec (alpa,jmax,word,nt)
+      call  rdvec (alpb,jmax,word,nt)
+      call  rdvec (empa,jmax,word,nt)
+      call  rdvec (empb,jmax,word,nt)
+      call  rdvec (bgpa,jmax,word,nt)
+      call  rdvec (bgpb,jmax,word,nt)
+c
+      call  rdvec (enu,ngmax,word,nt)
+      call  rdvec (denu,ngmax,word,nt)
+      call  rdvec (yfull,ngmax,word,nt)
+c
+      do  nutype=1,numax
+      call  rdvec (prody(1,nutype),jmax,word,nt)
+      call  rdvec (prode(1,nutype),jmax,word,nt)
+      call  rdvec (pneut(1,nutype),jmax,word,nt)
+      call  rdvec (aneut(1,nutype),jmax,word,nt)
+      do   ng=1,ngmax
+      call  rdvec (ya(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (yb(1,ng,nutype),jmax,word,nt)
+      enddo
+      call  rdvec (heatnue(1,nutype),jmax,word,nt)
+      call  rdvec (fip2m(1,nutype),jmax,word,nt)
+      do   ng=1,ngmax
+      call  rdvec (ydot(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (ydotpj(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (ccapt(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (abstpj(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (flum(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (edd(1,ng,nutype),jmax,word,nt)
+      enddo
+      do   ng=1,ngmax
+      call  rdvec (cscatis(1,ng,nutype),jmax,word,nt)
+      enddo
+      do ng=1,ngmax
+         call rdvec(yplusa(1,ng,nutype),jmax,word,nt)
+      enddo
+      do ng=1,ngmax
+         call rdvec(yminusa(1,ng,nutype),jmax,word,nt)
+      enddo
+      do ng=1,ngmax
+         call rdvec(yplusb(1,ng,nutype),jmax,word,nt)
+      enddo
+      do ng=1,ngmax
+         call rdvec(yminusb(1,ng,nutype),jmax,word,nt)
+      enddo
+      do ng=1,ngmax
+         call rdvec(fxi(1,ng,nutype),jmax,word,nt)
+      enddo
+
+      do   ng=1,ngmax
+      do   ngm=1,ngmax
+      call  rdvec (cscat(1,ngm,ng,nutype),jmax,word,nt)
+      enddo
+      enddo
+
+      enddo
+c
+      call rdvec (eturba,jmax,word,nt)
+      call rdvec (eturbb,jmax,word,nt)
+
+      call rdvec(vplusa, jmax, word, nt)
+      call rdvec(vminusa, jmax, word, nt)
+      call rdvec(roplusa, jmax, word, nt)
+      call rdvec(rominusa, jmax, word, nt)
+      call rdvec(hplusa, jmax, word, nt)
+      call rdvec(hminusa, jmax, word, nt)
+      call rdvec(yeplusa, jmax, word, nt)
+      call rdvec(yeminusa, jmax, word, nt)
+      call rdvec(asyma, jmax, word, nt)
+
+      call rdvec(vplusb, jmax, word, nt)
+      call rdvec(vminusb, jmax, word, nt)
+      call rdvec(roplusb, jmax, word, nt)
+      call rdvec(rominusb, jmax, word, nt)
+      call rdvec(hplusb, jmax, word, nt)
+      call rdvec(hminusb, jmax, word, nt)
+      call rdvec(yeplusb, jmax, word, nt)
+      call rdvec(yeminusb, jmax, word, nt)
+      call rdvec(asymb, jmax, word, nt)
+      call rdvec(zjsa, jmax, word, nt)
+      call rdvec(zjsb, jmax, word, nt)
+      call rdvec(accp, jmax, word, nt)
+      call rdvec(velpa, jmax, word, nt)
+      call rdvec(velpb, jmax, word, nt)
+      call rdvec(rpa, jmax, word, nt)
+      call rdvec(rpb, jmax, word, nt)
+      call rdvec(sgmpa, jmax, word, nt)
+      call rdvec(sgmpb, jmax, word, nt)
+
+      print *,' rddim  calls ',krd,'  rdvec'
+      return
+      end

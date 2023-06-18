@@ -1,0 +1,53 @@
+*deck zoning5
+      subroutine  zoning5(fmassn,dmkn,dmpn,jmax)
+*call implic
+*call dim
+*call corct
+*call const
+
+      dimension  dmkn(jmax),dmpn(jmax),fmassn(jmax), fmasso(jmaxm)
+
+      do j=1, jmax
+         fmasso(j) = fmass(j)
+      enddo
+
+      do j=1,jmax
+         if (fmass(j) .lt. fzconst1 * solmas) then
+            fmassn(j) = fmasso(j)
+         else
+            fmassn(j) = fmasso(j)
+            goto 50
+         endif
+      enddo
+ 50   continue
+
+      jinterior = j
+      rinterior = ra(j)
+
+      jmx=jmax-1
+      deltar = (ra(jmax) - ra(jinterior)) / (jmax - jinterior)
+      jj = j
+      do j=jinterior,jmax
+         rad = deltar * (j-jinterior) + rinterior
+ 40      continue
+         if (rad .ge. ra(jj) .and. jj .lt. jmax) then
+            jj = jj + 1
+            goto 40
+         endif
+         fmassn(j) = fmass(jj-1) + 
+     +        dmk(jj) * (rad - ra(jj-1)) / (ra(jj) - ra(jj-1))
+      enddo
+
+      do   j=2,jmx
+         dmkn(j) = fmassn(j) - fmassn(j-1)
+         dmpn(j)=0.5d0*(dmkn(j)+dmkn(j+1))
+      enddo
+      dmkn(jmax)=fmassn(jmax) - fmassn(jmx)
+      dmpn(jmax)=0.5d0*dmkn(jmax)
+
+      if (khelem .ne. 0) then
+         kwin1 = khelem - 5
+         kwin2 = khelem + 5
+      endif
+      return
+      end

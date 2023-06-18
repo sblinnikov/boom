@@ -1,0 +1,29 @@
+*deck eosnuet
+      subroutine eosnuet(ro,egiven,t,ynu,eta)
+*call implic
+*call chemp
+      data  eps /1d-5/
+      data  rel /0.5d0/
+      data  t0  /1d6/
+      etanue=eta
+      e=egiven
+      if(ro.ge.1d12)  then
+      call   eosnu (ro,t0,ynu,e,p,s,er,et,pr,pt,sr,st,ey,py,sy)
+      if(e.gt.egiven)  then
+                       t=-1d0
+                       goto  1
+                       endif
+                      endif
+      do it=1,99
+      call   eosnu (ro,t,ynu,e,p,s,er,et,pr,pt,sr,st,ey,py,sy)
+      dt=-(e-egiven)/et
+      if(abs(dt/t).gt.rel) dt=sign(rel*t,dt)
+      t=t+dt
+      if(abs(dt/t).le.eps) goto  1
+      enddo
+      print *,'eosnuet not converged'
+      stop    'eosnuet not converged'
+ 1    continue
+      eta=etanue
+      return
+      end

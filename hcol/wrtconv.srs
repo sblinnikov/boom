@@ -1,0 +1,46 @@
+*deck wrtconv
+      subroutine  wrtconv (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+c
+      ntpr=45
+      call wrthead(jmax, ngmax, ntpr)
+      write (ntpr,920) ( fmass  (i),i=1,jmax)
+      write (ntpr,920) ( ra     (i),i=1,jmax)
+      write (ntpr,920) ( vela     (i),i=1,jmax)
+      write (ntpr,920) ( roa    (i),i=1,jmax)
+      write (ntpr,920) ( ea    (i),i=1,jmax)
+      write (ntpr,920) ( ye    (i),i=1,jmax)
+      write (ntpr,920) ( s    (i),i=1,jmax)
+      write (ntpr,920) ( eturba (i),i=1,jmax)
+      write (ntpr,920) ( znut   (i),i=1,jmax)
+      write (ntpr,920) ( fluxturb   (i),i=1,jmax)
+      write (ntpr,920) ( fluxye (i),i=1,jmax)
+      write (ntpr,920) ( tconv (i),i=1,jmax)
+      write (ntpr,920) ( roconv(i), i=1,jmax)
+      write (ntpr,920) ( econv(i), i=1,jmax)
+      write (ntpr,920) ( pconv(i), i=1,jmax)
+      write (ntpr,920) ( vplusa(i), i=1,jmax)
+      write (ntpr,920) ( vminusa(i), i=1,jmax)
+      write (ntpr,920) ( hplusa(i), i=1,jmax)
+      write (ntpr,920) ( hminusa(i), i=1,jmax)
+      write (ntpr,920) ( roplusa(i), i=1,jmax)
+      write (ntpr,920) ( roplusb(i), i=1,jmax)
+      write (ntpr,920) ( yeplusa(i), i=1,jmax)
+      write (ntpr,920) ( yeplusb(i), i=1,jmax)
+
+      do  nut=1,numax
+	write (ntpr,920) ( prode (i, nut), i=1,jmax)
+	write (ntpr,920) ( prody (i, nut), i=1,jmax)
+        do  ng=1,ngmax
+	write (ntpr,920) ( prodyg (i,ng,nut), i=1,jmax)
+	write (ntpr,920) ( prodeg (i,ng,nut), i=1,jmax)
+        write (ntpr,920) ( escatg (i,ng,nut), i=1,jmax)
+        write (ntpr,920) ( fluxy  (i,ng,nut), i=1,jmax)
+        enddo  ! ngmax
+      enddo   !  numax
+c
+920   format(1p10e10.2)
+      return
+      end

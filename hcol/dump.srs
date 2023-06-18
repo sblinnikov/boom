@@ -1,0 +1,49 @@
+*deck dump
+      subroutine  dump (jmax,ngmax,nxx)
+*call implic
+*call corct
+*call par
+      character*10  dateil ,clockil
+      character*80  line
+      character*10 endfile,eof1,word
+      data  eof1   /'eof'/
+      data  endfile/'endfile'/
+      data  nt09 /9/, nt10/10/
+      data  nt77 /77/
+      job=name(1:10)
+c      datex=dateil()
+c      clockx=clockil()
+      ndmp=ndmp+1
+      rewind  nt09
+      nt1=9
+      nt2=9
+      if(keydump.ge.2) then
+                       nt2=10
+                       call  locendb (nt10)
+                       endif
+      do  910  nt=nt1,nt2
+      ntype=4
+      nw=1+8+1+1+5
+      word='header'
+      write  (nt)  ntype,nw,word
+      write  (nt)  job,name,datex,clockx,version
+      if (ntype .ge. 4) then
+         write (nt) jmax,ngmax,numax
+      endif
+      call  wtpar(nt)
+      call  wtdim (nt,jmax,ngmax,numax,nxx,keygr)
+      ntype=4
+      nw=0
+      word=eof1
+      write  (nt)  ntype,nw,word
+      word=endfile
+      write  (nt)  ntype,nw,word
+      back  space  nt
+      call flush (nt)
+ 910  continue
+      print      920 ,job,ntime,time
+      write(line,920) job,ntime,time
+920   format(6h dump ,a10,i6,4h  t=,f8.3)
+      call  remark(line,nt77)
+      return
+      end

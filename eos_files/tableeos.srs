@@ -1,0 +1,197 @@
+*deck tableeos
+      program tableeos
+*call implic
+      integer  suffix
+      keyeos=6
+      inp=5
+      open(unit=inp,file='inptab',status='unknown')
+      read (inp,*) mode,suffix
+      read (inp,*) romin,romax,nromax
+      read (inp,*) tmin,tmax,ntmax
+      read (inp,*) yemin,yemax,nyemax
+      print *,' keyeos=',keyeos
+      print *,' romin=',romin,'  romax=',romax
+      print *,' tmin=',tmin,'  tmax=',tmax
+      print *,' yemin=',yemin,'  yemax=',yemax
+      call mktabeos (mode,suffix,keyeos,romin,romax,nromax
+     $                 ,tmin,tmax,ntmax
+     *,              yemin,yemax,nyemax)               
+      end
+      subroutine  mktabeos (mode,suffix,key,romin,romax,nromax
+     $                      ,tmin,tmax,ntmax
+     *,                     yemin,yemax,nyemax)               
+*call implic
+      integer  suffix
+*call keyeos
+*call chemp
+*call roerop
+*call ndimrty
+      dimension t(ndimt),ro(ndimr),ye(ndimy)
+c
+      dimension e(ndimr,ndimt,ndimy)
+      dimension p(ndimr,ndimt,ndimy)
+      dimension s(ndimr,ndimt,ndimy)
+      dimension xn(ndimr,ndimt,ndimy)
+      dimension xp(ndimr,ndimt,ndimy)
+      dimension xh(ndimr,ndimt,ndimy)
+      dimension ah(ndimr,ndimt,ndimy)
+      dimension zh(ndimr,ndimt,ndimy)
+      dimension fmue(ndimr,ndimt,ndimy)
+      dimension fmuhat(ndimr,ndimt,ndimy)
+      dimension yep(ndimr,ndimt,ndimy)
+c
+      character filenam*50
+      character ext*10
+      data  yepbase /1d-5/
+      keyeos=key
+      if(nromax.gt.ndimr)  then
+                           print *,' nromax reduced to ',ndimr
+                           nromax=min(nromax,ndimr)
+                           endif
+      if(ntmax.gt.ndimt)   then
+                           print *,' ntmax reduced to ',ndimt
+                           ntmax=min(ntmax,ndimt)
+                           endif
+      if(nyemax.gt.ndimy)  then
+                           print *,' nyemax reduced to ',ndimy
+                           nyemax=min(nyemax,ndimy)
+                           endif
+      rol0=log(romin)
+      rol1=log(romax)
+      drol=(rol1-rol0)/(nromax-1)
+      do  nro=1,nromax
+      rol=rol0+(nro-1)*drol
+      ro(nro)=exp(rol)
+      enddo
+      tl0=log(tmin)
+      tl1=log(tmax)
+      dtl=(tl1-tl0)/(ntmax-1)
+      do  nt=1,ntmax
+      tl=tl0+(nt-1)*dtl
+      t(nt)=exp(tl)
+      enddo
+      if(nyemax.gt.1)  then
+      dye=(yemax-yemin)/(nyemax-1)
+      do  nye=1,nyemax
+      ye(nye)=yemin+(nye-1)*dye
+      enddo
+                       else
+      ye(1)=yemin
+                       endif
+      call  kvuim
+      write (ext(1:3),911) keyeos,suffix
+ 911  format(i1,'.',i1)
+      filenam='eostab.'//ext(1:3)//'.new'
+      nout=9
+      if(mode.eq.1)  then
+      open(unit=nout,file=filenam,status='unknown'
+     1,access='sequential',form='unformatted')
+                     else
+      open(unit=nout,file=filenam,status='unknown'
+     1,access='sequential',form='formatted')
+                     endif
+      rewind nout
+      nvar=10
+      if(mode.eq.1) then
+      write (nout)  nyemax,ntmax,nromax,nvar
+      write (nout)  romin,romax,tmin,tmax,yemin,yemax
+                    else
+      write (nout,900)  nyemax,ntmax,nromax,nvar
+      write (nout,901)  romin,romax,tmin,tmax,yemin,yemax
+ 900  format(8i10)
+ 901  format(1p5e15.7)
+                    endif
+c      write (nout)  (ye(n),n=1,nyemax)
+c      write (nout)  (t (n),n=1,ntmax)
+c      write (nout)  (ro(n),n=1,nromax)
+      jzone=1
+      keycoul=1
+      nupress=0
+      ntryeos=0
+      keyets=2
+      ynu=0d0
+      do   nye=1,nyemax
+      do   nt =1,ntmax
+      do   nro=1,nromax
+      call  state
+     1(ro(nro),e1,t(nt),p1,s1,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv,z,ye(nye),ynu,xn1,xp1,xal,xhv
+     *,keyets)
+       e(nro,nt,nye)=e1
+       p(nro,nt,nye)=p1
+       s(nro,nt,nye)=s1
+       xn(nro,nt,nye)=xn1
+       xp(nro,nt,nye)=xp1
+       xh(nro,nt,nye)=xhv
+       ah(nro,nt,nye)=ahv
+       zh(nro,nt,nye)=z
+       fmue(nro,nt,nye)=xmue
+       fmuhat(nro,nt,nye)=xmuhat
+       yep(nro,nt,nye)=roep/ro(nro)
+      enddo
+      enddo
+      enddo
+      emax=0d0
+      emin=1d50
+      do    nye=1,nyemax
+      do    nt =1,ntmax
+      do    nro=1,nromax
+      emin=min(emin,e(nro,nt,nye))
+      emax=max(emax,e(nro,nt,nye))
+      enddo
+      enddo
+      enddo
+      if(emin.gt.0d0)  then
+                       ebase=0d0
+                       else
+                       ebase=-emin*1.1
+                       endif
+      if(mode.eq.1)  then
+      write  (nout)  ebase
+                     else
+      write  (nout,901)  ebase
+                     endif
+      print 921,ebase
+ 921  format(' ebase=',1pe10.2)
+      print 922,emin,emax
+ 922  format('  emin=',1pe10.2,'  emax=',e10.2)
+c
+      do    nye=1,nyemax
+      do    nt =1,ntmax
+      do    nro=1,nromax
+      e(nro,nt,nye)=log(e(nro,nt,nye)+ebase)
+      p(nro,nt,nye)=log(p(nro,nt,nye))
+      yep(nro,nt,nye)=log(yep(nro,nt,nye)+yepbase)
+      enddo
+      enddo
+      enddo
+      if(mode.eq.1) then
+      write (nout) (((e(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((p(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((s(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((xn(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((xp(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((xh(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((ah(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((zh(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((fmue(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((fmuhat(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout) (((yep(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+                    else
+      write (nout,901) (((e(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((p(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((s(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((xn(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((xp(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((xh(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((ah(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((zh(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901)
+     * (((fmue(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) 
+     * (((fmuhat(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      write (nout,901) (((yep(i,j,k),i=1,nromax),j=1,ntmax),k=1,nyemax)
+                    endif
+      return
+      end

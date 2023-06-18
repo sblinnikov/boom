@@ -1,0 +1,102 @@
+#!/usr/bin/perl
+
+use strict;
+my($home) = $ENV{'HOME'};
+$::ENV{'SHELL'} = "/bin/sh";
+my($verbose) = 1;
+my($maxrun) = 50;
+
+# my($rootdir) = "/home/seb/prg/boom";
+
+my($rootdir) = "/home/seb/prg/svnWork/SvnCollapse/trunk/boom";
+my($bindir) = $rootdir . "/bin";
+my($datadir) = $rootdir . "/datainp";
+my($outdir) = $rootdir . "/outputs";
+my($editor) = "emacs -nw";
+
+my($model, $start_stage, $end_stage);
+
+if ($#ARGV == 1) {$model = $ARGV[0]; $start_stage = 1; $end_stage = $ARGV[1];};
+if ($#ARGV == 2) {$model = $ARGV[0]; 
+                  $start_stage = $ARGV[1]; $end_stage = $ARGV[2];}
+
+my ($current_stage) = $start_stage;
+
+sub check_well_end {
+   my ($filename) = @_;
+   my ($out_of_time, $well_end, $continue_runs);
+   print $filename, "\n";
+   
+   open (FILE, "tail -50 $filename |") || do {return 2;};
+
+   $out_of_time = 0;
+   $well_end = 0;
+   while (<FILE>) {
+       if(/well-end/) {
+	   $well_end = 1;
+	   print "Well-end: $model\n";
+       } elsif (/runtime/) {
+	   $out_of_time = 1;
+       }
+   }
+   close FILE;
+   if ($well_end) {
+       if ($out_of_time == 0) {
+	   $current_stage++;
+	   if ($current_stage > $end_stage) {
+	       $current_stage = -1;
+	   } else {
+	       $continue_runs = 1;
+	   }
+       } else {
+	   $continue_runs = 1;
+       }
+   } else {
+       $current_stage = -1;
+   }   
+   
+   if ($continue_runs) {
+       return 0;
+   } else {
+       return 1;
+   }
+}
+
+sub run_program {
+   my ($infile, $suffix) = @_;
+   my ($outfile) = "$outdir/$model.out.$suffix";
+   print "$infile.$suffix\n";
+   system ("cd $rootdir
+nice -5 $bindir/boom $infile.$suffix >> $outdir/$model.t06");
+   opendir (DIR, $outdir);
+   my(@files) = grep(/^$model\.t[0-9][0-9]$/, readdir(DIR));
+   closedir(DIR);
+   my($file);
+
+   foreach $file (@files) {
+      $verbose && print "Copying $file\n";
+      my($stage) = 1;
+      my($filebz, $file1);
+      while (1) {
+	  $file1 = $outdir ."/". $file . "." . $suffix . "." . $stage;
+	  $filebz = $file1 . ".bz2";
+	  if (! -f $filebz) {
+	      last;
+	  }
+	  $stage++;
+      }
+      system ("cd $outdir
+cp $file $file1
+bzip2 -f $file1");
+   }
+}
+
+my ($i);
+for ($i=0; $i<$maxrun; $i++) {
+   &run_program("$datadir/$model", "$current_stage");
+   &check_well_end("$outdir/$model.t06") && last;
+   if ($current_stage < 0) {
+       last;
+   }
+}
+

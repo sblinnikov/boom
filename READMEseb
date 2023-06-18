@@ -1,0 +1,224 @@
+This is a README file made by S.I.Blinnikov from the original README
+-- some corrections are marked by seb, but many are just added
+
+The interactive documentation used to be at
+
+http://en.wikiversity.org/wiki/BoomCode
+
+but it seems that the link does not work properly now
+(10.01.2014)
+
+Author:
+Joseph Chen-Yu Wang joe@confucius.gnacademy.org 
+President, Globewide Network Academy - http://www.gnacademy.org/
+
+S.B. Physics - MIT - 1991 Ph.D. Astronomy - University of Texas at Austin
+
+Author's e-mail joe@confucius.gnacademy.org
+
+
+QUICKSTART
+
+cd <rootdir> for boom
+edit Makefile.opts to set compiler options
+
+seb: 
+There are prepared Makefile.opts.gf etc.
+Almost nothing works.
+E.g. Makefile.opts.gf wants /usr/lib/libg2c.a which is absent.
+One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed
+It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some 
+point the compilation crashes finding errors in formats
+
+
+Makefile.opts.ifc wants
+SYSLIBS= -lsvml -lguide -no-ipo -lpthread
+but  -lguide is deprecated in the newer releases of intel compiler suite
+use -liomp5 instead 
+Makefile.opts.ifc13 works with this option.
+So just
+ cp Makefile.opts.ifc13 Makefile.opts
+then:
+
+make clean
+make
+copy bin/runboom.sample to bin/runboom
+ cp bin/runboom.sample bin/runboom
+edit bin/runboom to set the actual <rootdir> for boom in the line, e.g.
+
+my($rootdir) = "/home/seb/prg/boom";
+or
+my($rootdir) = "/home/seb/prg/svnWork/SvnCollapse/trunk/boom";
+
+Boom parameters (given in *.srs files like input.srs):
+
+adaptlag - Turn on or off adaptive meshing
+ 0 = off
+ 1 = on
+
+ smass - Output mass limit (solar mass)
+ keyzons - Initial zoning (use 4)
+ nitmax - Maximum iterations per run
+ timax - Maximum simulation time
+ runtime - Maximum CPU time
+ keos is the equation of state
+ 6 =
+ 7 = interpolated table
+ inprof = two parts.
+The last digit is the keyets c inprof has 2 digits : the 2nd stands for keyets c the first is for
+ the initial configutation c 1 isentrope c 2 isothermal c 3 wzw call wwconf c 4 arnett,s 1.5 m
+ call arconf c 5 wzw 1.5 m call wzconf c 8 nomoto9 call nmconf c 9 s15s7b2 call wznconf c 10 sedov
+ test
+ keyets = 1 (ro, e) given keyets = 2 (ro, t) given keyets = 3 (ro, s) given (choose this)
+ sedove - Energy to add for sedov test used only for initial config 10
+ sedovm - Mass to add for sedov test only for initial config 10
+ pexter = outer pressure boundary condition
+ stab - Hydrodynamical stability factor. Time step / courant time. Choose 0.5
+
+= Neutrino Algorithm =
+ kdnscat - turn on down scattering.
+
+TO RUN:
+
+cd bin
+./runboom <model name> 1 5
+
+see the file datainp/README for model names.  tau3 is the most
+realistic model.
+
+1 here is the first stage, 5 is the final stage
+./runboom <model name> 5
+will do the same
+
+Probably,
+
+./runboom <model name> 5 10
+
+will begin from stage 5 and continue to stage 10 (this must be checked).
+
+GETTING DATA OUT
+
+cd plot
+
+The data are saved in a number of files with extensions:
+
+t06 t09 (?) t10 dump files
+t12 ntplot - flow lines for plotr, plshockr and plotenu routines
+t13 ro-snaps
+t15 profiles snap
+t17 may be used instead of plot.out in plframe and plsnaps
+t25 full group y and fluxes
+t35 a profile for Alexei(?) hydro variables+concentrations
+t45 a profile for convective energies and fluxes
+t55 a profile(?) for shock profiles
+t77 extract file - briefings: it outputs each 1000 steps, e.g.:
+
+ntime= 38000  time= 254.119 msec.  dt=     0.784 musec.
+
+so use, e.g.
+
+ tail -f tau3.t77
+
+to monitor your run if you have the model tau3
+
+./plotr ../outputs/tau3.t12 2 > tau3.t12.pl
+-- produces a set of r(t) plots with a step in the second arg (here 2)
+
+./plotr ../outputs/tau3.t12 > tau3.t12.pl
+-- if the second arg is omitted, then the default is step=10
+
+tau3.t12.pl can be plotted
+with ploticus (http://ploticus.sourceforge.net/)
+
+ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
+
+plshockr ../outputs/tau3.t12 100 > tau3.100.shk
+-- produces a set of shock radii with a step in the second arg (here 100)
+plshockr ../outputs/tau3.t12 > tau3.10.shk
+-- if the second arg is omitted, then the default is step=10
+
+./plotenu ../outputs/tau3.t12 2 > tau3.t12.Lnu
+or by default
+./plotenu ../outputs/tau3.t12 > tau3.t12.Lnu
+-- produces a set of neutrino Luminosity Lnu(t) plots in 1e50 erg/s
+when the second arg is 2 or omitted
+
+./plotenu ../outputs/tau3.t12 2 > tau3.t12.enu
+-- produces a set of the mean neutrino energy Enu in MeV
+when the second arg is 1
+
+
+./plframe - produces a snapshot of many variables at a single moment
+./plsnaps - shows the time evolution of a variable
+
+A typical run follows
+
+------------------------------------------------------------
+joe@bodhi plot]$ ./plsnaps
+ type name
+../outputs/tau3
+tau3c     30.07.93         181
+   12    3         0         7       176sofhead
+  181  123    0    7  176
+  type start end inc (msec)
+200 300 10
+ type xvar (m, r, or logr)
+m
+ type yvar
+s
+
+if one types e.g.
+w
+
+the code tells:
+
+  no such var. if you want to stop type:
+                  stop, end or nomore
+  existing variables are: e, ro, s, t, v, ye, r, gama, p, zones
+
+After prompt
+  type start end inc (msec)
+  180 420 60
+-- would be a better choice, since first points are not interesting
+Now, e.g.:
+ type xvar (m, r, or logr)
+m
+ type yvar
+t
+
+
+Then using a text editor change in file
+ plot.out
+    yrange:   0.000000000000000E+000   15.0000000000000
+    to
+    yrange:   0.000000000000000E+000   25.0000000000000
+or higher, if end time is larger than 420,  in all lines,  this is
+T in MeV
+
+
+    ploticus plot.out -jpeg -o t_r_4.jpg
+
+or better
+               -png -o tm.png
+
+then the file is smaller,
+x - mass M_r/Msun- T in MeV
+
+
+These applications produce a file called plot.out which can be plotted
+with ploticus (http://ploticus.sourceforge.net/)
+
+pl plot.out
+
+Of course, plot.out can be renamed and saved as e.g. plotTmModel_tau3.out
+------------------------------------------------------------
+
+COMPILERS
+
+Author's old remark: I've found that boom tends to always show new bugs with a
+new compiler.  Boom has been run on Linux ia32 with Intel
+Fortran 7,8, and 9.  It also runs on x86_64 with Intel
+Fortran 9, but the cpu timer seems to stop working.
+
+
+------------------------------------------------------------

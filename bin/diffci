@@ -1,0 +1,11 @@
+#!/bin/csh -f
+
+foreach file ($*) 
+if (-r RCS/$file,v) then
+   ci $file
+   continue
+endif
+
+rcsdiff -c $file RCS.itamar/$file,v >! $file.patch
+ci $file.patch
+end

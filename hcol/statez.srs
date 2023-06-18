@@ -1,0 +1,211 @@
+*deck statez
+      subroutine  statez (ro,e,t,p,s,snd
+     1, tr,te,pr,pe,sr,se
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     *, keyets)
+*call implic
+*call chemp
+*call keyeos
+*call const
+      data  eps /1d-5/
+c
+      tt=t
+      call  ahzhye(ah,zh,ye,ro,t)
+c
+      if(keyets.eq.1) go to 100
+      if(keyets.eq.2) go to 200
+      if(keyets.eq.3) go to 300
+      print 10,keyets
+   10 format('  keyets=',i3,'  illegal. stopped in state')
+      stop  'illegal keyets in statez'
+c
+c   keyets=1  -  (ro,e) given
+  100 continue
+      ee=e
+      tplus=1d13
+      tminus=1000.d0
+      if (t .lt. tminus .or. t .gt. tplus) t=5.d9
+      do it=1,99
+         call roteps(ro,t,ee,p,s
+     1        , dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2        , ah,zh,ye,ynu,xn,xp,xa,xh
+     3        , dxndro,dxndt,dxpdro,dxpdt
+     4        , dxadro,dxadt,dxhdro,dxhdt
+     *        )
+         ff=ee-e
+         if(ff.gt.0.d0)  tplus= min (t,tplus)
+         if(ff.lt.0.d0)  tminus= max (t,tminus)
+         dt=tplus-tminus
+         ab=abs(dt)/t
+         if(ab.lt.eps) go to 500
+         t=0.5d0*(tminus+tplus)
+      enddo
+      go to 900
+c
+c   keyets=2  -  (ro,t) given
+  200 continue
+      call  roteps(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, dxndro,dxndt,dxpdro,dxpdt
+     4, dxadro,dxadt,dxhdro,dxhdt
+     *)
+      go to 510
+c
+c   keyets=3  -  (ro,s) given
+  300 continue
+      ss=s
+      tplus=1d13
+      tminus=1000.d0
+      if (t .lt. tminus .or. t .gt. tplus) t=5.d9	
+      do it=1,99
+         call  roteps(ro,t,e,p,ss
+     1        , dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2        , ah,zh,ye,ynu,xn,xp,xa,xh
+     3        , dxndro,dxndt,dxpdro,dxpdt
+     4        , dxadro,dxadt,dxhdro,dxhdt
+     *        )
+c     
+         ff=ss-s
+         if(ff.gt.0.d0)  tplus= min (t,tplus)
+         if(ff.lt.0.d0)  tminus= max (t,tminus)
+         dt=tplus-tminus
+         ab=abs(dt)/t
+         if(ab.lt.eps) go to 500
+         t=0.5d0*(tminus+tplus)
+      enddo
+      go to 900
+c
+c   finish calculations
+  500 continue
+      if(keyets.ne.1) e=e+dedt*dt
+      if(keyets.ne.3) s=s+dsdt*dt
+      t=t+dt
+      p=p+dpdt*dt
+      xn=xn+dxndt*dt
+      xp=xp+dxpdt*dt
+      xa=xa+dxadt*dt
+      xh=xh+dxhdt*dt
+  510 continue
+      te=1.d0/dedt
+      tr=-dedro/dedt
+      pe=dpdt/dedt
+      pr=dpdro-pe*dedro
+      se=dsdt/dedt
+      sr=dsdro-se*dedro
+      if(abs(dxhdt ).le.1d-50)  dxhdt =0.d0
+      if(abs(dxhdro).le.1d-50)  dxhdro=0.d0
+      xne=dxndt/dedt
+      xnr=dxndro-xne*dedro
+      xpe=dxpdt/dedt
+      xpr=dxpdro-xpe*dedro
+      xae=dxadt/dedt
+      xar=dxadro-xae*dedro
+      xhe=dxhdt/dedt
+      xhr=dxhdro-xhe*dedro
+      sndsq=pr+pe*p/ro**2
+      sndsq= max (sndsq,1d-30)
+      snd=sqrt(sndsq)
+c     xmuhat=xmun-xmup
+      xmuhat=btmuhat(ro,ye)
+      xmue=etaelc*t/tmev
+      xmunu=etanue*t/tmev
+c
+      return
+c
+c   errors
+  900 continue
+      print 910,keyets,ro,e,ee,t,tt,p,s,ss,ff,dt,ye,ynu
+910   format('0 keyets=',i2,' ro=',1pe12.5,'  e=',e12.5,'  ee=',e12.5
+     1,'  t=',e12.5,'  tt=',e12.5,'  p=',e12.5/
+     2,'  s=',e12.5,'  ss=',e12.5,'  ff=',e12.5,'  dt=',e12.5
+     3,'  ye=',e12.5,'  ynu=',e12.5)
+      stop  ' error in statez'
+      end
+
+      subroutine  roteps(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+*call implic
+*call keyeos
+*call pebkc
+*call chemp
+*call nunu
+c
+      parameter (shlish=1d0/3d0,shlis4=4d0/3d0,shlis5=5d0/3d0)
+c
+      save  twosh
+c
+      data  ccoul /5.657896d12/
+      data  ntry  /0/
+c-----------------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     twosh=2.d0**shlish
+                     endif
+c-----------------------------------------
+      call  bartdf (ro,t,eb,pb,sb
+     1, ebr,ebt,pbr,pbt,sbr,sbt
+     2, ah,zh,ye,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+c
+      eta=etaelc
+      keyps=1
+      call  electra(ro,t,ye,ee,pe,se
+     1, eer,eet,per,pet,ser,set,keyps)
+      etaelc=eta
+c
+      call  krina(ro,t,ek,pk,sk
+     1, ekr,ekt,pkr,pkt,skr,skt)
+c
+      eofnu=0d0
+      pnu=0d0
+      snu=0d0
+      enr=0d0
+      pnr=0d0
+      snr=0d0
+      ent=0d0
+      pnt=0d0
+      snt=0d0
+      if(nupress.eq.0) goto  50
+      if(ynu.le.0d0)   goto  50
+      call  eosnu(ro,t,ynu,eofnu,pnu,snu,enr,ent,pnr,pnt,snr,snt
+     1,enuy,pnuy,snuy)
+50    continue
+      ecoul=0d0
+      pcoul=0d0
+      decldr=0d0
+      dpcldr=0d0
+      if(keycoul.eq.0)  goto   60
+      if(xa.le.0d0 .and. xh.le.0d0)  goto   60
+      brack=xa/twosh
+      if(zh.le.0d0  .or. ah.le.0d0)  goto   55
+      brack=brack+xh*zh**shlis5/ah
+55    continue
+      pcoul=ccoul*brack/ye*(ye*ro)**shlish*ro
+      ecoul=3d0*pcoul/ro
+      dpcldr=shlis4*pcoul/ro
+      decldr=shlish*ecoul/ro
+60    continue
+      enu=eofnu
+      e=eb+ee+ek+eofnu-ecoul
+      p=pb+pe+pk+pnu-pcoul
+      s=sb+se+sk + snu
+      dedro=ebr+eer+ekr+enr-decldr
+      dpdro=pbr+per+pkr+pnr-dpcldr
+      dsdro=sbr+ser+skr + snr
+      dedt=ebt+eet+ekt  + ent
+      dpdt=pbt+pet+pkt  + pnt
+      dsdt=sbt+set+skt  + snt
+c
+      call  cold(ro,pc,ec,pcr,ecr)
+      e=e+ec
+      p=p+pc
+      dedro=dedro+ecr
+      dpdro=dpdro+pcr
+c
+      return
+      end

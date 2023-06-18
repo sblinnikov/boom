@@ -1,0 +1,269 @@
+*deck nunup0
+      subroutine  nunup0(w,wp,tm,fmue,prod0i,abs0i,prod0ii,abs0ii)
+*call implic
+*call const
+      parameter (fmc2=2d0*enelmev)
+      save  /wpowers/
+      common/wpowers/w2,w3,w4,wp2,wp3,wp4,wwp,w2wp2,w2wp,w2wp3,w3wp2
+     1               ,w3wp
+      dimension a0 (3:5),b0 (0:5),c0 (0:2),d0 (0:2)
+      dimension aa0(3:5),bb0(0:5),cc0(0:2),dd0(0:2)
+c
+      dimension fk_0_x(8),fk_0_xp(8)
+      dimension fkp_0_x(8),fkp_0_xp(8)
+      dimension fk_x_xxp(8),fk_xp_xxp(8)
+      dimension fkp_x_xxp(8),fkp_xp_xxp(8)
+      dimension fk_x_xp(8),fk_xp_x(8)
+      dimension fkp_x_xp(8),fkp_xp_x(8)
+c
+c      on real*8 underflow ignore
+c
+      if(abs(w).le.1d-10 .or. abs(wp).le.1d-10)  then
+                                                 prod0=0d0
+                                                 abs00=0d0
+                                                 return
+                                                 endif
+      eta=fmue/tm
+      x=w/tm
+      xp=wp/tm
+      xxp=x+xp
+      etap=xxp+eta+fmc2/tm
+      deleta=eta-etap
+        if(deleta.lt.(-50d0)) then
+        exdel=0d0
+        else
+        exdel=exp(deleta)
+        end if
+      facfk=1d0/(exdel-1d0)
+c
+      kpx=1
+      if(x.le.eta) kpx=0
+      call findfk1(eta,zero,x,kpx,fk_0_x)
+      call findfk1(etap,zero,x,kpx,fkp_0_x)
+      kpx=1
+      if(xp.le.eta) kpx=0
+      call findfk1(eta,zero,xp,kpx,fk_0_xp)
+      call findfk1(etap,zero,xp,kpx,fkp_0_xp)
+      kpx=1
+      if(xxp.le.eta) kpx=0
+      call findfk1(eta,x,xxp,kpx,fk_x_xxp)
+      call findfk1(etap,x,xxp,kpx,fkp_x_xxp)
+      call findfk1(eta,xp,xxp,kpx,fk_xp_xxp)
+      call findfk1(etap,xp,xxp,kpx,fkp_xp_xxp)
+      kpx=1
+      if(x.le.eta.and.xp.lt.eta) kpx=0
+      call findfk1(eta,xp,x,kpx,fk_xp_x)
+      call findfk1(etap,xp,x,kpx,fkp_xp_x)
+      call findfk1(eta,x,xp,kpx,fk_x_xp)
+      call findfk1(etap,x,xp,kpx,fkp_x_xp)
+c
+      call powers(w,wp)
+      call abcd0(w,wp,a0,b0,c0,d0)
+c
+      call powers(wp,w)
+      call abcd0(wp,w,aa0,bb0,cc0,dd0)
+c
+      if(w.gt.wp) then
+c
+      ftm=1d0
+      fj0i=0d0
+      do k=0,5
+      l=k+1
+      ftm=ftm*tm
+        if(k.ge.3) then 
+        difl=fk_0_xp(l)-fkp_0_xp(l)
+        fj0i=fj0i+ftm*a0(k)*difl
+                   end if
+        difl=fk_x_xxp(l)-fkp_x_xxp(l)
+        fj0i=fj0i+ftm*b0(k)*difl
+        if(k.le.2) then
+        difl=fk_xp_x(l)-fkp_xp_x(l)
+        fj0i=fj0i+ftm*d0(k)*difl
+                   end if
+      end do
+c
+      fj0i=facfk*fj0i
+c
+      ftm=1d0
+      fj0ii=0d0
+      do k=0,5
+      l=k+1
+      ftm=ftm*tm
+        if(k.ge.3) then 
+        difl=fk_0_xp(l)-fkp_0_xp(l)
+        fj0ii=fj0ii+ftm*aa0(k)*difl
+                   end if
+        difl=fk_x_xxp(l)-fkp_x_xxp(l)
+        fj0ii=fj0ii+ftm*bb0(k)*difl
+        if(k.le.2) then
+        difl=fk_xp_x(l)-fkp_xp_x(l)
+        fj0ii=fj0ii+ftm*cc0(k)*difl
+                   end if
+      end do
+c
+      fj0ii=facfk*fj0ii
+c
+      else
+c
+      ftm=1d0
+      fj0i=0d0
+      do k=0,5
+      l=k+1
+      ftm=ftm*tm
+        if(k.ge.3) then 
+        difl=fk_0_x(l)-fkp_0_x(l)
+        fj0i=fj0i+ftm*a0(k)*difl
+                   end if
+        difl=fk_xp_xxp(l)-fkp_xp_xxp(l)
+        fj0i=fj0i+ftm*b0(k)*difl
+        if(k.le.2) then
+        difl=fk_x_xp(l)-fkp_x_xp(l)
+        fj0i=fj0i+ftm*c0(k)*difl
+                   end if
+      end do
+c
+      fj0i=facfk*fj0i
+c
+      ftm=1d0
+      fj0ii=0d0
+      do k=0,5
+      l=k+1
+      ftm=ftm*tm
+        if(k.ge.3) then 
+        difl=fk_0_x(l)-fkp_0_x(l)
+        fj0ii=fj0ii+ftm*aa0(k)*difl
+                   end if
+        difl=fk_xp_xxp(l)-fkp_xp_xxp(l)
+        fj0ii=fj0ii+ftm*bb0(k)*difl
+        if(k.le.2) then
+        difl=fk_x_xp(l)-fkp_x_xp(l)
+        fj0ii=fj0ii+ftm*dd0(k)*difl
+                   end if
+      end do
+c
+      fj0ii=facfk*fj0ii
+c
+      end if
+      abs0i=fj0i
+      abs0ii=fj0ii
+
+      prod0=abs0i*exdel
+      prod0ii=abs0ii*exdel
+c
+      return
+      end
+
+      subroutine  findfk1(fmu,x0,x1,kpx,fk)
+*call implic
+      parameter(lmax=8)
+      dimension fk(lmax),tl(lmax),al(lmax)
+c
+      if(abs(x1-x0).lt.(1d-10)) then
+      do kx=1,lmax
+      fk(kx)=0d0
+      end do
+      go to 799
+      end if
+c
+      if(fmu.gt.x0.and.fmu.gt.x1) go to 400
+      if(fmu.lt.x0.and.fmu.lt.x1) go to 300
+c
+      xmax=max(x0,x1)
+      argtl=xmax-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=poly(xmax,al,jx,lmax)
+      end do
+c
+      xmin=min(x0,x1)
+      argtl=fmu-xmin
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(xmin,al,jx,lmax)
+      end do
+c
+      argtl=0.0
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        if(mod(l,2).ne.0) al(l)=0d0
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-2d0*poly(fmu,al,jx,lmax)-(fmu**kx-xmin**kx)/kx
+      if(x1.gt.x0) fk(kx)=-fk(kx)
+      end do
+      go to 799
+c
+ 300  continue
+      argtl=x0-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=poly(x0,al,jx,lmax)
+      end do
+c
+      argtl=x1-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(x1,al,jx,lmax)
+      end do
+      go to 799
+c
+  400 continue
+      argtl=fmu-x0
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=poly(x0,al,jx,lmax)
+      if(kpx.ne.0) fk(kx)=fk(kx)-x0**kx/kx
+      end do
+c     -------------------------
+      argtl=fmu-x1
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(x1,al,jx,lmax)
+      if(kpx.ne.0) fk(kx)=fk(kx)+x1**kx/kx
+      end do
+      go to 799
+c     --------------------
+c
+  799 continue
+      return
+      end

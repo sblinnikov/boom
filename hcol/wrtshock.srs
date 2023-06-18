@@ -1,0 +1,32 @@
+*deck wrtshock
+      subroutine  wrtshock (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+*call const
+      ntpr=55
+      call  lochelm (jmax,ngmax,nxx)
+      call  enrbal(jmax, ngmax, nxx)
+      if (khelem .gt. 2) then
+         rshock = ra(khelem)
+         mshock = fmass(khelem)
+         yeshock = ye(khelem)
+         sshock = s(khelem)
+      else
+         rshock = 0d0
+         mshock = 0d0
+         yeshock = 0d0
+         sshock = 0d0
+      endif
+ 910     format(i8,i5,i5, 1p20e13.6)
+         write(ntpr, 910) ntime, khelem, jmax, time, rshock, 
+     &        mshock / solmas , yeshock,
+     &        sshock / rgas, etot, egrav, etrm, enutot,  ekin,
+     &	ebal, eblow, eblowk, eprs, fmantle, eout, emisst, dlifen,
+     &	yl
+
+      call flush(ntpr)	
+      end
+
+
+

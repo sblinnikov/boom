@@ -1,0 +1,96 @@
+*deck ratemt
+c -----------------------------------
+c This does the rates for mu and tau neutrinos due to pair production
+c
+c The rates are the same as that for electron neutrino pair production
+c except that the coupling constants are different2
+c
+c There are two possible processes.  In electron/anti-electron annihilation
+c cv2ca2 is replaced by (cv-1)**2 + (ca-1)**2
+c The rates are taken from Bruenn (1985)
+c
+c Another process is described in Buras et al ApJ (587:320-326) (2003) 
+c and is electron neutrino/anti-neutrino annhilation.
+c
+c We are using a slightly different procedure than in that paper.
+c In actuality, the nu/nubar rates are very different.  However when
+c we use a three neutrino type model, we take the average of the 
+c tau neutrinos and anti-neutrinos.  This as the effect of boosting
+c the emission constants.
+c
+c Whether to use this production method depends on knunumt.  The
+c default (knunumt) is to include the process.
+c
+c -----------------------------------
+      subroutine ratemt(ro,tmv,xmue,fmuhatv,xnv,xhvv,ahvv,zhv,
+     +enung,denung, ngmax
+     1,blocky, j, ng
+     1,ydot2,gamma2)
+      implicit none
+      real*8, intent (in) :: 
+     &     ro, tmv, xmue, fmuhatv, xnv, xhvv, ahvv, zhv
+      real*8, intent (in) :: enung, denung
+      integer*4, intent (in) :: j, ng, ngmax
+      real*8, intent (out) :: ydot2, gamma2
+*call const
+*call dim      
+*call pairscat
+*call cori
+      real*8, intent(in), dimension(ngmaxm) :: blocky
+      real*8, parameter :: fmc2=2d0*enelmev
+c These are coupling constants for electron-neutrino / neutrino
+c scattering
+      real*8, parameter :: ca=0.5d0,cv=0.5d0+2d0*sthw2
+      real*8, parameter :: cvpca2=(cv+ca)**2,cvmca2=(cv-ca)**2
+      real*8, parameter :: cv2ca2=cv**2+ca**2
+      real*8, parameter :: cv12ca12=(cv-1d0)**2 + (ca-1d0)**2
+
+c This is the averaged coupling constant for nu-nubar annihilation
+      real*8, parameter :: cv2ca2nunu=half**2+half**2
+
+c Copy scattering coefficients from nue - nuebar rates
+      real*8, parameter :: coeff=1.55d-33
+
+      real*8 :: con, dwwsq
+      real*8, dimension(ngmax) :: dwpwpsq
+      integer*4 :: ngp
+c  The rates in the array are the averaged nue/nue-bar rates.  So
+c  I have to include a factor to convert these to mu/tau rates
+c
+c  This cross-section is based on Bruenn (1985), and averages
+c  the nu/nu-bar rates for mu/tau neutrinos and anti-neutrinos
+
+      if (knunumt.ne.0) then
+         con = (cv12ca12 + cv2ca2nunu) * coeff/pai/facdis**2  
+      else
+         con = cv12ca12 * coeff/pai/facdis**2
+      endif
+
+      dwwsq = denung * enung ** 2d0
+      dwpwpsq = denu(1:ngmax) * enu(1:ngmax) ** 2d0
+      ydot2 = con * dwwsq * sum((1d0 - blocky(1:ngmax)) 
+     &     * (prod0i(j,ng,1:ngmax) + prod0ii(j,ng, 1:ngmax)) 
+     &     * dwpwpsq(1:ngmax))   
+      gamma2 = con * facdis * sum(blocky(1:ngmax) 
+     &     * (abs0i(j,ng,1:ngmax) + abs0ii(j,ng,1:ngmax)) 
+     &     * dwpwpsq(1:ngmax))   
+      return
+      end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

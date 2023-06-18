@@ -1,0 +1,287 @@
+*deck grstep
+      subroutine  grstep (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call keyeos
+*call chemp
+c     -----------------------------------
+c     k.a. van riper apj 238 558-571 1979
+c     -----------------------------------
+c     alprev,alpa,alpb = lapse functions at times n-1,n,n+1.
+c                        they are defined on points.
+c     bgpa,bgpb = big gamma at times n,n+1. defined on points.
+c     wq = dimensionless enthalpy. defined on intervals.
+c     empa,empb = mass-energy at times n,n+1. defined on points.
+c     ----------------------------------------------------------
+
+c     Make this parameter rather large so that it doesn't get
+c     tripped by the rezoning system.
+
+      real*8, parameter :: dromaxg=0.1
+c     statement function
+      amean(xi,yi,xj,yj)=(xi*yi+xj*yj)/(xi+xj)
+c
+      data eps /5.0d-05/
+*call asdro
+      pai4gc=pai4*grav/clite2
+      twogc2=2.0d0*grav/clite2
+      imax=jmax-1
+      if(ntime.ne.0) go to 50
+c
+c     initialization
+c     --------------
+      sgma(1)=0.0d0
+      sgmb(1)=0.0d0
+      do 10 j=2,jmax
+      i=j-1
+      sgma(j)=0.0d0
+      sgmb(j)=0.0d0
+      dvl=vela(j)-vela(i)
+      if(dvl.ge.(0.0d0)) go to 10
+      sgma(j)=asig*roa(j)*dvl**2
+   10 continue
+      do 20 j=1,jmax
+      empa(j)=fmass(j)
+   20 continue
+      bgpa(1)=1.0d0
+      bgpb(1)=1.0d0
+      do 36 it=1,99
+      err=0.0d0
+      do 28 j=2,jmax
+      i=j-1
+      gg=1.0d0+(vela(j)/clite)**2-twogc2*empa(j)/ra(j)
+      bgpa(j)=sqrt(gg)
+      empb(j)=empa(j)
+      bgq=0.5d0*(bgpa(i)+bgpa(j))
+      empa(j)=empa(i)+bgq*(1.0d0+ea(j)/clite2)*dmk(j)
+      error=0.5d0*abs(empb(j)-empa(j))/(empb(j)+empa(j))
+      err= max (err,error)
+   28 continue
+      if(err.lt.eps) go to 38
+      if(it.ge.90) then
+                   print 939
+                   print 940,it,err
+                   print 941,(fmass(j),j=1,jmax)
+                   print 941,(empa(j),j=1,jmax)
+                   endif
+  939 format(1h ,'trouble in gr initialization')
+  940 format(1h ,'it =',i3,'err =',1pe9.2)
+  941 format(1h ,1p10e12.4)
+   36 continue
+      stop   'grstep error'
+   38 continue
+      do 39 i=1,jmax
+      empb(i)=0.0d0
+   39 continue
+c
+      do 40 j=2,jmax
+      wq(j)=1.0d0+(ea(j)+(pa(j)+sgma(j))/roa(j))/clite2
+   40 continue
+      alpa(jmax)=1.0d0-twogc2*empa(jmax)/ra(jmax)
+      denom=1.0d0+(vela(jmax)/clite)**2-twogc2*empa(jmax)/ra(jmax)
+      alpa(jmax)=alpa(jmax)/denom
+      do 44 jj=jmin,jmax
+      j=jmax-jj+jmin
+      i=j-1
+      k=j+1
+      pj=pa(j)+sgma(j)
+      pi=pj
+      if(i.gt.1) pi=pa(i)+sgma(i)
+      pk=pext
+      if(j.lt.jmax) pk=pa(k)+sgma(k)
+      pij=amean(dmk(i),pi,dmk(j),pj)
+      if(j.lt.jmax)  pjk=amean(dmk(j),pj,dmk(k),pk)
+      if(j.eq.jmax)  pjk=0.5d0*(pj+pk)
+      diffp=0.0d0
+      if(j.gt.jmin) diffp=pjk-pij
+      wrj=wq(j)*roa(j)
+      daij=diffp/wrj/clite2
+      alpa(i)=alpa(j)*exp(daij)
+   44 continue
+      do 46 i=1,jmax
+      alprev(i)=alpa(i)
+      alpb(i)=alpa(i)
+   46 continue
+c
+c     start regular time step
+c     -----------------------
+   50 continue
+      kromin=0
+      kromax=0
+      ku=0
+      dtnext=1.0d+99
+      dtm=0.5d0*(dta+dtb)
+      do 100 j=jmin,jmax
+      i=j-1
+      k=j+1
+      rj2=ra(j)**2
+      pj=pa(j)+sgma(j)
+      if(j.eq.jmax) go to 55
+      pk=pa(k)+sgma(k)
+      wjq=amean(dmk(j),wq(j),dmk(k),wq(k))
+      psjp=amean(dmk(j),pj,dmk(k),pk)
+      go to 60
+   55 continue
+      pk=pext
+      wjq=0.5d0*(wq(j)+1.0d0)
+      psjp=0.5d0*(pa(j)+sgma(j)+pext)
+   60 continue
+c
+c     calculate acc,velb,rb
+c     ---------------------
+      pgrad=pk-pj
+      ap=pai4*rj2*bgpa(j)*pgrad/wjq/dmp(j)
+      ag=grav*empa(j)/rj2
+      ar=pai4gc*psjp*ra(j)
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c      an1=0.d0
+c      an2=0.d0
+c      if(nuemis.lt.2)  goto   90
+c      if(roa(j).le.roshakf)  goto  90
+c      pgradn=pneut(k,nutype)-pneut(j,nutype)
+c      if(j.eq.jmax)  pgradn=-pneut(k,nutype)
+c      an1=pai4*rj2*bgpa(j)*pgradn/wjq/dmp(j)
+c      an2=2.d0*(fip2m(j,nutype)+fip2m(k,nutype))/ra(j)/(roa(j)+roa(k))
+c90    continue
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      acc(j)=-(ap+ag+ar)
+      do  nut=1,numax
+      acc(j)=acc(j)+aneut(j,nut)
+      enddo
+      velb(j)=vela(j)+alpa(j)*acc(j)*dtm
+      daldta=(alpa(j)-alprev(j))/dta
+      facalp=alpa(j)+0.5d0*daldta*dtb
+      rb(j)=ra(j)+facalp*velb(j)*dtb
+      if(rb(j).gt.rb(i)) go to 100
+      kromax=j
+      go to 779
+  100 continue
+c
+c     calculate rob,eb,empb,wq
+c     ------------------------
+      ri3=rb(jmin-1)**3
+      do 200 j=jmin,jmax
+      i=j-1
+      rj3=rb(j)**3
+      tvm=pai43*(rj3-ri3)/dmk(j)
+      bgq=0.5d0*(bgpb(i)+bgpa(j))
+      rojb=bgq/tvm
+      dveldt=(velb(j)-vela(j))/dtm
+      velbb=velb(j)+0.5d0*dveldt*dtb
+      dvol=1.0d0/rojb-1.0d0/roa(j)
+      ejb=ea(j)-(pa(j)+sgma(j))*dvol
+      gcr=grav/clite2/rb(j)
+      xmue=fmue(j)
+      xmunu=fmunu(j)
+      do 105 it=1,99
+      dempj=(1.0d0+ejb/clite2)*dmk(j)
+      bb=dempj*gcr
+      cc=1.0d0+(velbb/clite)**2-(2.0d0*empb(i)+dempj*bgpb(i))*gcr
+      cc=-cc
+      radic=bb**2-4.0d0*cc
+      if(radic.le.(0.0d0)) stop 'radic'
+      radic=sqrt(radic)
+      gjb=0.5d0*(radic-bb)
+      bgq=0.5d0*(bgpb(i)+gjb)
+      rojb=bgq/tvm
+      tb(j)=ta(j)
+      dvol=1.0d0/rojb-1.0d0/roa(j)
+      keyets=1
+      keyeos=keosn(j)
+      jzone=j
+      call  state
+     1(rojb,ejb,tb(j),pjb,sjb,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv(j),z(j),ye(j),ynu(j)
+     4,xn(j),xp(j),xal(j),xhv(j)
+     *,keyets)
+      if(kesfail.ne.0)  goto  779
+      up=-0.5d0*(pa(j)+2.0d0*sgma(j)+pjb)*dvol+ea(j)-ejb
+      down=1.0d0+0.5d0*dpde*dvol
+      dele=up/down
+      rat=2.0d0*abs(dele)/(abs(ea(j))+abs(ejb))
+      if (rat.lt.(0.4d0)) go to 101
+      dele=0.2d0*sign(1.0d0,dele)*(abs(ea(j))+abs(ejb))
+  101 continue
+      ejb=ejb+dele
+      tb(j)=tb(j)+dele*dtde
+      if(rat.lt.eps) go to 110
+  105 continue
+      ku=j
+      go to 779
+  110 continue
+      delro=abs(rojb-roa(j))/roa(j)
+      if(delro.lt.dromaxg) go to 120
+      print *,j,'delro=',delro, dromaxg
+      kromax=j
+      go to 779
+  120 if(delro.gt.dromin) kromin=j
+c
+c     calculate sgmb
+c     --------------
+      sgmb(j)=0.0d0
+      dvol=1.0d0/rojb-1.0d0/roa(j)
+      if(dvol.ge.(0.0d0)) go to 130
+      dvl=alpb(j)*velb(j)-alpb(i)*velb(i)
+      if(dvl.gt.(0.0d0)) go to 130
+      sgmb(j)=asig*rojb*dvl**2
+      if(j.gt.8) go to 130
+      sgmb(j)=sgmb(j)*(j-2)/7.0d0
+  130 continue
+c
+      rob(j)=rojb
+      eb(j)=ejb
+      pb(j)=pjb+dele*dpde
+      if (pb(j) .gt. 0d0) then
+         gama(j)=rojb/pb(j)*sound**2
+      else
+         gama(j) = 0d0
+      endif
+      bgpb(j)=gjb
+      if(j.eq.jmin) bgpb(i)=gjb
+      empb(j)=empb(i)+(1.0d0+ejb/clite2)*bgq*dmk(j)
+      fmue(j)=xmue
+      fmunu(j)=xmunu
+      fmuhat(j)=xmuhat
+      s(j)=sjb+dele*dsde
+      wq(j)=1.0d0+(eb(j)+(pb(j)+sgmb(j))/rob(j))/clite2
+      dtbb=(rb(j)-rb(i))/sound
+      if(dtnext.le.dtbb) go to 199
+      kmin=j
+      dtnext=dtbb
+  199 ri3=rj3
+  200 continue
+c
+c     calculate alpb
+c     --------------
+      dveldt=(velb(jmax)-vela(jmax))/dtm
+      velbb=velb(jmax)+0.5d0*dtb*dveldt
+      alpb(jmax)=1.0d0-twogc2*empb(jmax)/rb(jmax)
+      denom=1.0d0+(velbb/clite)**2-twogc2*empb(jmax)/rb(jmax)
+      alpb(jmax)=alpb(jmax)/denom
+      do 344 jj=jmin,jmax
+      j=jmax-jj+jmin
+      i=j-1
+      k=j+1
+      pj=pb(j)+sgmb(j)
+      pi=pj
+      if(i.gt.1) pi=pb(i)+sgmb(i)
+      pk=pext
+      if(j.lt.jmax) pk=pb(k)+sgmb(k)
+      pij=amean(dmk(i),pi,dmk(j),pj)
+      if(j.lt.jmax)  pjk=amean(dmk(j),pj,dmk(k),pk)
+      if(j.eq.jmax)  pjk=0.5d0*(pj+pk)
+      diffp=0.0d0
+      if(i.gt.1) diffp=pjk-pij
+      wrj=wq(j)*rob(j)
+      daij=diffp/wrj/clite2
+      alpb(i)=alpb(j)*exp(daij)
+  344 continue
+c
+  779 continue
+      return
+      end

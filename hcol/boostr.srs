@@ -1,0 +1,29 @@
+*deck boostr
+      subroutine  boostr (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call keyeos
+*call chemp
+*call vc
+
+
+      if (fneuabs .ne. 1d0 .or. fneuscat .ne. 1d0 .or.
+     1     fneuemis .ne. 1d0) then
+         do j=2,jmax
+            do ng=1,ngmax
+	       ccapt(j, ng, nutype) = 
+     1              fneuabs * ccapt(j, ng, nutype)
+	       ydot(j, ng, nutype) =
+     1              fneuemis * ydot(j, ng, nutype)
+	       cscatis(j, ng, nutype) =
+     1              fneuscat * cscatis(j, ng, nutype)
+            enddo
+         enddo
+      endif
+      end
+
+

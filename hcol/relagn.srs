@@ -1,0 +1,78 @@
+*deck relagn
+      subroutine  relagn
+     1(jmaxnew,jmaxold,fmo,fmn
+     2,rnew,ron,rold,roo
+     3,heatnuold,heatnue
+     4,ya,yb,jmaxm,ngmaxm,ngmax)
+*call implic
+      dimension  fmo(jmaxold),fmn(jmaxnew)
+      dimension  rold(jmaxold),roo(jmaxold)
+      dimension  rnew(jmaxnew),ron(jmaxnew)
+      dimension  heatnuold(jmaxold),heatnue(jmaxnew)
+      dimension  ya(jmaxm,ngmaxm),yb(jmaxm,ngmaxm)
+c
+*call const
+*call corct
+*call par
+c
+      do   jold=1,jmaxold
+      rold(jold)=rold(jold)**3
+      enddo
+c
+      jolda=1
+      joldb=2
+      dma    =0.0d0
+      rnew(1)=0.0d0
+c
+      do 500  jnew=2,jmaxnew
+      inew=jnew-1
+c
+      do   jold=joldb,jmaxold
+      jop=jold
+      if(fmo(jold).ge.fmn(jnew)) go to 100
+      enddo
+c
+100   joldb=jop
+      dmb=fmo(joldb)-fmn(jnew)
+      rnew(jnew)=rold(joldb)-dmb/roo(joldb)/pai43
+      ron(jnew)=(fmn(jnew)-fmn(inew))/(rnew(jnew)-rnew(inew))/pai43
+      heatnue(jnew)=0.0d0
+      if(keynue.ge.2)  then
+                       do  ng=1,ngmax
+                       yb(jnew,ng)=0d0
+                       enddo
+                       endif
+c
+      do   jold=jolda,joldb
+      joldm1=max(jold-1,1)
+      dm=fmo(jold)-fmo(joldm1)
+      if(jold.eq.jolda) dm=dma
+      if(jold.eq.joldb) dm=dm-dmb
+      heatnue(jnew)=heatnue(jnew)+dm*heatnuold(jold)
+      if(keynue.ge.2)  then
+                       do  ng=1,ngmax
+                       j2old=max(2,jold)
+                       yb(jnew,ng)=yb(jnew,ng)+dm*ya(jold,ng)/roo(j2old)
+                       enddo
+                       endif
+      enddo
+c
+      heatnue(jnew)=heatnue(jnew)/(fmn(jnew)-fmn(inew))
+      if(keynue.ge.2)  then
+                       do  ng=1,ngmax
+           yb(jnew,ng)=yb(jnew,ng)/(fmn(jnew)-fmn(inew))*ron(jnew)
+                       enddo
+                       endif
+      jolda=joldb
+      dma=dmb
+500   continue
+c
+      do   jold=1,jmaxold
+      rold(jold)=rold(jold)**shlish
+      enddo
+      do   jnew=1,jmaxnew
+      rnew(jnew)=rnew(jnew)**shlish
+      enddo
+c
+      return
+      end

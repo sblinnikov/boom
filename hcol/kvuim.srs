@@ -1,0 +1,15 @@
+*deck kvuim
+      subroutine  kvuim
+      implicit none
+*call const
+c     fill const
+      twol=log(2.0d0)
+      pai2l=log(pai2)
+      avol=log(avo)
+      planckl=log(planck)
+      boltzl =log(boltz)
+      contl=pai2l+boltzl-avol-2.d0*planckl
+      c2=planck*clite/boltz
+      return
+      end
+

@@ -1,0 +1,30 @@
+*deck abcdef
+      subroutine  abcdef(xa,xb,ya,yb,dya,dyb,ddya,ddyb,aj)
+*call implic
+      dimension  aj(6)
+      a1=2.0d0/(xb-xa)
+      a2=a1*a1
+      a3=a1*a2
+      a4=a2*a2
+      a5=a1*a4
+      b1=-(xb+xa)/(xb-xa)
+      s=yb+ya
+      h=yb-ya
+      st=(dyb+dya)/a1
+      dt=(dyb-dya)/a1
+      stt=(ddyb+ddya)/a2
+      dtt=(ddyb-ddya)/a2
+      a=(3.0d0*(h-st)+dtt)/16.0d0
+      b=(-dt+stt)/16.0d0
+      c=(5.0d0*(-h+st)-dtt)/8.0d0
+      d=(3.0d0*dt-stt)/8.0d0
+      e=(15.0d0*h-7.0d0*st+dtt)/16.0d0
+      f=(8.0d0*s-5.0d0*dt+stt)/16.0d0
+      aj(1)=a5*a
+      aj(2)=a4*(5.0d0*a*b1+b)
+      aj(3)=a3*((10.0d0*a*b1+4.0d0*b)*b1+c)
+      aj(4)=a2*(((10.0d0*a*b1+6.0d0*b)*b1+3.0d0*c)*b1+d)
+      aj(5)=a1*((((5.0d0*a*b1+4.0d0*b)*b1+3.0d0*c)*b1+2.0d0*d)*b1+e)
+      aj(6)=((((a*b1+b)*b1+c)*b1+d)*b1+e)*b1+f
+      return
+      end

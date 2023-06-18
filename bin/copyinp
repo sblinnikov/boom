@@ -1,0 +1,8 @@
+#!/bin/csh -f
+
+foreach outfile ($argv[2-])
+foreach file ($1.? $1.??)
+    sed -e "s/$1/$outfile/g" < $file >! $outfile.$file:e
+end
+
+end

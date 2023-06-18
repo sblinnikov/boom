@@ -1,0 +1,12 @@
+*deck wtvec
+      subroutine  wtvec (v,nw,word,nt)
+*call implic
+      character*10 word
+      dimension  v(nw)
+*call krdwtdm
+      ntype=2
+      write (nt) ntype,nw,word
+      write (nt) (v(i),i=1,nw)
+      kwt=kwt+1
+      return
+      end

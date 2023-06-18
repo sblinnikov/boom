@@ -1,0 +1,161 @@
+*deck wznconf
+      subroutine  wznconf (fmass,r,u,t,ro,ye,jmax)
+*call implic
+*call keyeos
+*call const
+*call corct
+*call par
+      parameter  (ndimw=250)
+      dimension  fmass(jmax),r(jmax),u(jmax),t(jmax),ro(jmax),ye(jmax)
+      dimension  xmw(ndimw),rw(ndimw),uw(ndimw),tw(ndimw)
+     $          ,row(ndimw),yew(ndimw),dmw(ndimw),pw(ndimw),sw(ndimw)
+     $     ,ew(ndimw)
+      character*132  head
+      knusave=nupress
+      kcoul=keycoul
+      nt=2
+      rewind nt
+c     read headers
+      do  i=1,10
+         read  (nt,801) head
+         print *,head
+      enddo
+ 801  format(132a1)
+      j=1
+ 1    continue
+      read  (nt,*,end=3) i,tmass,zmass,radius,density,temp,yeww
+     $                    ,energy,velocity,entropy,pressure
+      if(i.ne.j)   then
+                   print *,' i.ne.j in wznconf'
+                   stop    ' i.ne.j in wznconf'
+                   endif
+      j=i+1
+      dmw(j)=zmass
+      rw(j)=radius
+      uw(j)=velocity
+      tw(j)=temp
+      row(j)=density
+      yew(j)=yeww
+      ew(j)=energy
+      pw(j)=pressure
+      sw(j)=entropy * rgas
+      goto  1
+ 3    continue
+      jmax=j
+      print 901,row(2),tw(2),yew(2)
+901   format(' initial configuration S115S7B2 from woosley '
+     1,/'  roc=',1pe10.2,'  tc=',e10.2,'  yec=',0pf8.4)
+      print *,'jmax of input file=',jmax
+      print 902
+902   format('   j    dm',10x,'r',11x,'u',11x,'t',11x,'ro',10x
+     1         ,'ye',10x,'p',11x,'erm')
+      rw(1)=0d0
+      r3i=0d0
+      fmass(1)=0d0
+      do j=2,jmax
+         xmw(j)=0d0
+         r3o=rw(j)**3
+         dmm=row(j)*pai43*(r3o-r3i)
+         dm=dmm/solmas
+         er=(dm-dmw(j))/dmw(j)
+         print 903,j,dmw(j),rw(j),uw(j),tw(j),row(j),yew(j),pw(j),er
+ 903     format(i4,1p8e12.4)
+         dmw(j)=dmm
+         fmass(j)=fmass(j-1)+dmw(j)
+         r3i=r3o
+      enddo
+c
+      tw(1)=0d0
+      nupress=0
+      keycoul=0
+      ynu=0d0
+      xn=0d0
+      xp=0d0
+      xal=0d0
+      xhv=1.d0
+      ahv=56.d0
+      z=26.d0
+      e=0d0
+905   format('   j   ro',8x,'t',7x,'tcor',3x,'ye',6x,'pw',8x
+     1,'peos',6x,'pzig',6x,'dp')
+      if(jmaxinp.lt.0) stop ' jmaxinp not specified, wzconf'
+      jmxeq1=jmaxinp
+      do j=2,jmax
+         yew(j)=min(yew(j),yeinmax)
+         keyets=keyets0
+         keyeos=1
+         jzone=j
+         call  state
+     1        ( row(j),ew(j),tw(j),p,sw(j),sound
+     2        , tr,te,pr,dpde,sr,se
+     3        , ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *        ,keyets)
+         keyeos=keos
+         if(keos.eq.2.or.keos.eq.3) keyeos=2
+         if(j.gt.jmxeq1)            keyeos=1
+         call  state
+     1        ( row(j),ew(j),tw(j),p,sw(j),sound
+     2        , tr,te,pr,dpde,sr,se
+     3        , ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *        ,keyets)
+         if(kesfail.ne.0)  then
+            keyeos=1
+            call  state
+     1           ( row(j),ew(j),tw(j),p,sw(j),sound
+     2           , tr,te,pr,dpde,sr,se
+     3           , ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *           ,keyets)
+         endif
+	 if (pw(j) .gt. 0d0) then
+            dp=(p-pw(j))/pw(j)
+         else
+c Input file did not contain pressure information
+            dp=0d0
+            pw(j) = p
+         endif
+         tx=tw(j)
+         if(j.le.jmxeq1)  then
+            keosz=keos
+         else
+            keosz=1
+         endif
+         call  trop
+     1        (row(j),e,tx,pw(j),s,snd,j,keosz
+     2        , tr,te,pr,pe,sr,se
+     3        , ah,zh,yew(j),xn,xp,xa,xh)
+         if(kesfail.ne.0)  then
+            if(keosz.eq.1)  then
+               print *,' trop failed from wzconf'
+               stop    ' trop failed from wzconf'
+            endif
+            keosz=1
+            call  trop
+     1           (row(j),e,tx,pw(j),s,snd,j,keosz
+     2           ,tr,te,pr,pe,sr,se
+     3           ,ah,zh,yew(j),xn,xp,xa,xh)
+         endif
+         tt=tw(j)/tmev
+         tp=tx/tmev
+c     tw(j)=tx
+c     differences in pressure are small t not modified
+         if(j.eq.2)  print  905
+         print 907,j,row(j),tt,tp,yew(j),pw(j),dp
+ 907     format(i4,1pe10.2,0p3f8.3,1p4e10.2)
+      enddo
+      print *,'  t not modified  '
+      r(1)=0d0
+      u(1)=0d0
+      t(1)=0d0
+      ro(1)=0d0
+      ye(1)=0d0
+      do  j=2,jmax
+         r(j)=rw(j)
+         u(j)=uw(j)
+         t(j)=tw(j)
+         ro(j)=row(j)
+         ye(j)=yew(j)
+      enddo
+      nupress=knusave
+      keycoul=kcoul
+      return
+      end

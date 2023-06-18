@@ -1,0 +1,35 @@
+*deck ahzhye
+      subroutine  ahzhye(ah,zh,ye,ro,t)
+*call implic
+*call barion
+*call const
+      save p,q,r,sh,tsh,fa,fb,ye0
+      data  ntry / 0 /
+      if(ntry.eq.0) then
+      ntry=1
+      p=12.5855633d0
+      q= 6.21270d0
+      r= 8.69970d0
+      sh=1.0d0/3.0d0
+      tsh=2.0d0*sh
+      wa=-28.3d0*emev
+      wn=0.0d0
+      wp=0.0d0
+      fa=62.352420d0
+      fb= 0.44d0
+      ye0=26.d0/56.d0+ .02d0
+                     endif
+      ah=fa*(fb/ye)**2
+      ah= max (ah,56.d0)
+      zh=ye*ah
+c     ah=56.
+c     if(ye.ge.ye0)  goto  2
+c     call  zhmaz  (ro,t,ye,ah,zh,zht,zhro,zhye)
+c     goto   3
+c2     continue
+c     zh=ye*ah
+3     continue
+      yeh=zh/ah
+      wh=-ah*(p-q*(r*(0.5d0-yeh)**2+ye**tsh))*emev
+      return
+      end

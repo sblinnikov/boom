@@ -1,0 +1,215 @@
+*deck electra
+      subroutine  electra(ro,t,ye,ee,pe,se
+     a                   ,eer,eet,per,pet,ser,set,keyps)
+c     --------------------------------------------
+c     divine,n. ap.j. 142,1652,(1965)
+c     herz,m.a.,hansen,c.j. ap.j. 153,1011,(1968)
+c     --------------------------------------------
+*call implic
+*call roerop
+*call nunu
+      data rkodem,tkodem /1.0d+99,1.0d+99/
+      data facen,facpr,facs,rg /2.037300d+24,1.358200d+24,1.686304d-10
+     1,8.314339d+07/
+c
+c     parameters for positron gvul.
+      data a1,a2,a3,a4 /2.059815d-03,-7.027778d-03
+     1,4.219747d-02,-1.132427d+00/
+c
+c     facen=8*pai*sqrt(2)*(me*c**2)/(lamdae**3)
+c     lamdae=planck/(me*c)
+c     facroe=8*pai*sqrt(2)/(avo*lamdae**3)
+c     facroe=facen/(me*c**2)/avo
+c     facpr=(2/3)*facen
+c     facs=boltz/(me*c**2)
+c     rg=gas constant
+c     nu= degeneracy parameter for electrons (divine)
+c     nup=degeneracy parameter for positrons (herz and hansen)
+c     keyps: 0 no positrons
+c            1 positrons above gvul. (gvul:roep/roe=approx 1.0e-5)
+c            2 always positrons
+c
+      roe=ye*ro
+      beta=facs*t
+      b12=sqrt(beta)
+      b32=b12*beta
+      b52=b32*beta
+c
+      delroe=roe-rkodem
+      ratroe=2.0d0*abs(delroe)/(rkodem+roe)
+      delt=t-tkodem
+      ratemp=2.0d0*abs(delt)/(tkodem+t)
+      if(ratroe.gt.(0.15d0).or.ratemp.gt.(0.15d0)) go to 6
+      dbet=facs*delt
+      nu=nu+dnudr*delroe+dnudb*dbet
+      if(nu.le.(0.0d0)) nu=1.0d0
+      nu= min (nu,1.0d+36)
+      go to 8
+    6 continue
+      call  prenu(roe,t)
+    8 continue
+      rkodem=roe
+      tkodem=t
+c
+      keypos=0
+      ep=0.0d0
+      pp=0.0d0
+      sp=0.0d0
+      depdroe=0.0d0
+      depdbet=0.0d0
+      dppdroe=0.0d0
+      dppdbet=0.0d0
+      nup=0.0d0
+      xl=log10(roe)
+      bl=log10(beta)
+      if(xl.lt.(8.0d0)) go to 12
+      if(xl.lt.(10.0d0)) go to 14
+      gvul=-2.875d0+0.3325d0*xl
+      if(bl.gt.gvul) keypos=1
+      go to 18
+   12 continue
+      gvul=((a1*xl+a2)*xl+a3)*xl+a4
+      if(bl.gt.gvul) keypos=1
+      go to 18
+   14 continue
+      gvul=-2.750d0+0.3200d0*xl
+      if(bl.gt.gvul) keypos=1
+   18 continue
+c
+      if(keyps.eq.0) keypos=0
+      if(keyps.eq.2) keypos=1
+c
+      s12=0.5d0
+      s32=1.5d0
+      s52=2.5d0
+      call  findnu(roe,beta,nu,nup,dnudr,dnudb,keypos)
+c
+c     electrons
+      call  divine(nu,f32,df32,s32)
+      call  divine(nu,f52,df52,s52)
+      s62=3.0d0
+      call  divine(nu,f62,df62,s62)
+      u=(f62/f52)**2
+      dudnu=2.0d0*u*(df62/f62-df52/f52)
+      us=u*u
+      x=beta*u
+      f=1.0d0+x*(2.5d0+x*(2.0d0+0.5d0*x))
+      df=2.5d0+x*(4.0d0+1.5d0*x)
+      f=sqrt(f)
+      df=0.5d0*df/f
+      dfdb=u*df
+      dfdu=beta*df
+      fi32=f32+(f-1.0d0)*f52/u
+      dfidu=(u*dfdu-f+1.0d0)*f52/us
+      dfidnu=dfidu*dudnu+df32+(f-1.0d0)*df52/u
+      dfidb=dfdb*f52/u
+      dfidbet=dfidb+dfidnu*dnudb
+      dfidroe=dfidnu*dnudr
+      g=(1.0d0+0.5d0*x)
+      gs=sqrt(g)
+      g=gs*g
+      dg=0.75d0*gs
+      dgdb=u*dg
+      dgdu=beta*dg
+      gi32=f32+(g-1.0d0)*f52/u
+      dgidu=(u*dgdu-g+1.0d0)*f52/us
+      dgidnu=dgidu*dudnu+df32+(g-1.0d0)*df52/u
+      dgidb=dgdb*f52/u
+      dgidbet=dgidb+dgidnu*dnudb
+      dgidroe=dgidnu*dnudr
+c
+      em=facen*b52*fi32
+      pm=facpr*b52*gi32
+      demdbet=facen*b32*(2.5d0*fi32+beta*dfidbet)
+      dpmdbet=facpr*b32*(2.5d0*gi32+beta*dgidbet)
+      demdroe=facen*b52*dfidroe
+      dpmdroe=facpr*b52*dgidroe
+      call  etanu(nu,eta,detadnu)
+      sm=facs*(em+pm)/beta-rg*roem*eta
+      if(keypos.eq.0) go to 100
+c
+c     positrons
+      etap=-eta-2.0d0/beta
+      call  nueta(etap,nup,dnpdetp)
+      call  divine(nup,fp32,dfp32,s32)
+      call  divine(nup,fp52,dfp52,s52)
+      s62=3.0d0
+      call  divine(nup,fp62,dfp62,s62)
+      up=(fp62/fp52)**2
+      dupdnup=2.0d0*up*(dfp62/fp62-dfp52/fp52)
+      ups=up*up
+      xp=beta*up
+      fp=1.0d0+xp*(2.5d0+xp*(2.0d0+0.5d0*xp))
+      dfp=2.5d0+xp*(4.0d0+1.5d0*xp)
+      fp=sqrt(fp)
+      dfp=0.5d0*dfp/fp
+      dfpdb=up*dfp
+      dfpdup=beta*dfp
+      fpi32=fp32+(fp-1.0d0)*fp52/up
+      dfpidup=(up*dfpdup-fp+1.0d0)*fp52/ups
+      dfpidnp=dfpidup*dupdnup+dfp32+(fp-1.0d0)*dfp52/up
+      dnpdb=(2.0d0/beta**2-detadnu*dnudb)*dnpdetp
+      dnpdroe=-detadnu*dnpdetp*dnudr
+      dfpidre=dfpidnp*dnpdroe
+      dfpidb=dfpdb*fp52/up
+      dfpidbt=dfpidb+dfpidnp*dnpdb
+      gp=1.0d0+0.5d0*xp
+      gps=sqrt(gp)
+      gp=gps*gp
+      dgp=0.75d0*gps
+      dgpdb=up*dgp
+      dgpdup=beta*dgp
+      gpi32=fp32+(gp-1.0d0)*fp52/up
+      dgpidup=(up*dgpdup-gp+1.0d0)*fp52/ups
+      dgpidnp=dgpidup*dupdnup+dfp32+(gp-1.0d0)*dfp52/up
+      dgpidb=dgpdb*fp52/up
+      dgpidbt=dgpidb+dgpidnp*dnpdb
+      dgpidre=dgpidnp*dnpdroe
+      call  divine(nup,fp12,dfp12,s12)
+      s42=2.0d0
+      call  divine(nup,fp42,dfp42,s42)
+      up=(fp42/fp32)**2
+      dupdnup=2.0d0*up*(dfp42/fp42-dfp32/fp32)
+      ups=up*up
+      xp=beta*up
+      fp=1.0d0+xp*(2.5d0+xp*(2.0d0+0.5d0*xp))
+      dfp=2.5d0+xp*(4.0d0+1.5d0*xp)
+      fp=sqrt(fp)
+      dfp=0.5d0*dfp/fp
+      dfpdb=up*dfp
+      dfpdup=beta*dfp
+      fpj12=fp12+(fp-1.0d0)*fp32/up
+      dfpjdup=(up*dfpdup-fp+1.0d0)*fp32/ups
+      dfpjdnp=dfpjdup*dupdnup+dfp12+(fp-1.0d0)*dfp32/up
+      dfpjdb=dfpdb*fp32/up
+      dfpjdbt=dfpjdb+dfpjdnp*dnpdb
+      dfpjdre=dfpjdnp*dnpdroe
+c
+      ep1=facen*b52*fpi32
+      ep2=2.0d0*facen*b32*fpj12
+      ep=ep1+ep2
+      depr1=facen*b52*dfpidre
+      depr2=2.0d0*facen*b32*dfpjdre
+      depdroe=depr1+depr2
+      depb1=facen*(2.5d0*b32*fpi32+b52*dfpidbt)
+      depb2=2.0d0*facen*(1.5d0*b12*fpj12+b32*dfpjdbt)
+      depdbet=depb1+depb2
+      pp=facpr*b52*gpi32
+      dppdroe=facpr*b52*dgpidre
+      dppdbet=facpr*(2.5d0*b32*gpi32+b52*dgpidbt)
+      sp=facs*(ep1+pp)/beta-rg*roep*etap
+c
+  100 continue
+      ee=(em+ep)/ro
+      eer=(ye*(demdroe+depdroe)-(em+ep)/ro)/ro
+      eet=facs*(demdbet+depdbet)/ro
+      pe=pm+pp
+      per=ye*(dpmdroe+dppdroe)
+      pet=facs*(dpmdbet+dppdbet)
+      se=(sm+sp)/ro
+      ser=(eer-pe/(ro*ro))/t
+      set=eet/t
+c
+  799 continue
+      return
+      end

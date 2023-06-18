@@ -1,0 +1,58 @@
+*deck makeenu
+      subroutine  makeenu(enu1,enumax,ngmax,enu,denu,yfull,kpr)
+*call implic
+      dimension enu(ngmax),denu(ngmax),yfull(ngmax)
+*call const
+      common  /ngs/ ngmx
+      common  /gs/  denu1,enumx
+      external  fgs
+      data keyavg /2/
+c     energies in MeV
+      q=1.5d0
+      denu1=enu1
+      ngmx=ngmax
+      enumx=enumax
+      call  newton (q,fgs)
+      if(kpr.ne.0)   print *,'  q=',q
+      ep=0d0
+      do  ng=1,ngmax
+      de=denu1*q**(ng-1)
+      e=ep+de
+      n=ngmax+1-ng
+      denu(n)=de
+      if(keyavg.eq.1)  then
+                       enu(n)=0.5d0*(e+ep)
+                       yfull(n)=denu(n)*enu(n)**2/facdis
+                       else
+                       e2=e*e
+                       ep2=ep*ep
+                       enu2=(e2+ep2+e*ep)/3d0
+                       enu(n)=sqrt(enu2)
+                       yfull(n)=denu(n)*enu2/facdis
+c
+c     this enu gives the right yfull=denu*enu**2
+c     the following commented enume gives the average energy of
+c     a neutrino in a degenerate energy group
+c                      enume()=0.75d0*(e2+ep2)/(e2+ep2+e*ep)*(e+ep)
+c
+                       endif
+      epp=max(1d0,ep)
+      qe=e/epp
+      ngg=ngmax+1-ng
+      if(kpr.ne.0) print 900,ngg,de,e,qe
+ 900  format(' ng de e qe ',i3,3f8.3)
+      ep=e
+      enddo
+      if(kpr.eq.0) return
+      print *,' '
+      e2=enumax
+      do   ng=1,ngmax
+      e1=e2-denu(ng)
+      em=e1+0.5d0*denu(ng)
+      print 901,ng,denu(ng),e2,e1,enu(ng),em
+901   format(' ng=',i2,'  denu=',f8.3,'  e2=',f8.3
+     1,'  e1=',f8.3,'  enu=',f8.3,' em=',f8.3)
+      e2=e1
+      enddo
+      return
+      end

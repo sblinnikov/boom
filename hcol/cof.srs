@@ -1,0 +1,19 @@
+*deck cof
+      subroutine  cof(x1,x2,y1,y2,dy1,dy2,a,b,c,d)
+*call implic
+      dx=x2-x1
+      sx=x2+x1
+      dy=y2-y1
+      sy=y2+y1
+      dyt=dy2-dy1
+      syt=dy2+dy1
+      sxx=x2**2+x1**2
+      sxxx=x2**3+x1**3
+c
+      d=(syt-2.0d0*dy/dx)/dx/dx
+      c=(dyt/dx-3.0d0*d*sx)/2.0d0
+      b=(syt-2.0d0*c*sx-3.0d0*d*sxx)/2.0d0
+      a=(sy-b*sx-c*sxx-d*sxxx)/2.0d0
+c
+      return
+      end

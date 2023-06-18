@@ -1,0 +1,99 @@
+*deck emisabs
+      subroutine  emisabs(enu,ro,t,xn,xp,xh,a,z,fmue,fmuh,
+     &	emisn,absn, emisa, absa)
+      implicit none
+      real*8 n
+      real*8, intent(in) :: enu, ro, t, xn, xp, xh, a, z
+      real*8, intent(in) :: fmue, fmuh
+      real*8, intent(out) :: emisn, absn, emisa, absa
+c
+c This is a routine that calculates neutrino production and
+c capture rates from free nucleons and from heavy nuclei
+c
+c The algorithm is taken from Bruenn (1985) and is the standard
+c one used in most supernova code as of 2003.  The reason this
+c is used is that the reaction rates are taken from electroweak
+c theory and are less phenomenological than most other routines.
+c
+c There isn't much theory wiggle room for the nucleon cross
+c sections.  There is a lot of simplification in the reaction
+c rates with heavy nuclei.  Neutrino interactions with heavy
+c nuclei are very complex, and the complexity is hidden by the
+c blocking factor.  For more information about neutrino-heavy
+c nuclei reaction rates, check out the papers by G. Fuller and
+c the extensive literature in supernova nucleosynthesis.
+
+c****************************************************************
+c                          units                                *
+c                                                               *
+c               enu..............         Mev                   *
+c               t,fmue,fmuh......         Mev                   *
+c               emisa,absa.......         cm-1                  *
+c                                                               *
+c****************************************************************
+*call const
+c       eta(x1,x2,X3,X4)=(x1-x2)/(exp(X3/X4)-1.)
+      real*8, parameter :: cg2=5.18d-44, cgv=one, 
+     &     cga=one+sthw2, delta=3d0
+      real*8 :: beta, qprima, dnn, dnp, dna, etanp,
+     &     etapn, fnp, fnh, coefn, coefemn, coefabn,
+     &     coefema, coefaba
+      real*8 :: enun, enun2, enua, enua2, factn, arg
+      real*8 :: feqn, facta, feqa
+        beta=1d0/t
+        qprima=delta+fmuh
+        dnn=xn*ro*avo
+        dnp=xp*ro*avo
+        if(a.gt.0d0) then
+                     dna=xh*ro*avo/a
+                     else
+                     dna=0d0
+                     endif
+c       etanp=eta(dnp,dnn,qmev-fmuh,t)
+c       etapn=eta(dnn,dnp,fmuh-qmev,t)
+        etanp=dnn
+        etapn=dnp
+        if( z.le.20.0)                  fnp=0.0
+        if((z.gt.20.0).and.(z.lt.28.0)) fnp=z-20.0
+        if( z.ge.28.0)                  fnp=8.0
+        n=a-z
+        if( n.le.34.0)                  fnh=6.
+        if((n.gt.34.0).and.(n.lt.40.0)) fnh=40.-n
+        if( n.ge.40.0)                  fnh=0.
+c
+        coefn=cg2*(cgv**2+3.*cga**2)/pai
+        coefemn=coefn*etapn
+        coefabn=coefn*etanp
+c
+        coefema=cg2*dna*cga*cga*(2./7.)*fnp*fnh/pai
+        coefaba=coefema*exp(-beta*delta)
+                enun=enu+qmev
+                enun2=enun*enun
+                enua=enu+qprima
+                enua2=enua*enua
+c
+                factn=enun2*sqrt(max(1.-enelmev*enelmev/enun2,0d0))
+                arg=(enun-fmue)/t
+                if(arg.ge.115d0)  then
+                                  feqn=0d0
+                                  elseif(arg.le.-115d0) then
+                                                        feqn=1d0
+                                                        else
+                                         feqn=1.d0/(1.d0+exp(arg))
+                                  endif
+                absn=coefabn*factn*(1.-feqn)    !        cm-1
+                emisn=coefemn*factn*feqn        !        cm-1
+c
+                facta=enua2*sqrt(max(1.-enelmev*enelmev/enua2,0d0))
+                arg=(enua-fmue)/t
+                if(arg.ge.115d0)  then
+                                  feqa=0d0
+                                  elseif(arg.le.-115d0) then
+                                                        feqa=1d0
+                                                        else
+                                         feqa=1.d0/(1.d0+exp(arg))
+                                  endif
+                absa=coefaba*facta*(1.-feqa)
+                emisa=coefema*facta*feqa
+      return
+      end

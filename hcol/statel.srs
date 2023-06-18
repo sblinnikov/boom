@@ -1,0 +1,65 @@
+*deck statel
+      subroutine  statel  (ro,e,t,p,s,c
+     1,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2,a ,z ,ye,ynu,xn,xp,xa,xh
+     *,keyets)
+*call implic
+*call const
+*call chemp
+*call keyeos
+      t0=t
+      e0=e
+      s0=s
+      if(keyets.eq.1)     then
+      call  troe (ro,t,ye,ynu,e,p,s,xh,xn,xp,a,z,xmuh,xmue
+     1,           dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      if(s.le.0.d0)  then
+                     t=t0
+                     e=e0
+                     s=s0
+                     kesfail=1
+                     eossubf='statel'
+                     goto   99
+                     endif
+      elseif(keyets.eq.2)  then
+      call  eostry(ro,t,ye,ynu,e,p,s,xh,xn,xp,a,z,xmuh,xmue
+     1,            dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      if(s.le.0.d0)  then
+                     t=t0
+                     e=e0
+                     s=s0
+                     kesfail=2
+                     eossubf='statel'
+                     goto   99
+                     endif
+      elseif(keyets.eq.3)  then
+      call  tros(ro,t,ye,ynu,e,p,s,xh,xn,xp,a,z,xmuh,xmue
+     1,          dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      if(s.le.0.d0)  then
+                     t=t0
+                     e=e0
+                     s=s0
+                     kesfail=3
+                     eossubf='statel'
+                     goto   99
+                     endif
+                           else
+                           print *,' invalid keyets',keyets
+                           stop 'invalid keyets'
+                           endif
+      dedt= max (dedt,1.d0)
+      xmunu=etanue*t/tmev
+      xmuhat=xmuh
+      xa=1.d0-xh-xn-xp
+      dtde=1.d0/dedt
+      dtdro=-dedro/dedt
+      dpde=dpdt/dedt
+      dpdro=dpdro-dedro*dpde
+      dpdros=dpdro+dpde*p/ro**2
+      dsde=dsdt/dedt
+      dsdro=dsdro-dsde*dedro
+      if(dpdros.le.0.d0)  dpdros=9d20
+      c=sqrt(dpdros)
+99    continue
+      return
+      end

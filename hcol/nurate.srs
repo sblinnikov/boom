@@ -1,0 +1,107 @@
+*deck nurate
+      subroutine   nurate (enutot,epair,ephot,eplas,ro,t,ye)
+*call implic
+      double precision    lambda, lambk,  kpair, kphot, kplas
+c     t in mev
+c     ---------------------------------------------------------
+c     calculates neutrino emissivities from the pair, plasmon, and
+c     photo-neutrino processes.  it uses the schinder et al. (1987)
+c     update to the bps fit.
+      parameter(
+     >           boltz  = 1.380662e-16,
+     >           clite  = 2.99792458e+10,
+     >           cl2    = clite**2,
+     >           emass  = 9.10953e-28,
+     >           emev   = 1.6021892e-06 )
+c
+      parameter ( lambk = emass*cl2/emev )
+c
+      parameter ( a0pair =  5.026e+19,
+     $            a1pair =  1.745e+20,
+     $            a2pair =  1.568e+21,
+     $            b1pair =  9.383e-01,
+     $            b2pair = -4.141e-01,
+     $            b3pair =  5.829e-02,
+     $            cpair  =  5.5924   ,
+     $            a0phot =  3.897e+10,
+     $            a1phot =  5.906e+10,
+     $            a2phot =  4.693e+10,
+     $            b1phot =  6.290e-03,
+     $            b2phot =  7.483e-03,
+     $            b3phot =  3.061e-04,
+     $            cphot  =  1.5654   ,
+     $            a0plas =  2.146e-07,
+     $            a1plas =  7.814e-08,
+     $            a2plas =  1.653e-08,
+     $            b1plas =  2.581e-02,
+     $            b2plas =  1.734e-02,
+     $            b3plas =  6.990e-04 )
+      parameter ( cplas  =  0.56457   )
+c
+      parameter ( x0pair =  5.026e+19,
+     $            x1pair =  1.745e+20,
+     $            x2pair =  1.568e+21,
+     $            y1pair =  1.2383   ,
+     $            y2pair = -8.141e-01,
+     $            y3pair =  0.0      ,
+     $            zpair  =  4.9924   ,
+     $            x0phot =  3.897e+10,
+     $            x1phot =  5.906e+10,
+     $            x2phot =  4.693e+10,
+     $            y1phot =  6.290e-03,
+     $            y2phot =  7.483e-03,
+     $            y3phot =  3.061e-04,
+     $            zphot  =  1.5654   ,
+     $            x0plas =  2.146e-07,
+     $            x1plas =  7.814e-08,
+     $            x2plas =  1.653e-08,
+     $            y1plas =  2.581e-02,
+     $            y2plas =  1.734e-02,
+     $            y3plas =  6.990e-04 )
+      parameter ( zplas  =  0.56457   )
+c
+      kpair(x,y,z) = ( 1. - 13.04*y**2 + 133.5*y**4 + 1534*y**6 +
+     $               918.6*y**8 ) * exp(-2./y)
+      kphot(x,y,z) = (x/z) * y**5
+      kplas(x,y,z) = ( min(x,1d+13)/z )**3
+c
+      lambda = t/lambk
+      rye    = 1./ye
+      xi     = ( (ro/(rye*1.0e+09))**0.3333333 )/lambda
+      epair  = 0.
+      ephot  = 0.
+      eplas  = 0.
+      enutot = 0.
+      if (t*emev/boltz .le. 1.0e+08)  return
+c
+      if (t*emev/boltz .le. 1.0e+10)
+     $   then
+            epair = kpair( ro,lambda,rye ) * exp( -cpair*xi ) *
+     $              ( a0pair + a1pair*xi + a2pair*xi**2 )/
+     $              ( xi**3 + b1pair/lambda + b2pair/(lambda**2) +
+     $              b3pair/(lambda**3) )
+            ephot = kphot( ro,lambda,rye ) * exp( -cphot*xi ) *
+     $              ( a0phot + a1phot*xi + a2phot*xi**2 )/
+     $              ( xi**3 + b1phot/lambda + b2phot/(lambda**2) +
+     $              b3phot/(lambda**3) )
+            eplas = kplas( ro,lambda,rye ) * exp( -cplas*xi ) *
+     $              ( a0plas + a1plas*xi + a2plas*xi**2 )/
+     $              ( xi**3 + b1plas/lambda + b2plas/(lambda**2) +
+     $              b3plas/(lambda**3) )
+         else
+            epair = kpair( ro,lambda,rye ) * exp( -zpair*xi ) *
+     $              ( x0pair + x1pair*xi + x2pair*xi**2 )/
+     $              ( xi**3 + y1pair/lambda + y2pair/(lambda**2) +
+     $              y3pair/(lambda**3) )
+            ephot = kphot( ro,lambda,rye ) * exp( -zphot*xi ) *
+     $              ( x0phot + x1phot*xi + x2phot*xi**2 )/
+     $              ( xi**3 + y1phot/lambda + y2phot/(lambda**2) +
+     $              y3phot/(lambda**3) )
+            eplas = kplas( ro,lambda,rye ) * exp( -zplas*xi ) *
+     $              ( x0plas + x1plas*xi + x2plas*xi**2 )/
+     $              ( xi**3 + y1plas/lambda + y2plas/(lambda**2) +
+     $              y3plas/(lambda**3) )
+         end if
+      enutot = epair + ephot + eplas
+      return
+      end

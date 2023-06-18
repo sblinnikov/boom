@@ -1,0 +1,9 @@
+*deck movlev
+      subroutine  movlev (a,b,n)
+*call implic
+      dimension  a(n),b(n)
+      do  1  i=1,n
+      b(i)=a(i)
+1     continue
+      return
+      end

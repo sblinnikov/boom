@@ -1,0 +1,117 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"> 
+<head>
+ <title> TWiki . Astro . BoomCodeParameters   </title>
+ <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />  
+ <base href="http://www.gnacademy.org/twiki/bin/view/Astro/BoomCodeParameters" />
+</head>
+<body bgcolor="#ffffff">
+<a name="PageTop"></a>
+<form name="main" action="/twiki/bin/view/Astro/BoomCodeParameters">
+<table width="100%" border="0" cellpadding="3" cellspacing="0">
+ <tr>
+  <td bgcolor="#FF9966" rowspan="2" valign="top" width="1%">
+   <a href="http://www.gnacademy.org/"><img src="http://www.gnacademy.org/images/gna-logo-small.gif" border="0" alt="GNA Home" /></a>
+  </td><td>
+   <a href="http://www.gnacademy.org/twiki/bin/view/Main/WebHome">TWiki</a>
+   &gt; <a href="http://www.gnacademy.org/twiki/bin/view/Astro/WebHome">Astro</a>
+   &gt; <a href="/twiki/bin/view/Astro/BoomCode">BoomCode</a> &gt;
+   <font size="+1"><b>BoomCodeParameters</b>   </font>
+  </td><td align="right">
+   <font size="-2">TWiki webs: <br />
+   <a href="/twiki/bin/view/Astro/WebHome">Astro</a>  |  <a href="/twiki/bin/view/Gna/WebHome">GNA</a>  |  <a href="/twiki/bin/view/Guides/WebHome">Guides</a>  |   <a href="/twiki/bin/view/Bookmarks/WebHome">Bookmarks</a>  |  <a href="/twiki/bin/view/CPP/WebHome">CPP</a>  |  <a href="/twiki/bin/view/OED/WebHome">OED</a>  |  <a href="/twiki/bin/view/SOS/WebHome">SOS</a>  |  <a href="/twiki/bin/view/Meta/WebHome">Meta</a>  |  <a href="/twiki/bin/view/Main/WebHome">Main</a>  |  <a href="/twiki/bin/view/TWiki/WebHome">TWiki</a>  |  <a href="/twiki/bin/view/Test/WebHome">Test</a> </font>
+  </td>
+ </tr>
+ <tr bgcolor="#FF9966">
+  <td colspan="2">
+   Astro . {  <a href="/twiki/bin/view/Astro/WebHome">Home</a>  |  <a href="/twiki/bin/view/Astro/WebChanges">Changes</a>  |  <a href="/twiki/bin/view/Astro/WebIndex">Index</a>  |  <a href="/twiki/bin/view/Astro/WebSearch">Search</a>  |  Go <input type="text" name="topic" size="16" />  }
+  </td>
+ </tr>
+</table> 
+</form>
+<p />
+kadaptlag - Turn on or off adaptive meshing
+<ul>
+<li> 0 = off
+</li>
+<li> 1 = on
+</li>
+</ul>
+<p />
+smass - Output mass limit (solar mass)
+<p />
+keyzons - Initial zoning (use 4)
+<p />
+nitmax - Maximum iterations per run
+<p />
+timax - Maximum simulation time
+<p />
+runtime - Maximum CPU time
+<p />
+keos is the equation of state
+<ul>
+<li> 6 =
+</li>
+<li> 7 = interpolated table
+</li>
+</ul>
+<p />
+inprof = two parts.  The last digit is the keyets
+c     inprof has 2 digits : the 2nd stands for keyets
+c     the first is for the initial configutation
+c     1  isentrope
+c     2  isothermal
+c     3  wzw call wwconf
+c     4  arnett,s 1.5 m  call arconf
+c     5  wzw      1.5 m  call wzconf
+c     8  nomoto9         call nmconf
+c     9  s15s7b2         call wznconf
+c    10  sedov test
+<p />
+<p />
+keyets = 1 (ro, e) given
+keyets = 2 (ro, t) given
+keyets = 3 (ro, s) given (choose this)
+<p />
+sedove - Energy to add for sedov test used only for initial config 10
+<p />
+sedovm - Mass to add for sedov test only for initial config 10
+<p />
+pexter = outer pressure boundary condition
+<p />
+stab - Hydrodynamical stability factor.  Time step / courant time.  Choose 0.5
+<p />
+<p />
+<code><b>= Neutrino Algorithm =</b></code>
+<p />
+kdnscat - turn on down scattering.  
+<p />
+<p />
+<table width="100%" border="0" cellpadding="3" cellspacing="0">
+ <tr bgcolor="#FF9966">
+  <td valign="top">
+   Topic <b>BoomCodeParameters</b> . {   <a href="/twiki/bin/edit/Astro/BoomCodeParameters?t=1076838546"><b>Edit</b></a>
+   |  <a href="/twiki/bin/attach/Astro/BoomCodeParameters">Attach</a>
+   |  <a href="/twiki/bin/search/Astro/SearchResult?scope=text&amp;regex=on&amp;search=Boom%20*Code%20*Parameters%5B%5EA-Za-z%5D">Ref-By</a>
+   |  <a href="/twiki/bin/view/Astro/BoomCodeParameters?skin=print">Printable</a>
+   |  <a href="/twiki/bin/rdiff/Astro/BoomCodeParameters">Diffs</a>  | r1.5 | <a href="/twiki/bin/rdiff/Astro/BoomCodeParameters?rev1=1.5&amp;rev2=1.4">&gt;</a> | <a href="/twiki/bin/view/Astro/BoomCodeParameters?rev=1.4">r1.4</a> | <a href="/twiki/bin/rdiff/Astro/BoomCodeParameters?rev1=1.4&amp;rev2=1.3">&gt;</a> | <a href="/twiki/bin/view/Astro/BoomCodeParameters?rev=1.3">r1.3</a>
+   |  <a href="/twiki/bin/oops/Astro/BoomCodeParameters?template=oopsmore&amp;param1=1.5&amp;param2=1.5">More</a> 
+   }
+  </td>
+ </tr>
+</table> 
+<table width="100%" border="0" cellpadding="3" cellspacing="0">
+ <tr>
+  <td valign="top">
+   Revision r1.5 - 29 Nov 2003 - 21:57 GMT - <a href="/twiki/bin/view/Main/JosephWang">JosephWang</a> <br />Parents: <a href="/twiki/bin/view/Astro/BoomCode">BoomCode</a>
+  </td>
+  <td width="40%" valign="top">
+   <font size="-2">Copyright &copy; 2002 Globewide Network Academy. All material on this web is subject to the <a href=http://www.gnu.org/copyleft/fdl.html>GNU Free Documentation License </a>.  We encourage you to copy the material on this site. <br>Ideas, requests, problems regarding TWiki? <a href="mailto:gna@gnacademy.org?subject=TWiki&#32;Feedback">Send feedback</a>.</font>
+  </td>
+ </tr>
+ <tr><td colspan="2">  </td></tr>
+</table>
+<a name="PageBottom"></a>
+</body>
+</html>

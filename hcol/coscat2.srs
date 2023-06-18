@@ -1,0 +1,15 @@
+*deck coscat2
+      subroutine  coscat2(enu,ro,xn,xp,xal,xh,a,z,scat)
+*call implic
+c          enu................           Mev
+c          scat...............           cm-1
+      parameter (cn=1d-20,cp=1d-20)
+      parameter (cal=3d-20*4d0/56d0,chv=3d-20/56d0)
+      if(a.gt.0d0) then
+                   chvxh=chv*a*xh
+                   else
+                   chvxh=0d0
+                   endif
+      scat=(cn*xn+cp*xp+cal*xal+chvxh)*ro*enu**2
+      return
+      end

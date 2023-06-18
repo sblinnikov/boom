@@ -1,0 +1,260 @@
+*deck eostab
+      subroutine  eostab(ro,t,ye,ynu,ee,pp,ss,xhh,xaa,xnn,xpp,aa,zz
+     1,yep,xmuh,xmue,deedro,deedt,dppdro,dppdt,dssdro,dssdt)
+*call implic
+*call keyeos
+*call names
+*call rrttyy
+*call nrntny
+*call ndimrty
+*call const
+*call corct
+c     
+      integer, parameter :: nvars = 11
+
+c Load variables into big array to (hopefully) get some vectorization
+c   1 = e
+c   2 = p
+c   3 = s
+c   4 = xn
+c   5 = xp
+c   6 = xh
+c   7 = ah
+c   8 = zh
+c   9 = fmue
+c  10 = fmuhat
+c  11 = yep
+
+
+      double precision, dimension(ndimr,ndimt,ndimy,nvars), 
+     +     target, save ::
+     +     table
+
+
+      dimension  g(2,2,nvars),h(2,nvars)
+      dimension  dgdx(2,2,nvars),dhdx(2,nvars),dhdy(2,nvars)
+      dimension  v(nvars), dvdro(nvars), dvdt(nvars), dvdye(nvars)
+      dimension  dvdy(nvars), dvdx(nvars), dvdz(nvars)
+
+
+      double precision, dimension(ndimr,ndimt,ndimy), target, save ::
+     +     e, p, s, xn, xp, xh, ah, zh, fmue, fmuhat, yeptab,
+     +     buffer
+
+      double precision, dimension(2,2,2), target, save ::  
+     +   e2,p2,s2,xn2,xp2,xh2,ah2,zh2,fmue2,
+     +   fmuhat2, yep2
+c
+      character*50 filenam
+c
+      save  ntry
+      save  ar,br,at,bt,ay,by
+      save  i, j, k, ip, jp, kp, ebase
+c
+      expm(arg)=exp(max(min(arg,argmax),-argmax))
+      data  argmax /600d0/
+c
+      data  ntry  /0/
+      data  ip,jp,kp /0,0,0/
+      data  nprint /0/
+      data  yepbase /1d-5/
+c     --------------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      filenam=tabname
+      nout=91
+      open(unit=nout,file=filenam,status='old', action='read'
+     2,position='rewind')
+      read (nout,800)  nyemax,ntmax,nromax,nvar
+ 800  format(8i10)
+ 801  format(1p5e15.7)
+
+      print 900,filenam
+ 900  format(' read table ',a)
+      if(nromax.gt.ndimr)  then
+                           print *,' nromax=',nromax,' gt ',ndimr
+                           stop  'nromax'
+                           endif
+      if(ntmax.gt.ndimt)   then
+                           print *,' ntmax=',ntmax,' gt ',ndimt
+                           stop  'ntmax'
+                           endif
+      if(nyemax.gt.ndimy)  then
+                           print *,' nyemax=',nyemax,' gt ',ndimy
+                           stop  'nyemax'
+                           endif
+      read (nout,801)  romin,romax,tmin,tmax,yemin,yemax
+      print 901,romin,romax,nromax,tmin,tmax,ntmax,yemin,yemax,nyemax
+ 901  format(' romin=',1pe10.2,'  romax=',e10.2,'  nromax=',i3
+     *,/'  tmin=',e10.2,'   tmax=',e10.2,'   ntmax=',i3
+     *,/' yemin=',e10.2,'  yemax=',e10.2,'  nyemax=',i3)
+      read  (nout,801)  ebase
+      print 902,ebase
+ 902  format(' ebase=',1pe10.2)
+      read (nout,801)
+     *(((table(i,j,k,1),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,2),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,3),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,4),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,5),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,6),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,7),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,8),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,9),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,10),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      read (nout,801)
+     *(((table(i,j,k,11),i=1,nromax),j=1,ntmax),k=1,nyemax)
+      close (unit=nout)
+      print 903,nromax*ntmax*nyemax
+ 903  format(i6,'  entries read from table.')
+c
+c      e(nro,nt,nye)=log(e(nro,nt,nye)+ebase)
+c      p(nro,nt,nye)=log(p(nro,nt,nye))
+      rol1=log(romin)
+      rol2=log(romax)
+      drol=(rol2-rol1)/(nromax-1)
+      ar=1d0/drol
+      br=1d0-ar*rol1
+c     i=ar*log(ro)+br
+      tl1=log(tmin)
+      tl2=log(tmax)
+      dtl=(tl2-tl1)/(ntmax-1)
+      at=1d0/dtl
+      bt=1d0-at*tl1
+c     j=at*log(t)+bt
+      dye=(yemax-yemin)/(nyemax-1)
+      ay=1d0/dye
+      by=1d0-ay*yemin
+c     k=ay*ye+by
+c
+c     calc. and print table boundaries
+      ro1=exp(     (1-br)/ar)
+      ro2=exp((nromax-br)/ar)
+      t1 =exp(     (1-bt)/at)
+      t2 =exp( (ntmax-bt)/at)
+      ye1=         (1-by)/ay
+      ye2=    (nyemax-by)/ay
+c     print 904,ro1,ro2,t1,t2,ye1,ye2
+904   format(' table boundaries :'/
+     $' ro1=',1pe9.2,' ro2=',e9.2,'  t1=',e9.2,' t2=',e9.2
+     $,'  ye1=',0pf5.3,' ye2=',f5.3)
+c     end of first ntry
+      endif
+c     --------------------------------------------------------------
+      rol=log(ro)
+      tl =log(t)
+      ri=ar*rol+br
+      tj=at*tl +bt
+      yk=ay*ye+by
+      i=ri
+      j=tj
+      k=yk
+      if(i.lt.1 .or. i.ge.nromax)  goto   990
+      if(j.lt.1 .or. j.ge.ntmax)   goto   990
+      if(k.lt.1 .or. k.ge.nyemax)  goto   990
+   1	continue
+      dx=ri-i
+      dy=tj-j
+      dz=yk-k
+
+      i1 = i+1
+      j1 = j+1
+      k1 = k+1
+
+      dgdx(:,:,1:nvars) = 
+     &     table(i1,j:j1,k:k1,1:nvars)-table(i,j:j1,k:k1,1:nvars)
+      g(:,:,1:nvars)=table(i,j:j1,k:k1,1:nvars)+dx*dgdx(:,:,1:nvars)
+
+      dhdy(:,1:nvars)=g(2,1:2,1:nvars)-g(1,1:2,1:nvars)
+      h(:,1:nvars)=g(1,1:2,1:nvars)+dy*dhdy(:,1:nvars)
+
+      dhdx(:,1:nvars)=dgdx(1,1:2,1:nvars)+
+     &     dy*(dgdx(2,1:2,1:nvars)-dgdx(1,1:2,1:nvars))
+
+      dvdz(1:nvars)=h(2,1:nvars)-h(1,1:nvars)
+      v(1:nvars) =h(1,1:nvars)+dz*dvdz(1:nvars)
+      dvdy(1:nvars)=dhdy(1,1:nvars)+dz*(dhdy(2,1:nvars)-dhdy(1,1:nvars))
+      dvdx(1:nvars)=dhdx(1,1:nvars)+dz*(dhdx(2,1:nvars)-dhdx(1,1:nvars))
+      dvdro(1:nvars)=dvdx(1:nvars)*ar/ro
+      dvdt(1:nvars) =dvdy(1:nvars)*at/t
+      dvdye(1:nvars)=dvdz(1:nvars)*ay
+
+
+      ee = v(1)
+      pp = v(2)
+      ss = v(3)
+      xnn = v(4)
+      xpp = v(5)
+      xhh = v(6)
+      aa = v(7)
+      zz = v(8)
+      xmue = v(9)
+      xmuh = v(10)
+      yepl = v(11)
+      
+
+      deedro = dvdro(1)
+      deedt = dvdt(1)
+      deedye = dvdye(1)
+      dppdro = dvdro(2)
+      dppdt = dvdt(2)
+      dppdye = dvdye(2)
+      dssdro = dvdro(3)
+      dssdt = dvdt(3)
+
+      eee=exp(ee)
+      ee=eee-ebase
+      deedro=deedro*eee
+      deedt =deedt *eee
+      deedye=deedye*eee
+
+      pp=exp(pp)
+      dppdro=dppdro*pp
+      dppdt =dppdt *pp
+      dppdye=dppdye*pp
+
+      yep=max(exp(yepl)-yepbase,0d0)
+c
+
+c     the proton fraction is calculated from the n fraction and muhat.
+c
+
+      if (xnn .gt. xpp) then
+         xpp=xnn*expm(-(xmuh-qmev)/t*tmev)
+      endif
+      xaa=1d0-xhh-xnn-xpp
+      if(nupress.ne.0 .and. ynu.gt.0d0)  then
+                          call  eosnu(ro,t,ynu,enu,pnu,snu
+     1                  ,enur,enut,pnur,pnut,snur,snut,enuy,pnuy,snuy)
+                                         ee=ee+enu
+                                         pp=pp+pnu
+                                         ss=ss+snu
+                                         deedro=deedro+enur
+                                         deedt =deedt +enut
+                                         dppdro=dppdro+pnur
+                                         dppdt =dppdt +pnut
+                                         dssdro=dssdro+snur
+                                         dssdt =dssdt +snut
+                                         endif
+      return
+990   continue
+      nprint=nprint+1
+      if(nprint.le.100)   print 991,i,j,k
+991   format(' i=',i3,' j=',i3,' k=',i3,' in eostab out of boundaries.')
+      if(i.lt.1)  i=1
+      if(j.lt.1)  j=1
+      if(k.lt.1)  k=1
+      if(i.ge.nromax)  i=nromax-1
+      if(j.ge.ntmax)   j=ntmax-1
+      if(k.ge.nyemax)  k=nyemax-1
+      goto   1
+      end

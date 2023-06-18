@@ -1,0 +1,46 @@
+*deck ffnp
+      subroutine  ffnp(xn,xp,fn,fp,fnn,fnp,fpn,fpp)
+*call implic
+*call azy
+*call cfnp
+*call xnpah
+*call funcnam
+      expm(arg)=exp(max(min(arg,argmax),-argmax))
+      data  argmax /600d0/
+c      data  ffnpnm /4hffnp/
+      funk='ffnpnm'
+c     xal=2.* log(2.*xn*xp)+cal
+c     xa=exp(xal)
+c     xhl= log(ah)+alfa* log(xn)+beta* log(xp)+cbl
+c     xh=exp(xhl)
+      xa=(2.d0*xn*xp)**2*ca
+      if(cb.gt.0d0)  then
+c                    xh=ah*xn**alfa*xp**beta*cb
+                     xhl=log(ah)+alfa*log(xn)+beta*log(xp)+cbl
+                     xh=expm(xhl)
+                     else
+                     xh=0d0
+                     endif
+      xa=min(xa,1d0)
+      xh=min(xh,1d0)
+      dxadxn=2.d0*xa/xn
+      dxadxp=2.d0*xa/xp
+      dxhdxn=alfa*xh/xn
+      dxhdxp=beta*xh/xp
+      fn=xn+0.5d0*xa+c13*xh+c14
+      fp=xp+0.5d0*xa+c23*xh+c24
+      fnn=1.d0+0.5d0*dxadxn+c23*dxhdxn
+      fnp=0.5d0*dxadxp+c13*dxhdxp
+      fpn=0.5d0*dxadxn+c23*dxhdxn
+      fpp=1.d0+0.5d0*dxadxp+c23*dxhdxp
+c
+      x1=xn
+      x2=xp
+      x3=xa
+      x4=xh
+      x31=dxadxn
+      x32=dxadxp
+      x41=dxhdxn
+      x42=dxhdxp
+      return
+      end

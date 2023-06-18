@@ -1,0 +1,96 @@
+*deck frmi23
+      subroutine  frmi23 (eta,f2,f3,df2,df3)
+*call implic
+      data x1,x2,x3,x4   /-2.2d0, -2.0d0, 3.0d0, 4.0d0/
+      data  ntry/0/
+c
+      save  pai,pai2,pai23,sh,qr,one
+      save  d1,d2,dx12,dx34
+c
+c-------------------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     pai=asin(1d0)*2.0d0
+                     pai2=pai**2
+                     pai23=pai2/3d0
+                     pai4=pai2*pai2
+                     sh=1d0/3d0
+                     qr=0.25d0
+                     one=1d0
+                     d1=pai2+pai2
+                     d2=7d0/15d0*pai4
+                     dx12=x2-x1
+                     dx34=x4-x3
+                     endif
+c-------------------------------------------
+      if(eta.le.x1)  goto  30
+      eta2=eta**2
+      eta3=eta2*eta
+      eta4=eta3*eta
+      if(eta.ge.x4)  goto  10
+      eta5=eta4*eta
+      eta6=eta5*eta
+      eta7=eta6*eta
+      if(eta.le.x3)  goto  20
+10    continue
+      fd2=sh*eta3*(one+pai2/eta2)
+      fd3=qr*eta4*(one+d1/eta2+d2/eta4)
+      dfd2=eta2+pai23
+      dfd3=eta*(eta2+pai2)
+      if(eta.ge.x4)  goto  100
+20    continue
+      f2=1.803d0+1.645d0*eta+.6931d0*eta2+eta3/6.d0+eta4/48.d0-eta6
+     1/2880.d0
+      f3=5.682d0+5.409d0*eta+2.467d0*eta2+0.6931d0*eta3+eta4/8.d0+eta5
+     1/80.d0         -eta7/6720.d0
+      df2=1.645d0+1.3862d0*eta+eta2/2.d0+eta3/12.d0-eta5/480.d0
+      df3=5.409d0+4.934d0*eta+2.0793d0*eta2+eta3/2.d0+eta4/16.d0-eta6
+     1/960.d0
+      if(eta.gt.x3)  goto  134
+      if(eta.lt.x2)  goto   30
+      return
+30    continue
+      xeta=exp(eta)
+      fn2=xeta+xeta
+      fn3=6.0d0*xeta
+      dfn2=fn2
+      dfn3=fn3
+      if(eta.le.x1)  goto  300
+      goto  212
+100   continue
+      f2=fd2
+      f3=fd3
+      df2=dfd2
+      df3=dfd3
+      return
+134   continue
+c
+c     x3 < eta < x4
+      y=(eta-x3)/dx34
+      w=y*y*(3.0d0-y-y)
+      wg=one-w
+      f2=wg*f2+w*fd2
+      f3=wg*f3+w*fd3
+      dw=6.0d0*y*(one-y)/dx34
+      df2=dw*(fd2-f2)+wg*df2+w*dfd2
+      df3=dw*(fd3-f3)+wg*df3+w*dfd3
+      return
+212   continue
+c
+c     x1 < eta < x2
+      y=(eta-x1)/dx12
+      w=y*y*(3.0d0-y-y)
+      wg=one-w
+      f2=wg*fn2+w*f2
+      f3=wg*fn3+w*f3
+      dw=6.0d0*y*(one-y)/dx12
+      df2=dw*(f2-fn2)+wg*dfn2+w*df2
+      df3=dw*(f3-fn3)+wg*dfn3+w*df3
+      return
+300   continue
+      f2=fn2
+      f3=fn3
+      df2=dfn2
+      df3=dfn3
+      return
+      end

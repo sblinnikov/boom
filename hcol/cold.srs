@@ -1,0 +1,35 @@
+*deck cold
+      subroutine  cold(ro,pc,ec,pcr,ecr)
+*call implic
+c   
+      save  pz,famkar
+      save  facpz,ronuc,comprs,gamkar
+c
+      data facpz,ronuc /2.89d31,2.7d14/
+      data comprs,gamkar /200.0d0,2.50d0/
+      data  ntry  / 0 /
+c-------------------------------------------------------
+      if(ntry.eq.0) then
+      ntry=1
+      print 901,comprs,gamkar
+902   format(1x,'compressibility and gamkar',1p2e11.2)
+      pz=comprs*facpz/gamkar
+      famkar=gamkar-1.0d0
+      endif
+c-------------------------------------------------------
+      pc=0d0
+      ec=0d0
+      pcr=0d0
+      ecr=0d0
+      x=ro/ronuc
+      if(x.lt.1d0) go to 799
+      xg=x**gamkar
+      xf=xg/x
+      pc=pz*(xg-1d0)
+      pcr=gamkar*(pz/ronuc)*xf
+      ec=(pz/ronuc)*((xf-1d0)/famkar+1.0d0/x-1d0)
+      ecr=pc/(ro**2)
+  799 continue
+      return
+  901 format(1h ,'compressibility and gamkar',1p2e11.2,/1h ,48(1h-))
+      end

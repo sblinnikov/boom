@@ -1,0 +1,53 @@
+*deck eosfail
+      subroutine  eosfail (jmax,ngmax,nxx,keyfin)
+*call implic
+*call dim
+*call keyeos
+*call par
+      data  romin /6.62d7/
+      data  tmin  /2.92d9/
+      keyfin=0
+      j=jzone
+      print 901,ntime,jzone,keosn(j),kesfail,eossubf
+     1,roa(j),rob(j),ta(j),tb(j),ea(j),eb(j)
+901   format(' eos failed at ntime=',i5,'  j=',i4,'  keos=',i1
+     1,' kesfail=',i3,' subroutine=',a10
+     2,/,'  roa,rob=',1p2e11.3,'  ta,tb=',2e11.3,'  ea,eb=',2e11.3)
+c
+      if(keosn(j).eq.5)  then
+                         do jjj=2,j
+                         if(keosn(jjj).eq.5) then
+                         keos2=2
+                         call  cheos(keos2,jjj,jmax,ngmax,nxx)
+                                             endif
+                         enddo
+                         return
+                         endif
+c
+      if(keosn(j).eq.4)  then
+                         keos2=2
+                         call  cheos(keos2,j,jmax,ngmax,nxx)
+                         return
+                         endif
+c
+      if(keosn(j).eq.7)  then
+                         keos2=1
+                         call  cheos(keos2,j,jmax,ngmax,nxx)
+                         return
+                         endif
+c
+      if(keosn(j).eq.2.or.keosn(j).eq.3)  then
+      if(kesfail.eq.4.and.roa(j).ge.1d13) goto 999
+                                          keos2=1
+                                     call  cheos(keos2,j,jmax,ngmax,nxx)
+                                          else
+                                          goto  999
+                                          endif
+c
+      return
+999   continue
+      print 902
+902   format(' eos failure, stopped in eosfail')
+      keyfin=1
+      return
+      end

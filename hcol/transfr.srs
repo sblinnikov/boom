@@ -1,0 +1,51 @@
+*deck transfr
+      subroutine  transfr (jmax,ngmax,numax,ktransy)
+      implicit none
+      integer * 4, intent(in) :: jmax, ngmax, numax, ktransy
+*call dim
+*call grvec
+*call corct
+      ea(1:jmax)=eb(1:jmax)
+      pa(1:jmax)=pb(1:jmax)
+      ra(1:jmax)=rb(1:jmax)
+      roa(1:jmax)=rob(1:jmax)
+      sgma(1:jmax)=sgmb(1:jmax)
+      ta(1:jmax)=tb(1:jmax)
+      vela(1:jmax)=velb(1:jmax)
+      empa(1:jmax)=empb(1:jmax)
+      bgpa(1:jmax)=bgpb(1:jmax)
+      alprev(1:jmax)=alpa(1:jmax)
+      alpa(1:jmax)=alpb(1:jmax)
+      if(ktransy.ne.0) then
+         eturba(1:jmax)=eturbb(1:jmax)
+
+         vplusa(1:jmax) = vplusb(1:jmax)
+         vminusa(1:jmax) = vminusb(1:jmax)
+         hplusa(1:jmax) = hplusb(1:jmax)
+         hminusa(1:jmax) = hminusb(1:jmax)
+         roplusa(1:jmax) = roplusb(1:jmax)
+         rominusa(1:jmax) = rominusb(1:jmax)
+         yeplusa(1:jmax) = yeplusb(1:jmax)
+         yeminusa(1:jmax) = yeminusb(1:jmax)
+         
+         smpa(1:jmax) = smpb(1:jmax)
+         smma(1:jmax) = smmb(1:jmax)
+
+         asyma(1:jmax) = asymb(1:jmax)
+
+
+         ya (1:jmax,1:ngmax,1:numax)=yb(1:jmax,1:ngmax,1:numax)
+         ya0(1:jmax,1:ngmax,1:numax)=yb(1:jmax,1:ngmax,1:numax)
+         yplusa(1:jmax, 1:ngmax, 1:numax) = 
+     +        yplusb(1:jmax, 1:ngmax, 1:numax)
+         yminusa(1:jmax, 1:ngmax, 1:numax) = 
+     +        yminusb(1:jmax, 1:ngmax, 1:numax)
+      endif
+      if (krotate .ne. 0) then
+         zjsa(1:jmax) = zjsb(1:jmax)
+	 rpa(1:jmax) = rpb(1:jmax)
+	 velpa(1:jmax) = velpb(1:jmax)
+	 sgmpa(1:jmax) = sgmpb(1:jmax)
+      endif
+      return
+      end

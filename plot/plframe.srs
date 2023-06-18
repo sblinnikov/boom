@@ -1,0 +1,355 @@
+*deck plframe
+      program plframe
+*call implic
+*call dim
+*call par
+*call const
+      character   ans*1
+      character  var*10,option*25,xvar*10
+      character*30  path
+      character*80  plotfile
+      character*10  hx,hy
+      character*50  namef,namej
+      dimension  x(jmaxm),y(jmaxm), option(50)
+      nin=1
+      call kvuim
+      open (unit=nin,file='in',status='unknown',form='formatted')
+      print *,'type name'
+      read (*,801,end=990)  namej
+      write (nin,*) namej
+801   format(a)
+      call  pfname(namej,namef,lng)
+      if(lng.eq.0)  print *,'illegal name'
+      if(lng.eq.0)  stop 'illegal name'
+      open(unit=7,file='plot.out',status='unknown'
+     1,access='sequential',form='formatted')
+      open(unit=15,file=namef(1:lng)//'.t15',status='old'
+     1,access='sequential',form='formatted')
+ 1111 call readheader(15)
+      print *,' type time (msec)  to plot '
+      read *,timep
+      write (nin,*) timep
+      timep=timep*1e-3
+      ntpr=15
+      time = 0
+      ieof = 0
+
+      do while (time .lt. timep) 
+         call readentry(ntpr, ieof, jmax, ngmax)
+         if (ieof .eq. 1) then 
+            goto 999
+         endif
+      enddo
+
+      np=jmax-1
+      print 911,name,ntime,time,roa(2)
+      call readxvar(xvar)
+      print *,xvar
+      nopt=0
+ 100  continue
+  909 format(a10)
+  911 format(' ',a10,i10,1pe13.6,2e12.4)
+      print *,'type yvar'
+      read 909,var
+      write (nin,*) var
+          if(var.eq.'e'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'ro'   ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'s'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'t'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'v'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'ye'   ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'ynu'  ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'z'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'r'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'gama') then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'c'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'p'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'snu'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'stot'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'zones'    ) then
+      nopt=nopt+1
+      option(nopt)=var
+      elseif(var.eq.'stop' ) then
+      goto  101
+      elseif(var.eq.'end'  ) then
+      goto  101
+      elseif(var.eq.'nomore')then
+      goto  101
+      elseif(var.eq.'bye')then
+      goto  101
+      elseif(var.eq.'quit')then
+      goto  101
+      else
+      print *,' no such var. if u want to stop type stop, end or nomore'
+      print *,' existing variables are: e, ro, s, t, v, ye, r, gama, p,
+     ^ zones'
+      endif
+      goto  100
+ 101  continue
+      lngname=index(namej,' ')-1
+      plotfile=namej(1:lngname)//'.t17'
+      open(unit=17,file=plotfile,status='unknown',access='sequential'
+     &    ,form='formatted')
+      log=0
+
+      if (xvar .eq. 'm') then
+         hx='mass (solar mass)'
+         ox=16.
+         xmin = 0.0
+         dx = 0.1
+      elseif (xvar .eq. 'r') then
+         hx='radius (1e+8 cm)'
+         ox=6.
+         xmin = 0.0
+         dx = 0.5
+      elseif (xvar .eq. 'logr') then
+         hx='log radius (log cm)'
+         ox=16
+         xmin = 5.0
+         dx = 0.25
+      endif
+
+      x1=xmin
+      x2=xmin+ox*dx
+      oy=15.      
+      ymin=0.
+      dy=1.
+      ymin0=ymin
+      dy0=dy
+      hy=' '
+      y1=ymin
+      y2=ymin+oy*dy
+      write (7,*) '#proc areadef'
+      write (7,*) '   xrange: ', x1, x2
+      write (7,*) '   yrange: ', y1, y2
+      write (7,*) '   frame: yes'
+      write (7,*) '   xaxis.stubs: inc ', dx
+      write (7,*) '   yaxis.stubs: inc ', dy
+
+c      call  zirim (ox,oy,0,namej,hx,hy,0d0,0,xmin,dx,ymin,dy) 
+c-----------------------------------------------------------
+      do nop=1,nopt
+         var=option(nop)
+         weight=0.1
+         ltype=0
+         ymin=0.
+         dy=1.
+         log=0
+c--   list of variables their ltype and weight
+c--   Var:       v   s   ro   t   e   ye   r  gama  c   p
+c--   ltype:     0   0    2   2   3    1   4    5    6   3
+c--   Weight:   0.1 0.4  0.8 0.2 0.2  0.2 0.2  0.2  0.2 0.8
+         if(var.eq.'e'    ) then
+            hy='e/1e19'
+            ymin=-5.
+            ltype=3
+            weight=0.2
+            kolor=2
+         elseif(var.eq.'ro'   ) then
+            log=1
+            hy='log rho'
+            ymin=5.
+            dy=1.0
+            ltype=2
+            weight=0.8
+            kolor=1
+         elseif(var.eq.'s'    ) then
+            hy='s'
+            ltype=0
+            weight=1.0
+            kolor=2
+         elseif(var.eq.'snu'  ) then
+            hy='snu'
+            ltype=0
+            weight=1.0
+            kolor=2
+         elseif(var.eq.'stot' ) then
+            hy='stot'
+            ltype=0
+            weight=1.5
+            kolor=2
+         elseif(var.eq.'t'    ) then
+            hy='T(MeV)'
+            ltype=2
+            weight=0.2
+            kolor=2
+         elseif(var.eq.'v'    ) then
+            hy='v/1e9'
+            ymin=-5.
+            ltype=0
+            weight=0.1
+            kolor=1
+         elseif(var.eq.'ye'   ) then
+            hy='ye'
+            dy=0.05
+            ltype=1
+            weight=0.2
+            kolor=3
+         elseif(var.eq.'ynu'   ) then
+            hy='ynu'
+            dy=0.05
+            ltype=1
+            weight=0.5
+            kolor=3
+         elseif(var.eq.'z'     ) then
+            hy='z'
+            ltype=5
+            weight=1.0
+            kolor=4
+            zmin=1d50
+            zmax=-1d50
+            do i=2,jmax
+               zmin=min(zmin,z(i))
+               zmax=max(zmax,z(i))
+            enddo
+            ymin=zmin
+            dy=(zmax-zmin)/20
+         elseif(var.eq.'r'    ) then
+            log=1
+            hy='log r'
+            ymin=5
+            dy=0.25
+            ltype=4
+            weight=0.2
+            kolor=1
+         elseif(var.eq.'gama') then
+            hy='Gama'
+            ymin=0.5
+            dy=0.1
+            ltype=5
+            weight=0.2
+            kolor=5
+         elseif(var.eq.'c'    ) then
+            hy='hSound/1e9'
+            ymin=-5.
+            ltype=6
+            weight=0.2
+            kolor=5
+         elseif(var.eq.'p'    ) then
+            log=1
+            hy='p'
+            ymin=20.
+            dy=1.
+            ltype=3
+            weight=0.8
+            kolor=6
+         elseif(var.eq.'zones') then
+            hy=' '
+            ymin=0.
+            dy=1.
+            ltype=0
+            weight=0.1
+            kolor=1
+         endif
+         if(var .ne. 'zones' )  then
+            do i=1,np
+               j=i+1
+
+	       if (xvar .eq. 'm') then
+                  x(i)=fmass(j)/solmas
+               elseif (xvar .eq. 'r') then
+                  x(i)=ra(j)/1e+8
+               elseif (xvar .eq. 'logr') then
+                  x(i)=log10(ra(i))
+               endif
+
+               if(var.eq.'e'    ) then
+                  y(i)=ea(j)/1e19
+               elseif(var.eq.'ro'   ) then
+                  y(i)=roa(j)
+               elseif(var.eq.'s'    ) then
+                  y(i)=s(j)/rgas
+               elseif(var.eq.'snu'  ) then
+                  y(i)=snu1(j)/szero
+               elseif(var.eq.'stot'  ) then
+                  y(i)=(s(j)+snu1(j))/szero
+               elseif(var.eq.'t'    ) then
+                  y(i)=ta(j)/tmev
+               elseif(var.eq.'v'    ) then
+                  y(i)=vela(j)/1e9
+               elseif(var.eq.'ye'   ) then
+                  y(i)=ye(j)
+               elseif(var.eq.'ynu'  ) then
+                  y(i)=ynu(j)
+               elseif(var.eq.'z'    ) then
+                  y(i)=z(j)
+               elseif(var.eq.'r'    ) then
+                  y(i)=ra(j)
+               elseif(var.eq.'gama') then
+                  y(i)=gama(j) 
+               elseif(var.eq.'c'    ) then
+                  y(i)=sqrt(abs(gama(j)*pa(j)/roa(j)))/1e9
+               elseif(var.eq.'p'    ) then
+                  y(i)=pa(j)
+               endif
+               if(log.ne.0)  y(i)=log10(y(i))
+               y(i)=(y(i)-ymin)/dy
+            enddo
+	    write (7,*) '#proc getdata'
+	    do  i=1,np
+ 802           format(a10,f20.8,f20.8)
+               if (i .eq. 1) then	
+                  write(7,802) 'data: ', x(i), y(i)
+               else
+                  write(7,802) '        ', x(i), y(i)
+               endif
+            enddo
+
+            write (7,*) '#proc lineplot'	
+            write(7,*) 'legendlabel: ', hy
+ 803        format('linedetails: width=',f5.3,' style=',i1)
+            write(7,803) weight, ltype
+            write(7,*) 'xfield: 1'
+            write(7,*) 'yfield: 2'
+         else
+            do i=1,np
+               write (7,*) '#proc line'
+               write (7,*) 'notation: scaled'
+               write (7,802) 'points: ', y2, fmass(i+1)/solmas
+               write (7,802) '        ', y2-0.2*dy, fmass(i+1)/solmas
+            enddo
+         endif
+      enddo
+      write (7,*) '#proc legend'
+      goto 1000
+990   continue
+      stop  'end of file'
+999   continue
+      print *,' last time read =',time
+      print *,' do you want to frame another profile?'
+      print *,' type y or n'
+      read 921,ans
+      write (nin,*) ans
+ 921  format(a)
+      if(ans.eq.'y')  goto  1111
+      stop  ' profile not found'
+ 1000 continue
+      end 

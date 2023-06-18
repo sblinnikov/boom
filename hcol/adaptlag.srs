@@ -1,0 +1,728 @@
+*deck adaptlag
+      subroutine adaptlag(jmax,ngmax)
+      implicit none
+*call dim
+*call par
+*call asdro
+*call grvec
+*call const
+*call chemp
+*call corct
+*call keyeos
+      integer*4, intent(in) :: ngmax
+      integer*4, intent(inout) :: jmax
+      integer*4 :: jmaxold, jmaxnew, jtotal, jnew
+      integer*4 :: kchzone, kprevchanged
+      real*8 :: rshock, rbreak, fmshock
+      integer*4 :: i,j,k,nut
+      real*8 :: drmax, dmkused, shell_mass
+      real*8 :: shell_volume, shell_volumej, shell_volumek
+      real*8 :: shell_volume_prev
+      real*8 :: bgpm, shell_energy, shell_entropy
+      real*8 :: shell_ye, shell_ynu, shell_js
+      real*8 :: sound, tr, te, pr, pe, sr, se, rin, rout
+      real*8 :: rin_prev, rout_prev, vol_cuta, vol_cutb
+      real*8 :: vol_cuta_prev, vol_cutb_prev
+      real*8 :: fmass_cuta, fmass_cutb
+      real*8 :: energy_cuta, energy_cutb
+      real*8 :: entropy_cuta, entropy_cutb
+      real*8 :: ye_cuta, ye_cutb
+      real*8 :: ynu_cuta, ynu_cutb
+      real*8 :: zjs_cuta, zjs_cutb
+      real*8 :: gg
+
+! MATCH with difq3.srs.  Move in common block when working
+      real*8, parameter :: eps1=1.0d-30, eps2=1.0d-25
+
+      integer*4, save, dimension(jmaxm) :: nacttime, nactnew
+
+      real*8, dimension (jmaxm) :: rnew, ronew, enew, dmknew,
+     & yenew, velnew, keosnew, yepnew, 
+     & pnew, sgmnew, tnew, snew,
+     & ahvnew, znew, ynunew, xnnew,
+     & xpnew, xalnew, xhvnew, eturbnew,
+     & vplusnew, vminusnew, hplusnew, hminusnew, gamanew, rolast,
+     & roplusnew, rominusnew, yeplusnew, yeminusnew, smpnew, smmnew,
+     & asymnew, fmuhatnew, fmuenew, fmununew, empnew, bgpnew, alpnew,
+     & eprevnew, yeprevnew, alpanew, zjsnew, rpnew, velpnew, sgmpnew
+      real*8, dimension(jmaxm, ngmaxm, numaxm) ::
+     &  ynew, ynew0, ydotnew, ccaptnew, cscatisnew,
+     &  ydotpjnew, abstpjnew
+      real*8, 
+     &     dimension(jmaxm, ngmaxm, ngmaxm, numaxm) :: 
+     &     cscatnew
+      integer*4, dimension(jmaxm, numax) ::
+     &     kratesnew;
+      real*8, dimension(jmaxm, numax) ::
+     &     heatnuenew
+      real*8, parameter ::
+     &     pai4gc=pai4*grav/clite2,
+     &     twogc2=2.0d0*grav/clite2
+      integer*4, dimension (jmaxm) :: kdosplit, kdomerge 
+      integer*4 :: kprevmerge, kprevchange
+c kusevar indicates which thermodymamic variable should be used to 
+c calculate the conditions in a split or merged shell
+c
+c The reason we are setting this to entropy (3) is that right behind
+c the shock, the energy has much more fluctuation than entropy.
+
+      integer*4, parameter :: kusevar=3
+      real*8, parameter :: ffluxpeak = 30d52
+
+      if (mod(ntime,kadntime) .ne. 0d0) then
+         return
+      endif
+
+c This routine comes out of a conversation with Steve Bruenn.  You go through
+c the shells and then decode which ones to split and combine
+
+      jmaxold = jmax
+      jmaxnew = 1
+c jtotal keeps a running count of the number of zones so that we 
+c never exceed the number of zones allocated in the array
+      jtotal = jmax 
+      kprevmerge = 0 ! Was the previous zone merged
+      kchzone = 0 ! Where any zone changes made
+      if (khelem .eq. 0) then
+          return
+      endif
+      rshock = rb(khelem)
+
+      kdomerge(2:jmaxold) = 0d0
+      kdosplit(2:jmaxold) = 0d0
+
+      rbreak = rshock
+      fmshock = fmass(khelem) / solmas
+! ***************** Decide where to rezone *********************
+! The following is very hairy logic to determine whether a zone is to 
+! be split or merged.  Most of this section is developed by trial and
+! error
+
+      do j=3,jmaxold-1
+         if (j .le. jequil) then
+            cycle
+         endif
+
+! Don't split or merge two zones in a row
+!
+! In the case of merging the next zone is not going
+! to exist after the merge.
+!
+! In the case of splitting, splitting two zones in 
+! a row messes up the assumptions we are using to
+! partition the energy
+	 if (kprevchanged .gt. 0) then
+             kprevchanged = 0
+	     cycle
+          endif
+
+         i = j-1
+	 k = j+1
+
+! Don't split or merge in a shock
+         if (sgmb(i) .gt. adshlim * pb(i) .and.
+     &        sgmb(j) .gt. adshlim * pb(j) .and. 
+     &        sgmb(k) .gt. adshlim * pb(k) .and.
+     &        sgmb(k+1) .gt. adshlim * pb(k+1)) then
+            cycle
+         endif
+
+         drmax = adrmax1a + adrmax1b * 
+     &        (((j - khelem) / adrmax1c) ** 2d0)
+         drmax = 
+     &	min(drmax, adrmax2a + adrmax2b * (((rb(j) - rshock) / 
+     &    adrmax2c) ** 2d0))
+         drmax = max(drmax, adrmax3a * sqrt(gama(j)*pb(j)/rob(j))) 
+
+
+          if (abs(pb(k) - pb(j))  .lt. admergeplim * pb(k) 
+     ^            .and.  rb(k) - rb(i) .le. 0.9 * drmax 
+     &            .and. (abs(velb(k) - velb(i)) .lt. admergevlim) 
+     &            .and. (abs(vplusb(k) - vplusb(i)) .lt. admergevlim)
+     &            .and. (dmk(j)+dmk(k)) .lt. admaxmass 
+     &            .and. j .lt. khelem .and. fmshock .gt. admminmerge
+     &		  .and. abs(rob(k) - rob(j))  .lt. adsplitrholim * rob(k)
+     &            .and. abs(ye(k) - ye(j)) .lt. adsplityelim * ye(k)) 
+     ^            then
+            jtotal = jtotal - 1
+            kprevchanged = 1
+            kdomerge(j) = 1
+         elseif (j .gt. 4 .and. j .ne. kmin .and. 
+     &           j-1 .ne. kmin .and. j .gt. khelem) then
+            if ((rob(i) - rob(j)  .gt. adsplitrholim * rob(j)
+     &           .or. abs(ye(i) - ye(j))  .gt. adsplityelim * ye(j) .or.
+     &           rb(j) - rb(i-1) .gt. drmax) .and. 
+     &           ((rb(j) - rb(i) .gt. adsplitrlim .and.
+     &           rb(i) - rb(i-1) .gt. adsplitrlim) .or.
+     &           rb(j) .lt. rshock * 0.8) 
+     &           .and. jtotal .lt. jmaxm -1 
+     &           .and. abs(j - khelem) .gt. kadnearshock 
+     &           .and. fmshock .gt. admminsplit 
+     ^           .and.  abs(rb(j) - rshock) .gt. adnearshock) then  
+               jtotal = jtotal + 1
+               kprevchanged = 1
+               kdosplit(j) = 1
+            endif
+         endif
+      enddo
+
+      do j=3,jmax-1
+         i=j-1
+         k=j+1
+
+! Don't split where there is a big change in the
+! fluxes.  This is a zone where the neutrino content
+! is changing rapidly and we want to leave this alone
+        if (abs(flume(k,1)-flume(i,1))/flume(j,1) .gt. 0.1) then
+            kdomerge(max(2,j-2):min(jmax,j+2)) = 0
+         endif
+
+! Don't rezone where there are negative fluxes
+! A negative flux is usually a symptom of numerical
+! noise and we want to try to let the code handle
+! these without interfering
+         if (flume(j,1) .le. 0d0) then
+            kdosplit(max(2,j-2):min(jmax,j+2)) = 0
+            kdomerge(max(2,j-2):min(jmax,j+2)) = 0
+         endif
+
+! Don't rezone near the prompt neutrino peak.  Doing so 
+! messes up the fluxes since the rezoning algorithm
+! doesn't do a good job of preserving derivatives
+	 if (flume(j,1) .gt. ffluxpeak) then
+            kdosplit(max(2,j-2):min(jmax,j+2)) = 0
+            kdomerge(max(2,j-2):min(jmax,j+2)) = 0
+         endif
+      enddo
+
+! ***************** Do the rezoning **************
+      kprevmerge = 0
+      do j=2,jmaxold
+         i = j-1
+	 k = j+1
+         dmkused = 0d0
+! If the previous zone was merged then this zone doesn't 
+! exist any more
+         if (kprevmerge .gt. 0) then
+            kprevmerge = 0
+            nactnew(jmaxnew+1) = nacttime(j)
+            cycle
+         endif
+
+         if (kdomerge(j) .gt. 0) then
+! Merge zones
+	    jmaxnew = jmaxnew + 1
+            nactnew(jmaxnew) = ntime
+            kchzone = 1
+            kprevmerge = 1
+	    shell_mass = dmk(j) + dmk(k)
+            print 910, j, ntime, shell_mass/solmas
+ 910        format('merging zone j=',i4 , ' at ntime=', i6, 
+     &	    ' new shell mass= ',f6.3 )
+
+c Calculate new hydrodynamic variables
+            shell_volume = pai43 * abs(rb(k) ** 3d0 - rb(i) ** 3d0)
+            shell_volumej = pai43 * abs(rb(j) ** 3d0 - rb(i) ** 3d0)
+            shell_volumek = pai43 * abs(rb(k) ** 3d0 - rb(j) ** 3d0)
+            shell_volume_prev = pai43 * 
+     &           abs(ra(k) ** 3d0 - ra(i) ** 3d0)
+
+            rnew(jmaxnew) = rb(k)
+            velnew(jmaxnew) = velb(k)
+	    if (krotate .ne. 0) then
+               rpnew(jmaxnew) = rpb(k)
+               velpnew(jmaxnew) = velpb(k)
+            endif
+            if (inkeygr .ne. 0) then
+               empnew(jmaxnew)=empb(k)
+               bgpnew(jmaxnew)=bgpb(k)
+               alpnew(jmaxnew)=alpb(k)
+               alpanew(jmaxnew)=alpa(k)
+               bgpm = half * (bgpb(k)+bgpb(j))
+               shell_volume = shell_volume / bgpm
+               shell_volumej = shell_volumej / bgpb(j)
+               shell_volumek = shell_volumek / bgpb(k)
+               shell_volume_prev = shell_volume_prev / bgpm
+            endif
+
+            shell_energy = dmk(j) * eb(j) + dmk(k) * eb(k)
+            shell_entropy = dmk(j) * s(j) + dmk(k) * s(k)
+            shell_ye = dmk(j) * ye(j) + dmk(k) * ye(k)
+            shell_ynu = dmk(j) * ynu(j) + dmk(k) * ynu(k)
+            eturbnew(jmaxnew) = eturbnew(k)
+            
+!! *** CHECK THIS         
+            vplusnew(jmaxnew) = vplusb(k)
+            vminusnew(jmaxnew) = vminusb(k)
+            hplusnew(jmaxnew) = hplusb(k)
+            hminusnew(jmaxnew) = hminusb(k)
+            roplusnew(jmaxnew) = roplusb(k)
+            rominusnew(jmaxnew) = rominusb(k)
+            yeplusnew(jmaxnew) = yeplusb(k)
+            yeminusnew(jmaxnew) = yeminusb(k)
+            smpnew(jmaxnew) = smpb(k)
+            smmnew(jmaxnew) = smmb(k)
+            asymnew(jmaxnew) = asymb(k)
+
+            if(keynue.ge.2)  then
+               ynew (jmaxnew,1:ngmax,1:numax)=
+     &              (yb(j,1:ngmax,1:numax) * shell_volumej +
+     &              yb(k, 1:ngmax, 1:numax) * shell_volumek) /
+     ^              shell_volume
+               ynew0(jmaxnew,1:ngmax,1:numax)=ynew(j,1:ngmax,1:numax)
+            endif
+
+c Calculate new thermodynamic variables
+            dmknew(jmaxnew) = shell_mass
+            ronew(jmaxnew) = shell_mass / shell_volume
+            rolast(jmaxnew) = shell_mass / shell_volume_prev
+            enew(jmaxnew) = shell_energy / shell_mass
+            snew(jmaxnew) = shell_entropy / shell_mass
+            yenew(jmaxnew) = shell_ye / shell_mass
+            yepnew(jmaxnew) = yep(j)
+            ynunew(jmaxnew) = shell_ynu / shell_mass
+	    if (krotate .ne. 0) then
+               shell_js = dmk(j) * zjsb(j) + dmk(k) * zjsb(k)
+               zjsnew(jmaxnew) = shell_js / shell_mass
+            endif
+
+
+            keosnew(jmaxnew) = keosn(j)
+            tnew(jmaxnew) = tb(j)
+            keyeos=keosnew(jmaxnew)
+            jzone=j
+            xmue = fmue(j)
+	    xmunu = fmunu(j)
+            xmuhat = fmuhat(j)
+
+            call  state
+     1           ( ronew(jmaxnew),enew(jmaxnew),tnew(jmaxnew)
+     2           , pnew(jmaxnew),snew(jmaxnew),sound
+     2           , tr,te,pr,pe,sr,se
+     3           , ahvnew(jmaxnew),znew(jmaxnew),yenew(jmaxnew)
+     3           , ynunew(jmaxnew),xnnew(jmaxnew)
+     4           ,xpnew(jmaxnew),xalnew(jmaxnew)
+     5           ,xhvnew(jmaxnew),kusevar)
+            fmuenew(jmaxnew) = xmue
+            fmununew(jmaxnew) = xmunu
+            fmuhatnew(jmaxnew) = xmuhat
+            gamanew(jmaxnew) = sound ** 2d0 * ronew(jmaxnew) /
+     &	         pnew(jmaxnew)
+            kratesnew(jmaxnew,1:numax) = 1
+	    heatnuenew(jmaxnew,1:numax) = 
+     &           (dmk(j) * heatnue(j, 1:numax) +
+     &           dmk(k) * heatnue(k, 1:numax)) /
+     &           shell_mass
+            eprevnew(jmaxnew) = enew(jmaxnew)
+            yeprevnew(jmaxnew) = yenew(jmaxnew)
+
+         else
+            if (kdosplit(j) .gt. 0) then
+
+! Split zones
+! I create a new zone out of the boundary of two zones rather than
+! split a single zone in two.  The reason I do this is so that
+! derivatives are better preserved, and so that there is a bit
+! of numerical dissipation
+
+               kchzone = 1
+               jmaxnew = jmaxnew + 1
+               nactnew(jmaxnew-1) = ntime
+               nactnew(jmaxnew) = ntime
+               nactnew(jmaxnew+1) = ntime
+
+               rin = rb(i) - 1d0 / 3d0 * (rb(i) - rb(i-1))
+               rout = rb(i) + 1d0 / 3d0 * (rb(j) - rb(i))
+               rin_prev = ra(i) - 1d0 / 3d0 * (ra(i) - ra(i-1))
+               rout_prev = ra(i) + 1d0 / 3d0 * (ra(j) - ra(i))
+
+               print 900, j, ntime
+ 900           format('splitting zone j=',i4 , ' at ntime=', i6)
+               vol_cuta = pai43 * (rb(i)**3d0 - rin**3d0)
+               vol_cutb = pai43 * (rout**3d0 - rb(i)**3d0)
+               vol_cuta_prev = pai43 * (ra(i)**3d0 - rin_prev**3d0)
+               vol_cutb_prev = pai43 * (rout_prev**3d0 - ra(i)**3d0)
+
+               if (keygr .ne. 0) then
+                  vol_cuta = vol_cuta / bgpb(i)
+                  vol_cutb = vol_cutb / bgpb(i)
+                  vol_cuta_prev = vol_cuta / bgpb(i)
+                  vol_cutb_prev = vol_cutb / bgpb(i)
+               endif
+               shell_volume = vol_cuta + vol_cutb
+               shell_volume_prev = vol_cuta_prev + vol_cutb_prev
+
+               fmass_cuta = rob(i) * vol_cuta
+               fmass_cutb = rob(j) * vol_cutb
+               shell_mass = fmass_cuta + fmass_cutb
+               dmkused = fmass_cutb
+
+               energy_cuta = fmass_cuta * eb(i)
+               energy_cutb = fmass_cutb * eb(j)
+               shell_energy = energy_cuta + energy_cutb
+
+               entropy_cuta = fmass_cuta * s(i)
+               entropy_cutb = fmass_cutb * s(j)
+               shell_entropy = entropy_cuta + entropy_cutb
+ 
+               ye_cuta = fmass_cuta * ye(i)
+               ye_cutb = fmass_cutb * ye(j)             
+               shell_ye = ye_cuta + ye_cutb
+
+               ynu_cuta = fmass_cuta * ynu(i)
+               ynu_cutb = fmass_cutb * ynu(j)
+               shell_ynu = ynu_cuta + ynu_cutb
+
+               dmknew(jmaxnew-1) = dmknew(jmaxnew-1) - fmass_cuta
+               rnew(jmaxnew-1) = rin
+               rnew(jmaxnew) = rout
+               velnew(jmaxnew-1) = velb(i) - 1d0 / 3d0 *
+     &              (velb(i) - velb(i-1))
+               velnew(jmaxnew) = velb(i) + 1d0 / 3d0 *
+     &              (velb(j) - velb(i))
+               if (krotate .ne. 0) then
+                  rpnew(jmaxnew-1) = rpb(i) - 
+     ^                 1d0 / 3d0 * (rpb(i) - rpb(i-1))
+                  rpnew(jmaxnew) =  rpb(i) + 
+     &                 1d0 / 3d0 * (rpb(j) - rpb(i))
+                  velpnew(jmaxnew-1) = velpb(i) - 1d0 / 3d0 *
+     &                 (velpb(i) - velpb(i-1))
+                  velpnew(jmaxnew) = velb(i) + 1d0 / 3d0 *
+     &              (velpb(j) - velpb(i))
+               endif
+
+
+c	       velnew(jmaxnew-1) = velb(i-1)
+c               velnew(jmaxnew) = velb(j)
+
+!! *** Check this
+               vplusnew(jmaxnew-1) = vplusb(i) 
+     &              - 1d0 / 3d0 * (vplusb(i) - vplusb(i-1))
+               vminusnew(jmaxnew-1) = vminusb(i) 
+     &              - 1d0 / 3d0 * (vminusb(i) - vminusb(i-1))
+               hplusnew(jmaxnew-1) = hplusb(i) 
+     &              - 1d0 / 3d0 * (hplusb(i) - hplusb(i-1))
+               hminusnew(jmaxnew-1) = hminusb(i) 
+     &              - 1d0 / 3d0 * (hminusb(i) - hminusb(i-1))
+               roplusnew(jmaxnew-1) = roplusb(i) 
+     &              - 1d0 / 3d0 * (roplusb(i) - roplusb(i-1))
+               rominusnew(jmaxnew-1) = rominusb(i) 
+     &              - 1d0 / 3d0 * (rominusb(i) - rominusb(i-1))
+               yeplusnew(jmaxnew-1) = yeplusb(i) 
+     &              - 1d0 / 3d0 * (yeplusb(i) - yeplusb(i-1))
+               yeminusnew(jmaxnew-1) = yeminusb(i) 
+     &              - 1d0 / 3d0 * (yeminusb(i) - yeminusb(i-1))
+               smpnew(jmaxnew-1) = smpb(i) 
+     &              - 1d0 / 3d0 * (smpb(i) - smpb(i-1))
+               smmnew(jmaxnew-1) = smmb(i) 
+     &              - 1d0 / 3d0 * (smmb(i) - smmb(i-1))
+               asymnew(jmaxnew-1) = asymb(i) 
+     &              - 1d0 / 3d0 * (asymb(i) - asymb(i-1))
+
+               vplusnew(jmaxnew) = vplusb(j) 
+     &              + 1d0 / 3d0 * (vplusb(j) - vplusb(i))
+               vminusnew(jmaxnew) = vminusb(j) 
+     &              + 1d0 / 3d0 * (vminusb(j) - vminusb(i))
+               hplusnew(jmaxnew) = hplusb(j) 
+     &              + 1d0 / 3d0 * (hplusb(j) - hplusb(i))
+               hminusnew(jmaxnew) = hminusb(j) 
+     &              + 1d0 / 3d0 * (hminusb(j) - hminusb(i))
+               roplusnew(jmaxnew) = roplusb(j) 
+     &              + 1d0 / 3d0 * (roplusb(j) - roplusb(i))
+               rominusnew(jmaxnew) = rominusb(j) 
+     &              + 1d0 / 3d0 * (rominusb(j) - rominusb(i))
+               yeplusnew(jmaxnew) = yeplusb(j) 
+     &              + 1d0 / 3d0 * (yeplusb(j) - yeplusb(i))
+               yeminusnew(jmaxnew) = yeminusb(j) 
+     &              + 1d0 / 3d0 * (yeminusb(j) - yeminusb(i))
+               smpnew(jmaxnew) = smpb(j) 
+     &              + 1d0 / 3d0 * (smpb(j) - smpb(i))
+               smmnew(jmaxnew) = smmb(j) 
+     &              + 1d0 / 3d0 * (smmb(j) - smmb(i))
+               asymnew(jmaxnew) = asymb(j) 
+     &              + 1d0 / 3d0 * (asymb(j) - asymb(i))
+               if (krotate .ne. 0) then
+                  zjs_cuta = fmass_cuta * zjsb(i)
+                  zjs_cutb = fmass_cutb * zjsb(j)
+                  shell_js = zjs_cuta + zjs_cutb
+                  zjsnew(jmaxnew) = shell_js / shell_mass
+               endif
+
+
+               if(inkeygr.ne.0) then
+               empnew(jmaxnew-1) = fmass(i) - fmass_cuta
+               gg = one + (velnew(jmaxnew-1)/clite)**2 -
+     ^              twogc2 * empnew(jmaxnew-1) / rnew(jmaxnew-1) 
+               bgpnew(jmaxnew-1) = sqrt(gg)
+               alpnew(jmaxnew-1) = alpb(i) 
+     &              - 1d0 / 3d0 * (alpb(i) - alpb(i-1))
+               alpanew(jmaxnew-1) = alpa(i) 
+     &              - 1d0 / 3d0 * (alpa(i) - alpa(i-1))
+
+               empnew(jmaxnew) = fmass(i) + fmass_cutb
+               gg = one + (velnew(jmaxnew)/clite)**2 -
+     ^              twogc2 * empnew(jmaxnew) / rnew(jmaxnew) 
+               bgpnew(jmaxnew) = sqrt(gg)
+               alpnew(jmaxnew) = alpb(i) 
+     &              + 1d0 / 3d0 * (alpb(j) - alpb(i))
+               alpanew(jmaxnew) = alpa(i) 
+     &              - 1d0 / 3d0 * (alpa(j) - alpa(i))
+               endif
+               if(keynue.ge.2)  then
+                  ynew (jmaxnew,1:ngmax,1:numax)=
+     &                 (yb(i,1:ngmax,1:numax) * vol_cuta
+     &                 +yb(j,1:ngmax,1:numax) * vol_cutb) 
+     &                 / shell_volume
+                  ynew0(jmaxnew,1:ngmax,1:numax)=
+     &                 ynew(jmaxnew,1:ngmax,1:numax)
+               endif
+c Calculate new thermodynamic variables
+               dmknew(jmaxnew) = fmass_cuta + fmass_cutb
+               ronew(jmaxnew) =  shell_mass / shell_volume
+               rolast(jmaxnew) = 
+     &              shell_mass / shell_volume_prev
+               enew(jmaxnew) = shell_energy / shell_mass
+               snew(jmaxnew) = shell_entropy / shell_mass
+               heatnuenew(jmaxnew, 1:numax) = 
+     &              (fmass_cuta * heatnue(i, 1:numax) +
+     &              fmass_cutb * heatnue(j, 1:numax)) /
+     &              shell_mass
+   
+               yenew(jmaxnew) = shell_ye / shell_mass
+               yepnew(jmaxnew) = yep(j)
+               ynunew(jmaxnew) = shell_ynu / shell_mass
+               keosnew(jmaxnew) = keosn(j)
+               tnew(jmaxnew) = (tb(j) + tb(k)) / 2d0
+               keyeos=keosnew(jmaxnew)
+               jzone=j
+               xmue = fmue(j)
+               xmunu = fmunu(j)
+               xmuhat = fmuhat(j)
+
+               call  state
+     1              ( ronew(jmaxnew),enew(jmaxnew),tnew(jmaxnew)
+     2              , pnew(jmaxnew),snew(jmaxnew),sound
+     2              , tr,te,pr,pe,sr,se
+     3              , ahvnew(jmaxnew),znew(jmaxnew),yenew(jmaxnew)
+     3              , ynunew(jmaxnew),xnnew(jmaxnew)
+     4              ,xpnew(jmaxnew),xalnew(jmaxnew)
+     5              ,xhvnew(jmaxnew),kusevar)
+               fmuenew(jmaxnew) = xmue
+               fmununew(jmaxnew) = xmunu
+               fmuhatnew(jmaxnew) = xmuhat
+               gamanew(jmaxnew) = sound ** 2d0 * ronew(jmaxnew) /
+     &	         pnew(jmaxnew)
+               kratesnew(jmaxnew,1:numax) = 1
+               eprevnew(jmaxnew) = enew(jmaxnew)
+               yeprevnew(jmaxnew) = yenew(jmaxnew)
+            else
+               nactnew(jmaxnew+1) = nacttime(j)
+            endif
+c Copy zone
+            jmaxnew = jmaxnew + 1
+            rnew(jmaxnew) = rb(j)
+	    velnew(jmaxnew) = velb(j)
+            ronew(jmaxnew) = rob(j)
+            rolast(jmaxnew) = roa(j)
+            keosnew(jmaxnew) = keosn(j) 
+            enew(jmaxnew) = eb(j)
+            heatnuenew(jmaxnew, 1:numax) =
+     &           heatnue(j, 1:numax)
+            dmknew(jmaxnew) = dmk(j) - dmkused
+            tnew(jmaxnew)=tb(j)
+            pnew(jmaxnew)=pb(j)
+            snew(jmaxnew)=s(j)
+            ahvnew(jmaxnew)=ahv(j)
+            znew(jmaxnew)=z(j)
+            yenew(jmaxnew)=ye(j)
+	    yepnew(jmaxnew)=yep(j)
+            ynunew(jmaxnew)=ynu(j)
+            xnnew(jmaxnew)=xn(j)
+            xpnew(jmaxnew)=xp(j)
+            xalnew(jmaxnew)=xal(j)
+            xhvnew(jmaxnew)=xhv(j)
+            gamanew(jmaxnew)=gama(j)
+
+            eturbnew(jmaxnew) = eturbb(j)
+            fmuhatnew(jmaxnew) = fmuhat(j)
+            fmuenew(jmaxnew) = fmue(j)
+            fmununew(jmaxnew) = fmunu(j)
+         
+
+            vplusnew(jmaxnew) = vplusb(j)
+            vminusnew(jmaxnew) = vminusb(j)
+            hplusnew(jmaxnew) = hplusb(j)
+            hminusnew(jmaxnew) = hminusb(j)
+            roplusnew(jmaxnew) = roplusb(j)
+            rominusnew(jmaxnew) = rominusb(j)
+            yeplusnew(jmaxnew) = yeplusb(j)
+            yeminusnew(jmaxnew) = yeminusb(j)
+
+            smpnew(jmaxnew) = smpb(j)
+            smmnew(jmaxnew) = smmb(j)
+            
+            asymnew(jmaxnew) = asymb(j)
+
+            if(inkeygr.ne.0) then
+               empnew(jmaxnew)=empb(j)
+               bgpnew(jmaxnew)=bgpb(j)
+               alpnew(jmaxnew)=alpb(j)
+            endif
+
+	    if (krotate .ne. 0) then
+               rpnew(jmaxnew) = rpb(j)
+               velpnew(jmaxnew) = velpb(j)
+               sgmpnew(jmaxnew) = sgmpb(j)
+               zjsnew(jmaxnew)= zjsb(j)
+            endif
+            if(keynue.ge.2)  then
+               ynew (jmaxnew,1:ngmax,1:numax)=yb(j,1:ngmax,1:numax)
+               ynew0(jmaxnew,1:ngmax,1:numax)=yb(j,1:ngmax,1:numax)
+            endif
+            kratesnew(jmaxnew, 1:numax) = 1
+            eprevnew(jmaxnew) = eprev(j)
+            yeprevnew(jmaxnew) = yeprev(j)
+            ydotnew(jmaxnew,1:ngmax,1:numax) =
+     &           ydot(j,1:ngmax, 1:numax)
+            ccaptnew(jmaxnew,1:ngmax,1:numax) =
+     &           ccapt(j,1:ngmax, 1:numax)
+            cscatisnew(jmaxnew,1:ngmax,1:numax) =
+     &           cscatis(j,1:ngmax, 1:numax)
+            ydotpjnew(jmaxnew,1:ngmax,1:numax) =
+     &           ydotpj(j,1:ngmax, 1:numax)
+            abstpjnew(jmaxnew,1:ngmax,1:numax) =
+     &           abstpj(j,1:ngmax, 1:numax)
+            cscatnew(jmaxnew, 1:ngmax, 1:ngmax, 1:numax) =
+     &           cscat(j, 1:ngmax, 1:ngmax, 1:numax)
+         endif
+      enddo
+
+      if (kchzone .eq. 0) then
+         return
+      endif
+      jmax = jmaxnew
+      imaxp1 = jmaxnew	
+      print 901, jmaxold, jmax, ntime
+ 901  format('jmax changed from ', i4, ' to ', i4, ' at ntime=', i6)
+      print 800
+ 800  format(' adaptlag table: new variables.')
+      print  801
+ 801  format('   j   fmass',6x,'rnew',7x,'ronew',6x,'enew'
+     1     ,7x,'yen',8x,'veln',7x,'tnew',7x,'snew')
+c     
+      fmass(1) = 0d0
+      
+      nacttime(2:jmaxnew) = nactnew(2:jmaxnew) 
+      rb(2:jmaxnew) = rnew(2:jmaxnew)
+      velb(2:jmaxnew) = velnew(2:jmaxnew)
+      keosn(2:jmaxnew) = keosnew(2:jmaxnew)
+      roa(2:jmaxnew) = rolast(2:jmaxnew) 
+      rob(2:jmaxnew) = ronew(2:jmaxnew)
+      eb(2:jmaxnew) = enew(2:jmaxnew)
+      dmk(2:jmaxnew) = dmknew(2:jmaxnew)
+      heatnue(2:jmaxnew, 1:numax) = 
+     &     heatnue(2:jmaxnew, 1:numax)
+      dmp(2:jmaxnew) = 
+     &     0.5d0 * (dmk(2:jmaxnew) + dmk(3:jmaxnew+1))
+      do   jnew=2,jmaxnew
+         fmass(jnew) = fmass(jnew-1) + dmk(jnew)
+      enddo
+      tb(2:jmaxnew)=tnew(2:jmaxnew)
+      pb(2:jmaxnew)=pnew(2:jmaxnew)
+      s(2:jmaxnew)=snew(2:jmaxnew)
+      
+      ahv(2:jmaxnew)=ahvnew(2:jmaxnew)
+      z(2:jmaxnew)=znew(2:jmaxnew)
+      ye(2:jmaxnew)=yenew(2:jmaxnew)
+      yep(2:jmaxnew)=yepnew(2:jmaxnew)
+      ynu(2:jmaxnew)=ynunew(2:jmaxnew)
+      xn(2:jmaxnew)=xnnew(2:jmaxnew)
+      xp(2:jmaxnew)=xpnew(2:jmaxnew)
+      xal(2:jmaxnew)=xalnew(2:jmaxnew)
+      xhv(2:jmaxnew)=xhvnew(2:jmaxnew)
+      
+      
+      eturbb(2:jmaxnew) = eturbnew(2:jmaxnew)
+      fmuhat(2:jmaxnew) = fmuhatnew(2:jmaxnew)
+      fmue(2:jmaxnew) = fmuenew(2:jmaxnew)
+      fmunu(2:jmaxnew) = fmununew(2:jmaxnew)
+      gama(2:jmaxnew) = gamanew(2:jmaxnew)
+      vplusb(2:jmaxnew) = vplusnew(2:jmaxnew)
+      vminusb(2:jmaxnew) = vminusnew(2:jmaxnew)
+      hplusb(2:jmaxnew) = hplusnew(2:jmaxnew)
+      hminusb(2:jmaxnew) = hminusnew(2:jmaxnew)
+      roplusb(2:jmaxnew) = roplusnew(2:jmaxnew)
+      rominusb(2:jmaxnew) = rominusnew(2:jmaxnew)
+      yeplusb(2:jmaxnew) = yeplusnew(2:jmaxnew)
+      yeminusb(2:jmaxnew) = yeminusnew(2:jmaxnew)
+      
+      smpb(2:jmaxnew) = smpnew(2:jmaxnew)
+      smmb(2:jmaxnew) = smmnew(2:jmaxnew)
+      
+      asymb(2:jmaxnew) = asymnew(2:jmaxnew)
+c      krates(2:jmaxnew,1:numax) = kratesnew(2:jmaxnew, 1:numax)
+      krates(2:jmaxnew,1:numax) = 1
+      ydot(2:jmaxnew,1:ngmax,1:numax) =
+     &     ydotnew(2:jmaxnew,1:ngmax, 1:numax)
+      ccapt(2:jmaxnew,1:ngmax,1:numax) =
+     &     ccaptnew(2:jmaxnew,1:ngmax, 1:numax)
+      cscatis(2:jmaxnew,1:ngmax,1:numax) =
+     &     cscatisnew(2:jmaxnew,1:ngmax, 1:numax)
+      ydotpj(2:jmaxnew,1:ngmax,1:numax) =
+     &     ydotpjnew(2:jmaxnew,1:ngmax, 1:numax)
+      abstpj(2:jmaxnew,1:ngmax,1:numax) =
+     &     abstpjnew(2:jmaxnew,1:ngmax, 1:numax)
+      cscat(2:jmaxnew, 1:ngmax, 1:ngmax, 1:numax) =
+     &     cscatnew(2:jmaxnew, 1:ngmax, 1:ngmax, 1:numax)
+      eprev(2:jmaxnew) = eprevnew(2:jmaxnew)
+      yeprev(2:jmaxnew) = yeprevnew(2:jmaxnew)
+      do   jnew=2,jmaxnew
+         if (nacttime(jnew) .eq. ntime .or. 
+     &        nacttime(jnew+1) .eq. ntime .or.
+     &        nacttime(jnew-1) .eq. ntime) then
+            print 802,jnew,fmass(jnew)/solmas,
+     &           rnew(jnew),ronew(jnew),enew(jnew)
+     1           ,yenew(jnew),velnew(jnew),tnew(jnew) / tmev,
+     &           snew(jnew) / rgas
+         endif
+ 802     format(' ',i3,1p9e11.3)
+      enddo
+      
+      if(inkeygr.ne.0) then
+         empb(2:jmaxnew) = empnew(2:jmaxnew)
+         bgpb(2:jmaxnew)=bgpnew(2:jmaxnew)
+         alpb(2:jmaxnew) = alpnew(2:jmaxnew)
+         alpa(2:jmaxnew) = alpanew(2:jmaxnew)
+         
+         wq(2:jmaxnew)=1.0d0+(eb(2:jmaxnew)+
+     &        (pb(2:jmaxnew)+sgmb(2:jmaxnew))/
+     &        rob(2:jmaxnew))/clite2
+         
+      endif
+      if (krotate .ne. 0) then
+         rpb(2:jmaxnew) = rpnew(2:jmaxnew)
+         velpb(2:jmaxnew) = velpnew(2:jmaxnew)
+         sgmpb(2:jmaxnew) = sgmpnew(2:jmaxnew)
+         zjsb(2:jmaxnew) = zjsnew(2:jmaxnew)
+      endif
+      
+      if(keynue.ge.2)  then
+         yb(2:jmaxnew,1:ngmax,1:numax) =
+     &        ynew(2:jmaxnew,1:ngmax,1:numax)
+         ya0(2:jmaxnew,1:ngmax,1:numax) = 
+     &        ynew0(2:jmaxnew,1:ngmax,1:numax)
+         forall (j=2:jmaxnew,nut=1:numax)
+         yb(j,1:ngmax,nut) = max(yb(j,1:ngmax,nut),
+     &        eps1*yfull(1:ngmax))
+         ya0(j,1:ngmax,nut) = max(ya0(j,1:ngmax,nut),
+     &        eps1*yfull(1:ngmax))
+         end forall
+      endif
+      call viscosity(jmax,ngmax)
+      call transfr(jmax,ngmax,numax,1)
+      call setnup(jmax,ngmax,kfluxlm)
+      end
+
+
+
+

@@ -1,0 +1,67 @@
+*deck tubspf
+      subroutine  tubspf (t,pf,dpf,ddpf,facpf)
+*call implic
+*call const
+c
+      save  aj
+      save  a1,b1,ta,tb,pa,dpa,ddpa,pb,dpb,ddpb
+      save  c1,c2,c3,tmev2,tg
+c
+      dimension  aj(6)
+c
+      data ntry / 0 /
+      data  excmax  / 120d0 /
+c
+c-----------------------------------------------------------
+      if(ntry.eq.0) then
+      ntry=1
+      a1=3d0
+      b1=0d0
+      ta=0d0
+      tb=1d0
+      pa=0d0
+      dpa=0d0
+      ddpa=0d0
+      pb=3d0
+      dpb=a1
+      ddpb=0d0
+      call  abcdef(ta,tb,pa,pb,dpa,dpb,ddpa,ddpb,aj)
+      tg=sqrt(excmax/a1/3d0)
+      c1=3d0*a1*tg+b1
+      c2=3d0*a1*(tg**2)
+      c3=a1*(tg**3)
+      tmev2=tmev**2
+      endif
+c-----------------------------------------------------------
+      pf=1d0
+      dpf=0d0
+      ddpf=0d0
+      if(facpf.le.0d0) go to 700
+      tm=t/tmev
+      if(tm.ge.tb) go to 50
+      pfl=((((aj(1)*tm+aj(2))*tm+aj(3))*tm+aj(4))*tm+aj(5))*tm+aj(6)
+      dfl=(((5.d0*aj(1)*tm+4.d0*aj(2))*tm+3.d0*aj(3))*tm+2.d0*aj(4))*tm
+     1+aj(5)
+      ddfl=((20.0d0*aj(1)*tm+12.d0*aj(2))*tm+6.d0*aj(3))*tm+2.d0*aj(4)
+      go to 60
+50    continue
+      if(tm.gt.tg) go to 55
+      pfl=a1*tm+b1
+      dfl=a1
+      ddfl=0d0
+      go to 60
+55    continue
+      tm2=tm*tm
+      tm3=tm*tm2
+      pfl=c1-(c2-c3/tm)/tm
+      dfl=(c2-2.0d0*c3/tm)/tm2
+      ddfl=2.0d0*(-c2+3.0d0*c3/tm)/tm3
+60    continue
+      pf=facpf*exp(pfl)
+      dfl=dfl/tmev
+      ddfl=ddfl/tmev2
+      dpf=pf*dfl
+      ddpf=pf*(ddfl+dfl**2)
+700   continue
+      return
+      end

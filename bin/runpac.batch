@@ -1,0 +1,131 @@
+#!/usr/local/bin/perl
+
+$home = $ENV{'HOME'};
+$ENV{'SHELL'} = "/bin/sh";
+$verbose = 1;
+$| = 1;
+
+$dir1 = "/home/utexas/as/asyn734/hcol/prog";
+$dir2 = "/home/utexas/as/asyn734/hcol/datainp";
+$dir3 = "/archive/utexas/as/asyn734/outputs";
+$dir4 = "/archive/utexas/as/asyn734/outputs";
+$editor = "emacs -nw";
+
+if ($#ARGV == 1) {
+    $model = $ARGV[0]; 
+    $start_stage = $ARGV[1]; 
+    $end_stage = $ARGV[1];
+}
+
+if ($#ARGV == 2) {
+    $model = $ARGV[0]; 
+    $start_stage = $ARGV[1]; 
+    $end_stage = $ARGV[2];
+}
+
+`cd $dir3
+rm s15s7b2
+ln -s woosley.dat s15s7b2`;
+
+print "Using woosley imodel";
+
+foreach $model_entry (split(/\s+/, $model)) {
+    my($model, $local_start, $local_end) =
+	split(/\//, $model_entry);
+    push(@models, $model); 
+    $current_stage{$model} = 
+	$local_start ne "" ? $local_start : $start_stage;
+    $end_stage{$model} =
+	$local_end ne "" ? $local_end : $end_stage;
+}
+
+$nmodels = $#models + 1;
+$outfile = "/tmp/outfile.$$";
+
+sub check_well_end {
+   my (@models) = @_;
+
+   my($nwell_ends) = 0;
+   
+   $continue_runs = 0;
+   foreach $model (@models) {
+       my($filename) =  "$dir3/${model}.t06";
+       open (FILE, "tail -50 $filename |") || do {
+	   return 2;
+       };
+       $out_of_time = 0;
+       $well_end = 0;
+       while (<FILE>) {
+	   if(/well-end/) {
+	       $well_end = 1;
+	       print "Well-end: $model\n";
+	   } elsif (/runtime/) {
+	       $out_of_time = 1;
+	   }
+       }
+       close FILE;
+       if ($well_end) {
+	   if ($out_of_time == 0) {
+	       $current_stage{$model}++;
+	       if ($current_stage{$model} > $end_stage{$model}) {
+		   $current_stage{$model} = -1;
+	       } else {
+		   $continue_runs = 1;
+	       }
+	   } else {
+	       $continue_runs = 1;
+	   }
+       } else {
+	   $current_stage{$model} = -1;
+       }   
+   }
+   if ($continue_runs) {
+       return 0;
+   } else {
+       return 1;
+   }
+}
+
+sub run_program {
+    my (@models) = @_;
+    my (@good_models) = grep {$current_stage{$_} > 0} @models;
+    my(@input_files) =  map {"$dir2/${_}.$current_stage{$_}"} @good_models;
+    my(@bad_files) = grep {! -e} @input_files;
+    if ($#bad_files != -1) {
+	print "Invalid input files ", join(" ", @bad_files), "\n";
+	exit;
+    }
+
+    my($infile_command) = join(" ", @input_files);
+    my ($nmodels) =  $#input_files + 1;
+    my($command) = "mpprun -n $nmodels $dir1/colapse  $infile_command > $outfile 2>&1";
+    print "Running: $command\n";
+`cd $dir4
+$command`;
+    foreach $model (@good_models) {
+	opendir (DIR, $dir3);
+	@files = grep(/^$model\.t[0-9][0-9]$/, readdir(DIR));
+	closedir(DIR);
+	foreach $file (@files) {
+	    if ($file !~ /t06/) {
+	    $verbose && print "Copying $file\n";
+	    `gzip -9 - < $dir3/$file > $dir3/$file.$current_stage{$model}.gz &`;
+	} else {
+	    $file_number = 1;
+	    while (-e  "$dir3/$file.$current_stage{$model}.${file_number}.gz" ) {
+		$file_number++;
+	    }
+	    `gzip -9 - < $dir3/$file > $dir3/$file.$current_stage{$model}.${file_number}.gz`;
+	}	    
+	}
+    }
+}
+
+
+for ($i=0; $i<50; $i++) {
+   &run_program(@models);                        # run program
+   &check_well_end(@models) && last;
+}
+
+
+

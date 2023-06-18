@@ -1,0 +1,87 @@
+*deck roteps
+      subroutine  roteps(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+*call implic
+*call keyeos
+*call pebkc
+*call chemp
+*call nunu
+c
+      parameter (shlish=1d0/3d0,shlis4=4d0/3d0,shlis5=5d0/3d0)
+c
+      save  twosh
+c
+      data  ccoul /5.657896d12/
+      data  ntry  /0/
+c-----------------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     twosh=2.d0**shlish
+                     endif
+c-----------------------------------------
+      call  bartdf (ro,t,eb,pb,sb
+     1, ebr,ebt,pbr,pbt,sbr,sbt
+     2, ah,zh,ye,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+c
+      eta=etaelc
+      keyps=1
+      call  electra(ro,t,ye,ee,pe,se
+     1, eer,eet,per,pet,ser,set,keyps)
+      etaelc=eta
+c
+      call  krina(ro,t,ek,pk,sk
+     1, ekr,ekt,pkr,pkt,skr,skt)
+c
+      eofnu=0d0
+      pnu=0d0
+      snu=0d0
+      enr=0d0
+      pnr=0d0
+      snr=0d0
+      ent=0d0
+      pnt=0d0
+      snt=0d0
+      if(nupress.eq.0) goto  50
+      if(ynu.le.0d0)   goto  50
+      call  eosnu(ro,t,ynu,eofnu,pnu,snu,enr,ent,pnr,pnt,snr,snt
+     1,enuy,pnuy,snuy)
+50    continue
+      ecoul=0d0
+      pcoul=0d0
+      decldr=0d0
+      dpcldr=0d0
+      if(keycoul.eq.0)  goto   60
+      if(xa.le.0d0 .and. xh.le.0d0)  goto   60
+      brack=xa/twosh
+      if(zh.le.0d0  .or. ah.le.0d0)  goto   55
+      brack=brack+xh*zh**shlis5/ah
+55    continue
+      pcoul=ccoul*brack/ye*(ye*ro)**shlish*ro
+      ecoul=3d0*pcoul/ro
+      dpcldr=shlis4*pcoul/ro
+      decldr=shlish*ecoul/ro
+60    continue
+      enu=eofnu
+      e=eb+ee+ek+eofnu-ecoul
+      p=pb+pe+pk+pnu-pcoul
+      s=sb+se+sk + snu
+      dedro=ebr+eer+ekr+enr-decldr
+      dpdro=pbr+per+pkr+pnr-dpcldr
+      dsdro=sbr+ser+skr + snr
+      dedt=ebt+eet+ekt  + ent
+      dpdt=pbt+pet+pkt  + pnt
+      dsdt=sbt+set+skt  + snt
+c
+      call  cold(ro,pc,ec,pcr,ecr)
+      e=e+ec
+      p=p+pc
+      dedro=dedro+ecr
+      dpdro=dpdro+pcr
+c
+      return
+      end

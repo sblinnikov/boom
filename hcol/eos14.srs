@@ -1,0 +1,24 @@
+*deck eos14
+      subroutine  eos14 (ro,t,k,dye,ee,pp,ss
+     1,deedro,deedt,dppdro,dppdt,dssdro,dssdt)
+*call implic
+      call  eos141 (ro,t,k,e1,p1,s1
+     1,er1,et1,pr1,pt1,sr1,st1)
+      call  eos141 (ro,t,k+1,e2,p2,s2
+     1,er2,et2,pr2,pt2,sr2,st2)
+      ee=e1+dye*(e2-e1)
+      pp=p1+dye*(p2-p1)
+      ss=s1+dye*(s2-s1)
+      deedro=er1+dye*(er2-er1)
+      deedt =et1+dye*(et2-et1)
+      dppdro=pr1+dye*(pr2-pr1)
+      dppdt =pt1+dye*(pt2-pt1)
+      dssdro=sr1+dye*(sr2-sr1)
+      dssdt =st1+dye*(st2-st1)
+      call  cold(ro,pc,ec,pcr,ecr)
+      ee=ee+ec
+      pp=pp+pc
+      deedro=deedro+ecr
+      dppdro=dppdro+pcr
+      return
+      end

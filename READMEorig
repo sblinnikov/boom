@@ -1,0 +1,58 @@
+See the interactive documentation at 
+
+http://en.wikiversity.org/wiki/BoomCode
+
+Also e-mail me at joe@confucius.gnacademy.org
+
+
+QUICKSTART
+
+cd <rootdir>
+edit Makefile.opts to set compiler options
+make 
+edit bin/runboom to set rootdir
+cd bin
+./runboom <model name> 1 5
+
+see the file datainp/README for model names.  tau3 is the most
+realistic model.
+
+GETTING DATA OUT
+
+cd plot
+./plotr ../outputs/tau3.t12 2 > plotr.pl
+
+./plframe - produces a snapshot of many variables at a single moment
+./plsnaps - shows the time evolution of a variable
+
+A typical run follows
+
+------------------------------------------------------------
+joe@bodhi plot]$ ./plsnaps
+ type name
+../outputs/tau3c
+tau3c     30.07.93         181
+   12    3         0         7       176sofhead
+  181  123    0    7  176
+  type start end inc (msec)
+200 300 10
+ type xvar (m, r, or logr)
+m
+ type yvar
+s
+------------------------------------------------------------
+
+COMPILERS
+
+I've found that boom tends to always show new bugs with a 
+new compiler.  Boom has been run on Linux ia32 with Intel
+Fortran 7,8, and 9.  It also runs on x86_64 with Intel 
+Fortran 9, but the cpu timer seems to stop working.
+
+
+------------------------------------------------------------
+These applications produce a file called plot.out which can be plotted
+with ploticus (http://ploticus.sourceforge.net/)
+
+pl plot.out
+

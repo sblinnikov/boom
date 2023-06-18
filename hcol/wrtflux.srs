@@ -1,0 +1,102 @@
+*deck wrtflux
+      subroutine  wrtflux (jmax,ngmax,nxx)
+*call implic
+*call corct
+*call dim
+*call par
+c
+      dimension tscat(jmaxm)
+      double precision, dimension(jmaxm) :: scatg
+      ntpr=25
+      if (keynue .gt. 0) then
+ 906  format(10(10hnnnnnnnnnn))
+      call wrthead(jmax, ngmax, ntpr)
+      write (ntpr,920) ( fmass  (i),i=1,jmax)
+      write (ntpr,920) ( ra     (i),i=1,jmax)
+      write (ntpr,920) ( roa    (i),i=1,jmax)
+      write (ntpr,920) ( ea    (i),i=1,jmax)
+      write (ntpr,920) ( ye    (i),i=1,jmax)
+      write (ntpr,920) ( yfull  (i),i=1,ngmax)
+      write (ntpr,920) ( enu    (i),i=1,ngmax)
+      write (ntpr,920) ( denu   (i),i=1,ngmax)
+c
+      do  nut=1,numax
+         write (ntpr,906)
+        do  ng=1,ngmax
+        write (ntpr,920) ( ya  (i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+c
+        do  ng=1,ngmax
+        write (ntpr,920) ( flum(i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+
+        do  ng=1,ngmax
+        write (ntpr,920) ( edd(i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+
+        do  ng=1,ngmax
+        write (ntpr,920) (ddnue(i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+
+	do ng=1,ngmax
+	write (ntpr,920) (ydot(i,ng,nut),i=1,jmax)
+	enddo
+
+	do ng=1,ngmax
+	write (ntpr,920) (ydotpj(i,ng,nut),i=1,jmax)
+	enddo
+
+        do ng=1,ngmax
+           write (ntpr,920) (ccapt(i, ng, nut),
+     +          i=1,jmax)
+        enddo
+
+        do ng=1,ngmax
+           write (ntpr,920) (abstpj(i, ng, nut),
+     +          i=1,jmax)
+        enddo
+
+        do  ng=1,ngmax
+        write (ntpr,920) ( yb(i,ng,nut),i=1,jmax)
+        enddo  ! ngmax
+
+
+        do ng=1, ngmax
+           write (ntpr,920) ((ydot(i,ng,nut) 
+     +          + ydotpj(i,ng,nut)) 
+     +          * (1d0 - yb(i,ng, nut) / yfull(ng)),
+     +          i=1,jmax)
+        enddo
+
+        do ng=1,ngmax
+           write (ntpr,920) ((ccapt(i, ng, nut) + 
+     +          abstpj(i, ng, nut))
+     +          * yb(i, ng, nut),
+     +          i=1,jmax)
+        enddo
+
+        do ng=1,ngmax
+           write (ntpr,920) ((ydot(i,ng,nut) + ydotpj(i,ng,nut)) * 
+     +          (1d0 - yb(i,ng, nut) / yfull(ng)) -
+     +          (ccapt(i, ng, nut) +  abstpj(i, ng, nut)) 
+     +          * yb(i, ng, nut),
+     +          i=1,jmax)
+        enddo
+
+        do ng=1,ngmax
+           do i=1,jmax
+              scatg(i) = 0d0
+              do ngprime=1,ngmax
+                 scatg(i) = scatg(i)
+     +                + cscat(i, ng, ngprime, nut)
+              enddo
+           enddo
+           write (ntpr,920) (scatg(i), i=1,jmax)
+        enddo
+
+      enddo                     !  numax
+      call flush(ntpr)
+920   format(1p10e10.2)
+      endif
+      return
+      end

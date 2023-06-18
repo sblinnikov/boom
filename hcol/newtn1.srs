@@ -1,0 +1,27 @@
+*deck newtn1
+      subroutine  newtn1(x,fun,kinus)
+*call implic
+      external  fun
+      data  rel,eps  / 0.20d0 , 1.0d-6 /
+      kinus=0
+      do 100 it=1,99
+      call  fun(x,f,df)
+      dx=-f/df
+      r=abs(dx/x)
+      if(r.lt.rel) go to 10
+      dx=rel*x*sign(1.0d0 , dx)
+   10 continue
+      x=x+dx
+      if(x.lt.1.d0) go to 20
+      x=1.d0
+      go to 100
+   20 continue
+      if(r.gt.eps) go to 100
+      kinus=1
+      go to 110
+  100 continue
+  110 continue
+      return
+  900 format(1h ,'no convergence in newton')
+  901 format(1h ,1p3e12.3)
+      end

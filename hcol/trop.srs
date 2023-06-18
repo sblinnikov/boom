@@ -1,0 +1,53 @@
+*deck trop
+      subroutine  trop
+     1 (ro,e,t,px,s,snd,j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,xn,xp,xa,xh)
+*call implic
+*call chemp
+*call keyeos
+      data rel,eps  / 0.20d0 , 1.0d-6 /
+      data  eps2  /0.01d0/
+      data itmax  /30/
+      data itpr  /20/
+      ynu=0.d0
+      keyets=2
+      keyeos=keosz
+      jzone=j
+      if (keyeos .eq. 0) then
+         return
+      endif
+      do  10  it=1,itmax
+      call  state
+     1 (ro,e,t,p,s,snd
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,ynu,xn,xp,xa,xh
+     4, keyets)
+      if(kesfail.ne.0)  goto  999
+      dp=p-px
+      dpdt=pe/te
+      dt=dp/dpdt
+      r=abs(dt/t)
+      if(r.lt.rel) go to  3
+      dt=rel*t*sign(1.0d0 , dt)
+3     continue
+      t1=t-dt
+      err=abs(dp/px)
+      if(err.le.eps) go to 20
+      if(err.le.eps2.and.it.ge.15) go to 20
+      t=t1
+      if(it.lt.itpr) go to 10
+      if(it.ge.itpr) print 4
+      print 5,it,t1,ro,px,p,dp,dpdt,dt
+4     format(/' troubles in trop'/
+     1,'  i',4x,'t1',10x,'ro',11x,'px',10x,'p',11x
+     2,'dp',10x,'dpdt ',7x,'dt')
+5     format(i4,1p7e12.4)
+10    continue
+      print *,' no convergence in trop'
+      stop    ' no convergence in trop'
+20    continue
+      t=t1
+999   continue
+      return
+      end

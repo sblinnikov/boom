@@ -1,0 +1,17 @@
+*deck poly
+      function  poly(x,a,n,lmax)
+*call implic
+      dimension a(lmax)
+      poly=a(1)
+      if(n.ne.0) then
+         if(abs(x).le.(1.0e-7)) then
+            poly=a(n+1)
+         else
+            do k=1,n
+               l=k+1
+               poly=poly*x+a(l)
+            enddo
+         endif
+      endif
+      return
+      end
