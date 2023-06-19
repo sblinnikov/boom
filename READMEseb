@@ -6,7 +6,7 @@ The interactive documentation used to be at
 http://en.wikiversity.org/wiki/BoomCode
 
 but it seems that the link does not work properly now
-(10.01.2014)
+(10.01.2014, updated 20.06.2023)
 
 Author:
 Joseph Chen-Yu Wang joe@confucius.gnacademy.org 
@@ -35,20 +35,22 @@ Makefile.opts.ifc wants
 SYSLIBS= -lsvml -lguide -no-ipo -lpthread
 but  -lguide is deprecated in the newer releases of intel compiler suite
 use -liomp5 instead 
-Makefile.opts.ifc13 works with this option.
+Makefile.opts.ifc13 works with this option 
+-- tested with ifort version 14.0.2 and version 2021.9.0 .
+
 So just
  cp Makefile.opts.ifc13 Makefile.opts
 then:
 
 make clean
 make
-copy bin/runboom.sample to bin/runboom
+copy bin/runboom.sample to bin/runboom:
  cp bin/runboom.sample bin/runboom
 edit bin/runboom to set the actual <rootdir> for boom in the line, e.g.
 
 my($rootdir) = "/home/seb/prg/boom";
 or
-my($rootdir) = "/home/seb/prg/svnWork/SvnCollapse/trunk/boom";
+my($rootdir) = "/home/seb/prg/gitWork/boom";
 
 Boom parameters (given in *.srs files like input.srs):
 
@@ -187,10 +189,10 @@ m
 t
 
 
-Then using a text editor change in file
+Then using a text editor change in the file
  plot.out
     yrange:   0.000000000000000E+000   15.0000000000000
-    to
+to
     yrange:   0.000000000000000E+000   25.0000000000000
 or higher, if end time is larger than 420,  in all lines,  this is
 T in MeV
@@ -220,5 +222,5 @@ new compiler.  Boom has been run on Linux ia32 with Intel
 Fortran 7,8, and 9.  It also runs on x86_64 with Intel
 Fortran 9, but the cpu timer seems to stop working.
 
-
+SeB: ifort version 2021.9.0 seems to work OK.
 ------------------------------------------------------------
