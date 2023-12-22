@@ -18,7 +18,8 @@
       character*80 filenam,diskw
       character*20 namef
       integer :: lng, imax, ngmax, jmax
-      integer :: cldmpi
+      real*8 :: cldmpi
+!      integer :: cldmpi
 *call version
 #ifdef USE_MPI
       call mpi_init(ierr)
