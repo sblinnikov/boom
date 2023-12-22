@@ -8,7 +8,8 @@ my($maxrun) = 50;
 
 # my($rootdir) = "/home/seb/prg/boom";
 
-my($rootdir) = "/home/seb/prg/svnWork/SvnCollapse/trunk/boom";
+# my($rootdir) = "/home/seb/prg/svnWork/SvnCollapse/trunk/boom";
+my($rootdir) = "/home/seb/prg/gitWork/boom";
 my($bindir) = $rootdir . "/bin";
 my($datadir) = $rootdir . "/datainp";
 my($outdir) = $rootdir . "/outputs";
