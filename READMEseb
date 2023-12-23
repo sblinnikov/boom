@@ -90,8 +90,10 @@ TO RUN:
 cd bin
 ./runboom <model name> 1 5
 
-see the file datainp/README for model names.  tau3 is the most
-realistic model.
+see the file datainp/README for model names.  
+tau3 is the most realistic model.
+Files tau3.1 contain namelist &cor with main control parameters
+test3nr.* is good for fast tests
 
 1 here is the first stage, 5 is the final stage
 ./runboom <model name> 5
