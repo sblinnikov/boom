@@ -134,7 +134,7 @@ so use, e.g.
 
  tail -f tau3.t77
 
-to monitor your run if you have the model tau3
+to monitor your run if you have the model tau3 from directory plot/ :
 
 ./plotr ../outputs/tau3.t12 2 > tau3.t12.pl
 -- produces a set of r(t) plots with a step in the second arg (here 2)
@@ -147,9 +147,12 @@ with ploticus (http://ploticus.sourceforge.net/)
 
 ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
 
-plshockr ../outputs/tau3.t12 100 > tau3.100.shk
+./plshockr ../outputs/tau3.t12 100 > tau3.100.shk
 -- produces a set of shock radii with a step in the second arg (here 100)
-plshockr ../outputs/tau3.t12 > tau3.10.shk
+./plshockr ../outputs/tau3.t12 > tau3.10.shk
+or
+./plshockr ../outputs/test3nr.t12 > test3nr.10.shk
+
 -- if the second arg is omitted, then the default is step=10
 
 ./plotenu ../outputs/tau3.t12 2 > tau3.t12.Lnu
