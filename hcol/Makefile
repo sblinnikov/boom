@@ -412,7 +412,7 @@ clean:
 	$(bin)/prefort n comdecks $*.srs 
 	mv $*.f $*.F 
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
-#	rm $*.F  ## SB commented out for debug
+	rm $*.F  ## SB commented out for debug
 
 #Necessary because of a compiler bug on Intel 8.0
 #Seems to be fixed as of 8,1,024
