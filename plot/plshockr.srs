@@ -25,6 +25,8 @@
       character*80 :: namef,namein
       character*30 :: path, dilf
       integer numargs
+      real*8 :: exp10
+      exp10(x) = 1d1**x
 
       tbounce = 0d0      
       imassread = 0 
