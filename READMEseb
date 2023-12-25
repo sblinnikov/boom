@@ -36,8 +36,6 @@ Function exp10() is OK for ifort but is absent in gfortran. So, it is defined as
   exp10(x) = 1d1**x
 in plot/plshockr.srs
 
-Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf for newer versions of gfortran.
-Now it works.
 
 
 
@@ -239,4 +237,12 @@ Fortran 7,8, and 9.  It also runs on x86_64 with Intel
 Fortran 9, but the cpu timer seems to stop working.
 
 SeB: ifort version 2021.9.0 seems to work OK.
+
+Makefile.opts.ifc21 works with ifort 2021.11.1
 ------------------------------------------------------------
+
+Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf for newer versions of gfortran.
+Now it works, but there is a dangerous place: files with extension t06 were linked to unit=6
+which is stdout, and gfortran failed to work in open statements with modifying status.
+SeB changed unit=6 to unit=16 but this is not debugged yet in detail
+
