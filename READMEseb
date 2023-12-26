@@ -31,13 +31,10 @@ It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some
 point the compilation crashed finding errors in formats
 
 FFLAGS=-fallow-argument-mismatch option degrades type mismatch of arguments to warnings, but
-it would be better correct this mismatch.
+it would be better to correct this mismatch.
 Function exp10() is OK for ifort but is absent in gfortran. So, it is defined as
   exp10(x) = 1d1**x
 in plot/plshockr.srs
-
-
-
 
 
 Makefile.opts.ifc wants
@@ -47,7 +44,10 @@ use -liomp5 instead
 Makefile.opts.ifc13 works with this option 
 -- tested with ifort version 14.0.2 and version 2021.9.0 .
 
-So just
+Makefile.opts.ifc21 works with ifort 2021.11.1
+
+
+So, e.g., just
  cp Makefile.opts.ifc13 Makefile.opts
 then:
 

@@ -410,10 +410,12 @@ clean:
 
 .srs.o:
 	$(bin)/prefort n comdecks $*.srs 
-	mv $*.f $*.F 
+	mv $*.f $*.F
+	echo FFLAGS $(FFLAGS) 
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
 	rm $*.F  ## SB commented out for debug
-
+	echo *.F must be removed here
+	 
 #Necessary because of a compiler bug on Intel 8.0
 #Seems to be fixed as of 8,1,024
 #rashi.o: rashi.F
