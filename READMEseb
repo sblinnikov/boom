@@ -143,7 +143,11 @@ to monitor your run if you have the model tau3 from directory plot/ :
 tau3.t12.pl can be plotted
 with ploticus (http://ploticus.sourceforge.net/)
 
-ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
+ ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
+
+For output like qq.pl one can produce png file with:
+ ploticus -f qq.pl -o qq.png -png
+-- see man ploticus and other examples below
 
 ./plshockr ../outputs/tau3.t12 100 > tau3.100.shk
 -- produces a set of shock radii with a step in the second arg (here 100)
@@ -202,6 +206,13 @@ m
  type yvar
 t
 
+These applications produce a file called plot.out which can be plotted
+with ploticus (http://ploticus.sourceforge.net/)
+
+pl plot.out
+
+Of course, plot.out can be renamed and saved as e.g. plotTmModel_tau3.out
+
 
 Then using a text editor change in the file
  plot.out
@@ -221,12 +232,6 @@ then the file is smaller,
 x - mass M_r/Msun- T in MeV
 
 
-These applications produce a file called plot.out which can be plotted
-with ploticus (http://ploticus.sourceforge.net/)
-
-pl plot.out
-
-Of course, plot.out can be renamed and saved as e.g. plotTmModel_tau3.out
 ------------------------------------------------------------
 
 COMPILERS
