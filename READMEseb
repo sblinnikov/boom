@@ -9,7 +9,7 @@ but it seems that the link does not work properly now
 (10.01.2014, updated 20.06.2023)
 
 Author:
-Joseph Chen-Yu Wang joe@confucius.gnacademy.org 
+Joseph Chen-Yu Wang joe@confucius.gnacademy.org
 President, Globewide Network Academy - http://www.gnacademy.org/
 
 S.B. Physics - MIT - 1991 Ph.D. Astronomy - University of Texas at Austin
@@ -22,12 +22,12 @@ QUICKSTART
 cd <rootdir> for boom
 edit Makefile.opts to set compiler options
 
-seb: 
+seb:
 There are prepared Makefile.opts.gf etc.
 Almost nothing works in original scripts.
 E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.
 One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed
-It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some 
+It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some
 point the compilation crashed finding errors in formats
 
 FFLAGS=-fallow-argument-mismatch option degrades type mismatch of arguments to warnings, but
@@ -40,8 +40,8 @@ in plot/plshockr.srs
 Makefile.opts.ifc wants
 SYSLIBS= -lsvml -lguide -no-ipo -lpthread
 but  -lguide is deprecated in the newer releases of intel compiler suite
-use -liomp5 instead 
-Makefile.opts.ifc13 works with this option 
+use -liomp5 instead
+Makefile.opts.ifc13 works with this option
 -- tested with ifort version 14.0.2 and version 2021.9.0 .
 
 Makefile.opts.ifc21 works with ifort 2021.11.1
@@ -76,10 +76,17 @@ adaptlag - Turn on or off adaptive meshing
  6 =
  7 = interpolated table
  inprof = two parts.
-The last digit is the keyets c inprof has 2 digits : the 2nd stands for keyets c the first is for
- the initial configutation c 1 isentrope c 2 isothermal c 3 wzw call wwconf c 4 arnett,s 1.5 m
- call arconf c 5 wzw 1.5 m call wzconf c 8 nomoto9 call nmconf c 9 s15s7b2 call wznconf c 10 sedov
- test
+The last digit is the keyets c inprof has 2 digits :
+ the 2nd stands for keyets c
+ the first is for the initial configutation
+ c 1 isentrope
+ c 2 isothermal
+ c 3 wzw call wwconf
+ c 4 arnett,s 1.5 m call arconf
+ c 5 wzw 1.5 m call wzconf
+ c 8 nomoto9 call nmconf
+ c 9 s15s7b2 call wznconf
+ c 10 sedov test
  keyets = 1 (ro, e) given keyets = 2 (ro, t) given keyets = 3 (ro, s) given (choose this)
  sedove - Energy to add for sedov test used only for initial config 10
  sedovm - Mass to add for sedov test only for initial config 10
@@ -94,7 +101,7 @@ TO RUN:
 cd bin
 ./runboom <model name> 1 5
 
-see the file datainp/README for model names.  
+see the file datainp/README for model names.
 tau3 is the most realistic model.
 Files tau3.1 contain namelist &cor with main control parameters
 test3nr.* is good for fast tests
@@ -244,6 +251,9 @@ Fortran 9, but the cpu timer seems to stop working.
 SeB: ifort version 2021.9.0 seems to work OK.
 
 Makefile.opts.ifc21 works with ifort 2021.11.1
+
+Makefile.opts.ifx24 is for recent ifx
+
 ------------------------------------------------------------
 
 Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf for newer versions of gfortran.
