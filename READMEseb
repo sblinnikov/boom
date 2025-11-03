@@ -46,9 +46,10 @@ Makefile.opts.ifc13 works with this option
 
 Makefile.opts.ifc21 works with ifort 2021.11.1
 
+Now Makefile.opts.ifx works with ifx
 
 So, e.g., just
- cp Makefile.opts.ifc13 Makefile.opts
+ cp Makefile.opts.ifx Makefile.opts
 then:
 
 make clean
