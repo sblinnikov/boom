@@ -52,8 +52,11 @@ So, e.g., just
  cp Makefile.opts.ifx Makefile.opts
 then:
 
+make (to read help)
+
 make clean
-make
+make boom
+
 copy bin/runboom.sample to bin/runboom:
  cp bin/runboom.sample bin/runboom
 edit bin/runboom to set the actual <rootdir> for boom in the line, e.g.
@@ -102,11 +105,6 @@ TO RUN:
 cd bin
 ./runboom <model name> 1 5
 
-see the file datainp/README for model names.
-tau3 is the most realistic model.
-Files tau3.1 contain namelist &cor with main control parameters
-test3nr.* is good for fast tests
-
 1 here is the first stage, 5 is the final stage
 ./runboom <model name> 5
 will do the same
@@ -116,6 +114,20 @@ Probably,
 ./runboom <model name> 5 10
 
 will begin from stage 5 and continue to stage 10 (this must be checked).
+
+
+E.g.
+
+./runboom test3nr 1 5
+
+will run test3nr models, which are good for fast tests.
+
+See the file datainp/README for model names.
+
+tau3 is the most realistic model.
+
+Files like tau3.1 contain namelist &cor with main control parameters.
+
 
 GETTING DATA OUT
 
@@ -258,7 +270,9 @@ Makefile.opts.ifx24 is for recent ifx
 ------------------------------------------------------------
 
 Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf for newer versions of gfortran.
+
 Now it works, but there is a dangerous place: files with extension t06 were linked to unit=6
 which is stdout, and gfortran failed to work in open statements with modifying status.
-SeB changed unit=6 to unit=16 but this is not debugged yet in detail
+
+SeB changed unit=6 to unit=16 but this is not debugged yet in detail.
 
