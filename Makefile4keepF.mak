@@ -2,7 +2,7 @@ all: help
 
 keepF:
 	cd prefort ; make install
-	cd hcol ; make -f keepF.mak
+	cd hcol ; make -f rawKeepF.mak
 
 install:
 	cd prefort ; make install
@@ -18,6 +18,7 @@ help:
 	@echo "Type make boom for build"
 	@echo "You can do: "
 	@echo " install    --  "
+	@echo " keepF      --  keep *.F source after compiling boom"
 	@echo " boom       --  compile boom"
 	@echo " clean      --  DELETE many garbage files in subdirectories"
 	@echo " distclean  --  DELETE all files in outputs/ "
