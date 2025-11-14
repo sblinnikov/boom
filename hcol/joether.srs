@@ -24,7 +24,7 @@ c           13 - Same as above except that sturb is lower bounded by 0d0
 c
 c           20 - Use Joe's new convection formulation
 c           21 - Add diverence term
-c 	    22 - Use Brunt-Valasa acceleration formulation
+c           22 - Use Brunt-Vaisala acceleration formulation
 c           24 - Add kinetic energy transport
 c
 c zjoecons = the value of the mixing parameter.  zero means no convection
@@ -212,8 +212,8 @@ c     t=ta(j)
             call state 
      +           (roa(j), ea(j), t, p, s0, snd,
      +           tr, te, pr, pe, sr, se,
-     +           ahv, z, ye(j), ynu0, 
-     +           xn, xp, xal, xhv,
+     +           ahv(1), z(1), ye(j), ynu0, 
+     +           xn(1), xp(1), xal(1), xhv(1),
      +           1)
 
 c ***********************************
@@ -969,7 +969,7 @@ c     Call equation of state
             call state 
      +           (ro1, ea(j), t, p, s0, snd,
      +           tr, te, pr, pe, sr, se,
-     +           ahv, z, ye(j), ynu, 
+     +           ahv(1), z, ye(j), ynu, 
      +           xn, xp, xal, xhv,
      +           1)
             
@@ -995,7 +995,7 @@ c     This is arbitrary
                call state 
      +              (ro, ea(j), t, p1, s1, snd,
      +              tr, te, pr1, pe, sr1, se,
-     +              ahv, z, ye(j) + delye, ynu, 
+     +              ahv(1), z, ye(j) + delye, ynu, 
      +              xn, xp, xal, xhv,
      +              1)
 c     To get the following expression for (dyedro) p,s = constant
@@ -1167,7 +1167,7 @@ c     Call equation of state to get derivatives
                call state 
      +              (roa(j), ea(j), t, p, s, snd,
      +              tr1, te, pr1, pe, sr, se,
-     +              ahv, z, ye(j), ynu, 
+     +              ahv(1), z, ye(j), ynu, 
      +              xn, xp, xal, xhv,
      +              1)
 
@@ -1180,7 +1180,7 @@ c     Call equation of state to get derivatives
                call state 
      +              (roa(k), ea(k), ta, pa, s, snd,
      +              tr2, te, pr2, pe, sr, se,
-     +              ahv, z, ye(k), ynu, 
+     +              ahv(1), z(1), ye(k), ynu, 
      +              xn, xp, xal, xhv,
      +              1)
 
