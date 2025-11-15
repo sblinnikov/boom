@@ -191,7 +191,7 @@ zoning1.srs \
 zoning2.srs \
 zoning4.srs \
 zoning5.srs \
-zoning6.srs 
+zoning6.srs
 
 objs =  abcd0.o \
 abcd1.o \
@@ -399,33 +399,47 @@ boom: libboom.a  colapse.o
 
 libboom.a: $(objs)
 	ar crv libboom.a $(objs)
-	install libboom.a ../lib	
+	install libboom.a ../lib
 	rm -f libboom.a
 
 install: boom
 	install boom $(bin)
 
-clean: 
+clean:
 	rm -f $(objs) rashi.o rashi.F boom *.a *~ *.il ifc*
 
-.srs.o:
-	$(bin)/prefort n comdecks $*.srs 
+# .srs.o:
+# 	$(bin)/prefort n comdecks $*.srs
+# 	mv $*.f $*.F
+# 	echo FFLAGS $(FFLAGS)
+# 	$(FC) -c $(FFLAGS) $*.F -o $*.o
+# 	rm $*.F  ## SB commented out for debug
+# 	echo *.F must be removed here
+
+.IGNORE:
+
+%.o : %.srs
+	$(bin)/prefort n comdecks $*.srs
 	mv $*.f $*.F
-	echo FFLAGS $(FFLAGS) 
+	echo FFLAGS $(FFLAGS)
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
 	rm $*.F  ## SB commented out for debug
 	echo *.F must be removed here
-	 
+	
+%.o: %.f
+	$(FC) -c $(FFLAGS) $<
+
+%.o: %.F
+	$(FC) -c $(FFLAGS) $<
+
+
 #Necessary because of a compiler bug on Intel 8.0
 #Seems to be fixed as of 8,1,024
 #rashi.o: rashi.F
-#	$(bin)/prefort n comdecks $*.srs 
-#	mv $*.f $*.F 
+#	$(bin)/prefort n comdecks $*.srs
+#	mv $*.f $*.F
 #	$(FC) -c $(FFLAGSBUG) rashi.F -o rashi.o
 
 
 
 $(objs): comdecks Makefile
-
-
-

@@ -969,7 +969,7 @@ c     Call equation of state
             call state 
      +           (ro1, ea(j), t, p, s0, snd,
      +           tr, te, pr, pe, sr, se,
-     +           ahv(1), z, ye(j), ynu, 
+     +           ahv(1), z, ye(j), ynu(1), 
      +           xn, xp, xal, xhv,
      +           1)
             
@@ -995,7 +995,7 @@ c     This is arbitrary
                call state 
      +              (ro, ea(j), t, p1, s1, snd,
      +              tr, te, pr1, pe, sr1, se,
-     +              ahv(1), z, ye(j) + delye, ynu, 
+     +              ahv(1), z, ye(j) + delye, ynu(1), 
      +              xn, xp, xal, xhv,
      +              1)
 c     To get the following expression for (dyedro) p,s = constant
@@ -1165,9 +1165,9 @@ c     Call equation of state to get derivatives
                jzone = j
             
                call state 
-     +              (roa(j), ea(j), t, p, s, snd,
+     +              (roa(j), ea(j), t, p, s(1), snd,
      +              tr1, te, pr1, pe, sr, se,
-     +              ahv(1), z, ye(j), ynu, 
+     +              ahv(1), z, ye(j), ynu(1), 
      +              xn, xp, xal, xhv,
      +              1)
 
@@ -1178,9 +1178,9 @@ c     Call equation of state to get derivatives
                jzone = k
 
                call state 
-     +              (roa(k), ea(k), ta, pa, s, snd,
+     +              (roa(k), ea(k), ta(1), pa(1), s(1), snd,
      +              tr2, te, pr2, pe, sr, se,
-     +              ahv(1), z(1), ye(k), ynu, 
+     +              ahv(1), z(1), ye(k), ynu(k), 
      +              xn, xp, xal, xhv,
      +              1)
 
