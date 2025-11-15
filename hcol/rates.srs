@@ -17,6 +17,7 @@
       real*8 :: b1is, scat2, scatn, scatp, scatal, scathv
       real*8 :: a0out, a1out, siges, enuprim, a0in
       real*8 :: emissb, absorbb
+      real*8 :: dummy
 c
 c Calculate emission and absorption rates
 c A description of keyrates 1+2 this is in Myra et. al ApJ 318, 744 M
@@ -81,7 +82,9 @@ c sections in a different way
                case (4)
                   call emisabs(enung,rob(j),tmv,xn(j),
      +                 xp(j),xhv(j),ahv(j),z(j),
-     1                 fmue(j),fmuhat(j),emiss,absorb)
+     1                 fmue(j),fmuhat(j),emiss,absorb,dummy,dummy)
+c -- we need more args, thus 2 dummies
+c orig:                      fmue(j),fmuhat(j),emiss,absorb)
                   if(ye(j).le.yebot) then
                      ydot(j,ng,nut)=0d0
                   else
@@ -100,7 +103,9 @@ c
 c     This routine seems to overestimate neutrino emissivity
                   call emisabs(enung,rob(j),tmv,xn(j),
      +                 xp(j),xhv(j),ahv(j),z(j),
-     1                 fmue(j),fmuhat(j),emiss,absorb)
+     1                 fmue(j),fmuhat(j),emiss,absorb,dummy,dummy)
+c -- we need more args, thus 2 dummies
+c orig:                      fmue(j),fmuhat(j),emiss,absorb)
                   ccapt(j,ng,nut)=clite*absorb
 c     
 c     take the absorption c.s. from emisabs and calculate the emission
