@@ -2,7 +2,7 @@
 origin  git@github.com:sblinnikov/boom.git
 
 This is a README file made by S.I.Blinnikov from the original README
--- some corrections are marked by seb, but many are just added
+-- some corrections are marked by SeB, but many are just added
 
 The interactive documentation used to be at
 
@@ -25,31 +25,50 @@ QUICKSTART
 cd <rootdir> for boom
 edit Makefile.opts to set compiler options
 
-seb:
+SeB:
+
 There are prepared Makefile.opts.gf etc.
+
 Almost nothing works in original scripts.
+
+GFORTRAN
+
 E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.
 One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed
 It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some
 point the compilation crashed finding errors in formats
 
-FFLAGS=-fallow-argument-mismatch option degrades type mismatch of arguments to warnings, but
-it would be better to correct this mismatch.
-Function exp10() is OK for ifort but is absent in gfortran. So, it is defined as
+In original code there were many warnings on type mismatch of formal and actual
+arguments, gfortran did not with default options, intel fortran works OK with this.
+
+In gfortran
+FFLAGS=-fallow-argument-mismatch
+option degrades type mismatch of arguments to warnings,
+but the executable crashed immediately.
+It is better to correct this mismatch which is done now by SeB.
+Use Makefile.opts.gfstrict as a template for Makefile.opts with gfortran.
+
+
+Function exp10() is OK for ifort/ifx but is absent in gfortran.
+So, it is defined as
   exp10(x) = 1d1**x
 in plot/plshockr.srs
 
+INTEL IFORT AND IFX
 
 Makefile.opts.ifc wants
 SYSLIBS= -lsvml -lguide -no-ipo -lpthread
 but  -lguide is deprecated in the newer releases of intel compiler suite
 use -liomp5 instead
+
 Makefile.opts.ifc13 works with this option
 -- tested with ifort version 14.0.2 and version 2021.9.0 .
 
 Makefile.opts.ifc21 works with ifort 2021.11.1
 
-Now Makefile.opts.ifx works with ifx
+Now Makefile.opts.ifx works with ifx versions through 2025.0.3 .
+
+BUILDING EXECUTABLE
 
 So, e.g., just
  cp Makefile.opts.ifx Makefile.opts
@@ -62,7 +81,7 @@ make boom
 
 copy bin/runboom.sample to bin/runboom:
  cp bin/runboom.sample bin/runboom
-edit bin/runboom to set the actual <rootdir> for boom in the line, e.g.
+edit bin/runboom to set the actual <rootdir> for boom in the line, e.g., I use
 
 my($rootdir) = "/home/seb/prg/boom";
 or
@@ -242,8 +261,7 @@ Then using a text editor change in the file
     yrange:   0.000000000000000E+000   15.0000000000000
 to
     yrange:   0.000000000000000E+000   25.0000000000000
-or higher, if end time is larger than 420,  in all lines,  this is
-T in MeV
+or higher, if end time is larger than 420,  in all lines,  this is T in MeV
 
 
     ploticus plot.out -jpeg -o t_r_4.jpg
@@ -252,6 +270,7 @@ or better
                -png -o tm.png
 
 then the file is smaller,
+
 x - mass M_r/Msun- T in MeV
 
 
@@ -260,22 +279,25 @@ x - mass M_r/Msun- T in MeV
 COMPILERS
 
 Author's old remark: I've found that boom tends to always show new bugs with a
-new compiler.  Boom has been run on Linux ia32 with Intel
-Fortran 7,8, and 9.  It also runs on x86_64 with Intel
-Fortran 9, but the cpu timer seems to stop working.
+new compiler.
+Boom has been run on Linux ia32 with Intel
+Fortran 7,8, and 9.
+It also runs on x86_64 with Intel Fortran 9, but the cpu timer seems to stop working.
 
 SeB: ifort version 2021.9.0 seems to work OK.
 
 Makefile.opts.ifc21 works with ifort 2021.11.1
 
-Makefile.opts.ifx24 is for recent ifx
+Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ
+only in comments.
+Both are OK for recent ifx compilers
+(tested through version 2025.0.3).
 
 ------------------------------------------------------------
 
-Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf for newer versions of gfortran.
+Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf{strict} for newer versions of gfortran.
 
 Now it works, but there is a dangerous place: files with extension t06 were linked to unit=6
 which is stdout, and gfortran failed to work in open statements with modifying status.
 
 SeB changed unit=6 to unit=16 but this is not debugged yet in detail.
-
