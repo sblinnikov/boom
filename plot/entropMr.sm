@@ -1,0 +1,14 @@
+# entrM 0 # dependence of entropy s on lagr. mass Mr
+entrM 0 #
+	data sMplot.out
+	lines 9 187 # only first snapshot here, make loop for all, like in swdn.sm
+	read{m 1 s 2}
+	limits m s
+	expand 1.5
+	box
+	xlabel M_r
+	ylabel s
+	lweight 3
+	connect m s
+	lweight 1
+	

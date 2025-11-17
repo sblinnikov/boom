@@ -1,0 +1,14 @@
+# tpM 0 # dependence of temperature T on lagr. mass Mr
+tpM 0 #
+	data TMplot.out
+	lines 9 187 # only first snapshot here, make loop for all, like in swdn.sm
+	read{m 1 T 2}
+	limits m T
+	expand 1.5
+	box
+	xlabel M_r
+	ylabel T
+	lweight 3
+	connect m T
+	lweight 1
+	

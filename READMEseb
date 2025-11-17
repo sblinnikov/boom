@@ -281,6 +281,12 @@ then the file is smaller,
 
 x - mass M_r/Msun- T in MeV
 
+If we rename plot.out to TMplot.out, then we can use sm macro 
+tpM from the script TpMr.sm to plot Tp(M_r) graph.
+
+If we select entropy s then we rename plot.out to sMplot.out, 
+and entrM macro from entropMr.sm .
+
 
 ------------------------------------------------------------
 
