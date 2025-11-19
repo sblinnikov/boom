@@ -36,18 +36,18 @@ Almost nothing works in original scripts.
 
 ### GFORTRAN
 
-E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.
-One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed
-It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some
-point the compilation crashed finding errors in formats
+E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.  
+One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed  
+It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some  
+point the compilation crashed finding errors in formats.    
 
 In original code there were many warnings on type mismatch of formal and actual
 arguments, gfortran did not work with default options, 
-intel fortran works OK with this.
+intel fortran works OK with this.  
 
-In gfortran
-FFLAGS=-fallow-argument-mismatch
-option degrades type mismatch of arguments to warnings,
+In gfortran  
+FFLAGS=-fallow-argument-mismatch  
+option degrades type mismatch of arguments to warnings,  
 but the executable crashed immediately.
 It is better to correct this mismatch which is done now by SeB.
 Use Makefile.opts.gfstrict as a template for Makefile.opts with gfortran.
@@ -93,23 +93,23 @@ my($rootdir) = "/home/seb/prg/gitWork/boom";
 
 Boom parameters (given in *.srs files like input.srs):
 
-adaptlag - Turn on or off adaptive meshing
- 0 = off
- 1 = on
+adaptlag - Turn on or off adaptive meshing  
+ 0 = off  
+ 1 = on  
 
- smass - Output mass limit (solar mass)
- keyzons - Initial zoning (use 4)
- nitmax - Maximum iterations per run
- timax - Maximum simulation time
- runtime - Maximum CPU time
- keos is the equation of state
- 6 =
- 7 = interpolated table
- inprof = two parts.
-The last digit is the keyets c inprof has 2 digits :
- the 2nd stands for keyets c
- the first is for the initial configutation
- c 1 isentrope
+ smass - Output mass limit (solar mass)  
+ keyzons - Initial zoning (use 4)  
+ nitmax - Maximum iterations per run  
+ timax - Maximum simulation time  
+ runtime - Maximum CPU time  
+ keos is the equation of state  
+ 6 =  
+ 7 = interpolated table  
+ inprof = two parts.  
+The last digit is the keyets c inprof has 2 digits :  
+ the 2nd stands for keyets c  
+ the first is for the initial configutation  
+ c 1 isentrope  
  c 2 isothermal
  c 3 wzw call wwconf
  c 4 arnett,s 1.5 m call arconf
@@ -161,37 +161,37 @@ cd plot
 
 The data are saved in a number of files with extensions:
 
-t06 t09 (?) t10 dump files
-t12 ntplot - flow lines for plotr, plshockr and plotenu routines
-t13 ro-snaps
-t15 profiles snap
-t17 may be used instead of plot.out in plframe and plsnaps
-t25 full group y and fluxes
-t35 a profile for Alexei(?) hydro variables+concentrations
-t45 a profile for convective energies and fluxes
-t55 a profile(?) for shock profiles
-t77 extract file - briefings: it outputs each 1000 steps, e.g.:
+t06 t09 (?) t10 dump files  
+t12 ntplot - flow lines for plotr, plshockr and plotenu routines  
+t13 ro-snaps  
+t15 profiles snap  
+t17 may be used instead of plot.out in plframe and plsnaps  
+t25 full group y and fluxes  
+t35 a profile for Alexei(?) hydro variables+concentrations  
+t45 a profile for convective energies and fluxes  
+t55 a profile(?) for shock profiles  
+t77 extract file - briefings: it outputs each 1000 steps, e.g.:  
 
-ntime= 38000  time= 254.119 msec.  dt=     0.784 musec.
+ntime= 38000  time= 254.119 msec.  dt=     0.784 musec.  
 
-so use, e.g.
+so use, e.g.  
 
- tail -f tau3.t77
+ tail -f tau3.t77  
 
 to monitor your run if you have the model tau3 from directory plot/ :
 
-./plotr ../outputs/tau3.t12 2 > tau3.t12.pl
-or 
-./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl
--- produces a set of r(t) plots with a step in the second arg (here 2)
+./plotr ../outputs/tau3.t12 2 > tau3.t12.pl  
+or   
+./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
+-- produces a set of r(t) plots with a step in the second arg (here 2)  
 
-./plotr ../outputs/tau3.t12 > tau3.t12.pl
-or
-./plotr ../outputs/test3nr.t12 > test3nr.t12.pl
--- if the second arg is omitted, then the default is step=10
+./plotr ../outputs/tau3.t12 > tau3.t12.pl  
+or  
+./plotr ../outputs/test3nr.t12 > test3nr.t12.pl  
+-- if the second arg is omitted, then the default is step=10  
 
-tau3.t12.pl or test3nr.t12 can be plotted
-with ploticus (http://ploticus.sourceforge.net/)
+tau3.t12.pl or test3nr.t12 can be plotted  
+with ploticus (http://ploticus.sourceforge.net/)  
 
  ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
 
@@ -327,23 +327,23 @@ SeB changed unit=6 to unit=16 but this is not debugged yet in detail.
 ## Model runs (from Wang's thesis Sec. 5.1)
 
 
-Table lists the models which were run. 
+Table lists the models which were run.   
 
-_________________________________________________________________
+_________________________________________________________________  
 
-model name  nu-types     convection 
-_________________________________________________________________
+model name  nu-types     convection   
+_________________________________________________________________  
 
-ntest1      none         none
-test3       nu_e         none
-test3c      nu_e         standard parameters
-tau3        all species  none
-tau3c       all species  standard parameters
-tau3ca      all species  convective braking
-tau3ctp     all species  turbulent pressure
-tau3ctpa    all species  turbulent pressure and convective braking
-tau3nd      all species  neutrino advection
-_________________________________________________________________
+ntest1      none         none  
+test3       nu_e         none  
+test3c      nu_e         standard parameters  
+tau3        all species  none  
+tau3c       all species  standard parameters  
+tau3ca      all species  convective braking  
+tau3ctp     all species  turbulent pressure  
+tau3ctpa    all species  turbulent pressure and convective braking  
+tau3nd      all species  neutrino advection  
+_________________________________________________________________  
 
 The model ntest1 did not include neutrino transport and was intended to test
 the hydrodynamics of the code and to insure that an explosion was possible 
