@@ -193,46 +193,46 @@ or
 tau3.t12.pl or test3nr.t12 can be plotted  
 with ploticus (http://ploticus.sourceforge.net/)  
 
- ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)
+ ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)  
 
-For output like qq.pl one can produce png file with:
- ploticus -f qq.pl -o qq.png -png
--- see man ploticus and other examples below
+For output like qq.pl one can produce png file with:  
+ ploticus -f qq.pl -o qq.png -png  
+-- see man ploticus and other examples below  
 
-./plshockr ../outputs/tau3.t12 100 > tau3.100.shk
-or
-./plshockr ../outputs/test3nr.t12 100 > tau3.100.shk
--- produces a set of shock radii with a step in the second arg (here 100)
-./plshockr ../outputs/tau3.t12 > tau3.10.shk
-or
-./plshockr ../outputs/tau3.t12 > tau3.10.shk
-or
-./plshockr ../outputs/test3nr.t12 > test3nr.10.shk
+./plshockr ../outputs/tau3.t12 100 > tau3.100.shk  
+or  
+./plshockr ../outputs/test3nr.t12 100 > tau3.100.shk  
+-- produces a set of shock radii with a step in the second arg (here 100)  
+./plshockr ../outputs/tau3.t12 > tau3.10.shk  
+or  
+./plshockr ../outputs/tau3.t12 > tau3.10.shk  
+or  
+./plshockr ../outputs/test3nr.t12 > test3nr.10.shk  
 
--- if the second arg is omitted, then the default is step=10
+-- if the second arg is omitted, then the default is step=10  
 
-./plotenu ../outputs/tau3.t12 2 > tau3.t12.Lnu
-or by default
-./plotenu ../outputs/tau3.t12 > tau3.t12.Lnu
--- produces a set of neutrino Luminosity Lnu(t) plots in 1e50 erg/s
-when the second arg is 2 or omitted
+./plotenu ../outputs/tau3.t12 2 > tau3.t12.Lnu  
+or by default  
+./plotenu ../outputs/tau3.t12 > tau3.t12.Lnu  
+-- produces a set of neutrino Luminosity Lnu(t) plots in 1e50 erg/s  
+when the second arg is 2 or omitted  
 
-./plotenu ../outputs/tau3.t12 2 > tau3.t12.enu
--- produces a set of the mean neutrino energy Enu in MeV
-when the second arg is 1
+./plotenu ../outputs/tau3.t12 2 > tau3.t12.enu  
+-- produces a set of the mean neutrino energy Enu in MeV  
+when the second arg is 1  
 
 
-./plframe - produces a snapshot of many variables at a single moment
-./plsnaps - shows the time evolution of a variable
+./plframe - produces a snapshot of many variables at a single moment  
+./plsnaps - shows the time evolution of a variable  
 
-### A typical run of plsnaps follows
+### A typical run of plsnaps follows  
 
-------------------------------------------------------------
-joe@bodhi plot]$ ./plsnaps
- type name
-../outputs/tau3
-tau3c     30.07.93         181
-   12    3         0         7       176sofhead
+------------------------------------------------------------  
+joe@bodhi plot]$ ./plsnaps  
+ type name  
+../outputs/tau3  
+tau3c     30.07.93         181  
+   12    3         0         7       176sofhead  
   181  123    0    7  176
   type start end inc (msec)
 200 300 10
@@ -250,30 +250,30 @@ the code tells:
                   stop, end or nomore
   existing variables are: e, ro, s, t, v, ye, r, gama, p, zones
 
-After prompt
-  type start end inc (msec)
-  180 420 60
--- would be a better choice, since first points are not interesting
-Now, e.g.:
- type xvar (m, r, or logr)
-m
- type yvar
-t
+After prompt  
+  type start end inc (msec)  
+  180 420 60  
+-- would be a better choice, since first points are not interesting  
+Now, e.g.:  
+ type xvar (m, r, or logr)  
+m  
+ type yvar  
+t  
 
-These applications produce a file called plot.out which can be plotted
-with ploticus (http://ploticus.sourceforge.net/)
+These applications produce a file called plot.out which can be plotted  
+with ploticus (http://ploticus.sourceforge.net/)  
 
-pl plot.out
+pl plot.out  
 
-Of course, plot.out can be renamed and saved as e.g. plotTmModel_tau3.out
+Of course, plot.out can be renamed and saved as e.g. plotTmModel_tau3.out  
 
 
-Then using a text editor change in the file
- plot.out
-    yrange:   0.000000000000000E+000   15.0000000000000
-to
-    yrange:   0.000000000000000E+000   25.0000000000000
-or higher, if end time is larger than 420,  in all lines,  this is T in MeV
+Then using a text editor change in the file  
+ plot.out  
+    yrange:   0.000000000000000E+000   15.0000000000000  
+to  
+    yrange:   0.000000000000000E+000   25.0000000000000  
+or higher, if end time is larger than 420,  in all lines,  this is T in MeV  
 
 
     ploticus plot.out -jpeg -o t_r_4.jpg
@@ -285,65 +285,65 @@ then the file is smaller,
 
 x - mass M_r/Msun- T in MeV
 
-If we rename plot.out to TMplot.out, then we can use sm macro 
-tpM from the script TpMr.sm to plot Tp(M_r) graph.
+If we rename plot.out to TMplot.out, then we can use sm macro  
+tpM from the script TpMr.sm to plot Tp(M_r) graph.  
 
 If we select entropy s then we rename plot.out to sMplot.out, 
-and entrM macro from entropMr.sm .
+and entrM macro from entropMr.sm .  
 
 
-------------------------------------------------------------
+------------------------------------------------------------  
 
 ## COMPILERS
 
 Author's old remark: I've found that boom tends to always show new bugs with a
-new compiler.
-Boom has been run on Linux ia32 with Intel
-Fortran 7,8, and 9.
-It also runs on x86_64 with Intel Fortran 9, but the cpu timer seems to stop working.
+new compiler. 
+Boom has been run on Linux ia32 with Intel  
+Fortran 7,8, and 9.  
+It also runs on x86_64 with Intel Fortran 9, but the cpu timer seems to stop working.  
 
-SeB: ifort version 2021.9.0 seems to work OK.
+SeB: ifort version 2021.9.0 seems to work OK.  
 
-Makefile.opts.ifc21 works with ifort 2021.11.1
+Makefile.opts.ifc21 works with ifort 2021.11.1  
 
-Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ
-only in comments.
+Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ  
+only in comments.  
+
 Both are OK for recent ifx compilers
-(tested through version 2025.0.3).
+(tested through version 2025.0.3).  
 
-------------------------------------------------------------
+------------------------------------------------------------  
 
-### Notes on SeB corrections
+### Notes on SeB corrections  
 
-Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf{strict} for newer versions of gfortran.
+Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf{strict} for newer versions of gfortran.  
 
-After SeB corrected the code, the warnings on mismatch of actual and formal 
+After SeB corrected the code, the warnings on mismatch of actual and formal  
 parameters dissapered, and it works, but there is a dangerous place: 
-files with extension t06 were linked to unit=6
-which is stdout, and gfortran failed to work in open statements with modifying status.
+files with extension t06 were linked to unit=6  
+which is stdout, and gfortran failed to work in open statements with modifying status.  
 
-SeB changed unit=6 to unit=16 but this is not debugged yet in detail.
+SeB changed unit=6 to unit=16 but this is not debugged yet in detail.  
 
-## Model runs (from Wang's thesis Sec. 5.1)
+## Model runs (from Wang's thesis Sec. 5.1)  
 
 
 Table lists the models which were run.   
 
 _________________________________________________________________  
 
-model name  nu-types     convection   
-_________________________________________________________________  
-
-ntest1      none         none  
-test3       nu_e         none  
-test3c      nu_e         standard parameters  
-tau3        all species  none  
-tau3c       all species  standard parameters  
-tau3ca      all species  convective braking  
-tau3ctp     all species  turbulent pressure  
-tau3ctpa    all species  turbulent pressure and convective braking  
-tau3nd      all species  neutrino advection  
-_________________________________________________________________  
+| model name |  nu-types |    convection    |  
+|:---------- | :--------:|:---------------  |
+|ntest1      |   none    | none             |
+|test3       |nu_e       |  none               |
+|test3c      |nu_e       |  standard parameters|  
+|tau3        |all species|  none               |
+|tau3c       |all species|  standard parameters|  
+|tau3ca      |all species|  convective braking | 
+|tau3ctp     |all species|  turbulent pressure | 
+|tau3ctpa    |all species|  turbulent pressure and convective braking  |  
+|tau3nd      |all species|  neutrino advection  
+____________________________________________________________________  
 
 The model ntest1 did not include neutrino transport and was intended to test
 the hydrodynamics of the code and to insure that an explosion was possible 
@@ -368,8 +368,8 @@ Model tau3c was a model with the standard parameters for convection described ea
 Model tau3ca contained an extra convective term in order to be taken into account, 
 albeit in a crude fashion, for the mechanism of Burrows, Hayes, and Fryxell (1995)
 in which convection decreases the net infall velocity and therefore increases the 
-"residence time" which material has to heat within the gain radius. 
+"residence time" which material has to heat within the gain radius.  
 Because non-electron neutrinos and convection were turned off before bounce, the 
 characteristics of the infall phase in all of the models were identical. 
 Bounce occurred 203 milliseconds after the start of the simulation, and the maximum 
-central density was 2.8 x 10^4 grams/cm^3.
+central density was 2.8 x 10^4 grams/cm^3.  
