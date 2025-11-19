@@ -8,4 +8,4 @@ see **Docs**: Thesis by J.C. Wang
 very little is given in html files in **Docs**
 
 ## Running the code
-see **READMEseb**
+see **READMEseb.md**

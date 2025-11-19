@@ -1,8 +1,11 @@
+# boom write up by SeB
 
 origin  git@github.com:sblinnikov/boom.git
 
+## Introduction
+
 This is a README file made by S.I.Blinnikov from the original README
--- some corrections are marked by SeB, but many are just added
+-- some corrections are marked by SeB, but many are just added.
 
 The interactive documentation used to be at
 
@@ -20,7 +23,7 @@ S.B. Physics - MIT - 1991 Ph.D. Astronomy - University of Texas at Austin
 Author's e-mail joe@confucius.gnacademy.org
 
 
-QUICKSTART
+## QUICKSTART
 
 cd <rootdir> for boom
 edit Makefile.opts to set compiler options
@@ -31,7 +34,7 @@ There are prepared Makefile.opts.gf etc.
 
 Almost nothing works in original scripts.
 
-GFORTRAN
+### GFORTRAN
 
 E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.
 One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed
@@ -39,7 +42,8 @@ It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some
 point the compilation crashed finding errors in formats
 
 In original code there were many warnings on type mismatch of formal and actual
-arguments, gfortran did not with default options, intel fortran works OK with this.
+arguments, gfortran did not work with default options, 
+intel fortran works OK with this.
 
 In gfortran
 FFLAGS=-fallow-argument-mismatch
@@ -54,7 +58,7 @@ So, it is defined as
   exp10(x) = 1d1**x
 in plot/plshockr.srs
 
-INTEL IFORT AND IFX
+### INTEL IFORT AND IFX
 
 Makefile.opts.ifc wants
 SYSLIBS= -lsvml -lguide -no-ipo -lpthread
@@ -68,7 +72,7 @@ Makefile.opts.ifc21 works with ifort 2021.11.1
 
 Now Makefile.opts.ifx works with ifx versions through 2025.0.3 .
 
-BUILDING EXECUTABLE
+## BUILDING EXECUTABLE
 
 So, e.g., just
  cp Makefile.opts.ifx Makefile.opts
@@ -151,7 +155,7 @@ tau3 is the most realistic model.
 Files like tau3.1 contain namelist &cor with main control parameters.
 
 
-GETTING DATA OUT
+## GETTING DATA OUT
 
 cd plot
 
@@ -221,7 +225,7 @@ when the second arg is 1
 ./plframe - produces a snapshot of many variables at a single moment
 ./plsnaps - shows the time evolution of a variable
 
-A typical run follows
+### A typical run of plsnaps follows
 
 ------------------------------------------------------------
 joe@bodhi plot]$ ./plsnaps
@@ -290,7 +294,7 @@ and entrM macro from entropMr.sm .
 
 ------------------------------------------------------------
 
-COMPILERS
+## COMPILERS
 
 Author's old remark: I've found that boom tends to always show new bugs with a
 new compiler.
@@ -309,9 +313,63 @@ Both are OK for recent ifx compilers
 
 ------------------------------------------------------------
 
+### Notes on SeB corrections
+
 Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf{strict} for newer versions of gfortran.
 
-Now it works, but there is a dangerous place: files with extension t06 were linked to unit=6
+After SeB corrected the code, the warnings on mismatch of actual and formal 
+parameters dissapered, and it works, but there is a dangerous place: 
+files with extension t06 were linked to unit=6
 which is stdout, and gfortran failed to work in open statements with modifying status.
 
 SeB changed unit=6 to unit=16 but this is not debugged yet in detail.
+
+## Model runs (from Wang's thesis Sec. 5.1)
+
+
+Table lists the models which were run. 
+
+_________________________________________________________________
+
+model name  nu-types     convection 
+_________________________________________________________________
+
+ntest1      none         none
+test3       nu_e         none
+test3c      nu_e         standard parameters
+tau3        all species  none
+tau3c       all species  standard parameters
+tau3ca      all species  convective braking
+tau3ctp     all species  turbulent pressure
+tau3ctpa    all species  turbulent pressure and convective braking
+tau3nd      all species  neutrino advection
+_________________________________________________________________
+
+The model ntest1 did not include neutrino transport and was intended to test
+the hydrodynamics of the code and to insure that an explosion was possible 
+without neutrino losses taken into account. 
+Because convection requires neutrino losses to create the initial negative entropy 
+gradient, no models without neutrino losses but with convection were computed.
+
+The models test3 and test3c were run with electron neutrinos only.
+The test3 model did not contain convection while test3c contained convection 
+with the standard convection parameters, as defined in chapter 4 of dissertation
+(asymmetry parameter =0.1, all other parameters =1.0, no salt finger mixing).
+Although physically unrealistic, these models were intended to calculate 
+the impact of different neutrino heating assumptions on the behavior of the model.
+
+The models tau3 contained all neutrino species. 
+
+Model tau3 omitted convection and was intended as a control against which models with
+convection were to be compared. 
+
+Model tau3c was a model with the standard parameters for convection described earlier.
+
+Model tau3ca contained an extra convective term in order to be taken into account, 
+albeit in a crude fashion, for the mechanism of Burrows, Hayes, and Fryxell (1995)
+in which convection decreases the net infall velocity and therefore increases the 
+"residence time" which material has to heat within the gain radius. 
+Because non-electron neutrinos and convection were turned off before bounce, the 
+characteristics of the infall phase in all of the models were identical. 
+Bounce occurred 203 milliseconds after the start of the simulation, and the maximum 
+central density was 2.8 x 10^4 grams/cm^3.
