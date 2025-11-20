@@ -1,4 +1,4 @@
-# boom write up by SeB
+# boom write-up by SeB
 
 origin  git@github.com:sblinnikov/boom.git
 
@@ -12,7 +12,7 @@ The interactive documentation used to be at
 http://en.wikiversity.org/wiki/BoomCode
 
 but it seems that the link does not work properly now
-(10.01.2014, updated 20.06.2023)
+(10.01.2014, updated 20.11.2025)
 
 Author:
 Joseph Chen-Yu Wang joe@confucius.gnacademy.org
@@ -37,7 +37,7 @@ Almost nothing works in original scripts.
 ### GFORTRAN
 
 E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.  
-One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed  
+One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed.  
 It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some  
 point the compilation crashed finding errors in formats.    
 
@@ -62,36 +62,35 @@ in plot/plshockr.srs
 
 Makefile.opts.ifc wants
 SYSLIBS= -lsvml -lguide -no-ipo -lpthread
-but  -lguide is deprecated in the newer releases of intel compiler suite
-use -liomp5 instead
+but  -lguide is deprecated in the newer releases of intel compiler suite,  
+use -liomp5 instead.
 
-Makefile.opts.ifc13 works with this option
--- tested with ifort version 14.0.2 and version 2021.9.0 .
+Makefile.opts.ifc13 works with this option  
+-- tested with ifort version 14.0.2 and version 2021.9.0 .  
 
-Makefile.opts.ifc21 works with ifort 2021.11.1
+Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
-Now Makefile.opts.ifx works with ifx versions through 2025.0.3 .
+Now Makefile.opts.ifx works with ifx versions through 2025.0.3 .  
 
 ## BUILDING EXECUTABLE
 
-So, e.g., just
- cp Makefile.opts.ifx Makefile.opts
-then:
+So, e.g., just  
+ cp Makefile.opts.ifx Makefile.opts  
+then:  
 
-make (to read help)
+make (to read help)  
+make clean  
+make boom  
+  
+copy bin/runboom.sample to bin/runboom:  
+ cp bin/runboom.sample bin/runboom  
+edit bin/runboom to set the actual <rootdir> for boom in the line, e.g., I use  
+  
+my($rootdir) = "/home/seb/prg/boom";  
+or  
+my($rootdir) = "/home/seb/prg/gitWork/boom";  
 
-make clean
-make boom
-
-copy bin/runboom.sample to bin/runboom:
- cp bin/runboom.sample bin/runboom
-edit bin/runboom to set the actual <rootdir> for boom in the line, e.g., I use
-
-my($rootdir) = "/home/seb/prg/boom";
-or
-my($rootdir) = "/home/seb/prg/gitWork/boom";
-
-Boom parameters (given in *.srs files like input.srs):
+Boom parameters (given in *.srs files like input.srs):  
 
 adaptlag - Turn on or off adaptive meshing  
  0 = off  
@@ -110,58 +109,63 @@ The last digit is the keyets c inprof has 2 digits :
  the 2nd stands for keyets c  
  the first is for the initial configutation  
  c 1 isentrope  
- c 2 isothermal
- c 3 wzw call wwconf
- c 4 arnett,s 1.5 m call arconf
- c 5 wzw 1.5 m call wzconf
- c 8 nomoto9 call nmconf
- c 9 s15s7b2 call wznconf
- c 10 sedov test
- keyets = 1 (ro, e) given keyets = 2 (ro, t) given keyets = 3 (ro, s) given (choose this)
- sedove - Energy to add for sedov test used only for initial config 10
- sedovm - Mass to add for sedov test only for initial config 10
- pexter = outer pressure boundary condition
- stab - Hydrodynamical stability factor. Time step / courant time. Choose 0.5
+ c 2 isothermal  
+ c 3 wzw call wwconf  
+ c 4 arnett,s 1.5 m call arconf  
+ c 5 wzw 1.5 m call wzconf  
+ c 8 nomoto9 call nmconf  
+ c 9 s15s7b2 call wznconf  
+ c 10 sedov test  
+  
+ keyets = 1 (ro, e) given   
+ keyets = 2 (ro, t) given   
+ keyets = 3 (ro, s) given (choose this)  
+  
+ sedove - Energy to add for sedov test used only for initial config 10  
+ sedovm - Mass to add for sedov test only for initial config 10  
+ pexter = outer pressure boundary condition  
+ stab - Hydrodynamical stability factor. Time step / courant time. Choose 0.5  
+  
 
-= Neutrino Algorithm =
- kdnscat - turn on down scattering.
+= Neutrino Algorithm =  
+ kdnscat - turn on down scattering.  
 
-TO RUN:
+TO RUN:  
 
-cd bin
-./runboom <model name> 1 5
+cd bin  
+./runboom <model name> 1 5  
 
-1 here is the first stage, 5 is the final stage
-./runboom <model name> 5
-will do the same
+1 here is the first stage, 5 is the final stage  
+./runboom <model name> 5  
+will do the same  
 
-Probably,
+Probably,  
 
-./runboom <model name> 5 10
+./runboom <model name> 5 10  
 
-will begin from stage 5 and continue to stage 10 (this must be checked).
-
-
-E.g.
-
-./runboom test3nr 1 5
-
-will run test3nr models, which are good for fast tests.
-
-See the file datainp/README for model names.
-
-tau3 is the most realistic model.
-
-Files like tau3.1 contain namelist &cor with main control parameters.
+will begin from stage 5 and continue to stage 10 (this must be checked).  
 
 
-## GETTING DATA OUT
+E.g.  
 
-cd plot
+./runboom test3nr 1 5  
 
-The data are saved in a number of files with extensions:
+will run test3nr models, which are good for fast tests.  
 
-t06 t09 (?) t10 dump files  
+See the file datainp/README for model names.  
+
+tau3 is the most realistic model.  
+
+Files like tau3.1 contain namelist &cor with main control parameters.  
+
+  
+## GETTING DATA OUT  
+
+cd plot  
+
+The data are saved in a number of files with extensions:  
+
+t06 t09 (?) t10 dump files   
 t12 ntplot - flow lines for plotr, plshockr and plotenu routines  
 t13 ro-snaps  
 t15 profiles snap  
