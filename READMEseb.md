@@ -90,6 +90,8 @@ my($rootdir) = "/home/seb/prg/boom";
 or  
 my($rootdir) = "/home/seb/prg/gitWork/boom";  
 
+## Boom parameters  
+
 Boom parameters (given in *.srs files like input.srs):  
 
 adaptlag - Turn on or off adaptive meshing  
@@ -127,10 +129,10 @@ The last digit is the keyets c inprof has 2 digits :
  stab - Hydrodynamical stability factor. Time step / courant time. Choose 0.5  
   
 
-= Neutrino Algorithm =  
+#### = Neutrino Algorithm =  
  kdnscat - turn on down scattering.  
 
-TO RUN:  
+## TO RUN:  
 
 cd bin  
 ./runboom <model name> 1 5  
