@@ -106,6 +106,8 @@ c     copy all input files to nt1(=all decks),nt2,nt3(=all comdecks)
       call getargu(nf,lfn)
       filim(nf)=lfn
       nfx=nf+20
+c      write(*,*)'nf,nfx=',nf,nfx
+c      pause
       if(nfx.ge.90) stop ' many input files as arguments'
       open(unit=nfx ,file=lfn    ,iostat=ierr,form='formatted'
      1,err=90,status='old')

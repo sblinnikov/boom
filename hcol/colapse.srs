@@ -1,5 +1,6 @@
 *deck colapse
       program  colapse
+      USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: OUTPUT_UNIT
       implicit none
 *call dim
 *call grvec
@@ -20,6 +21,9 @@
       integer :: lng, imax, ngmax, jmax
       real*8 :: cldmpi
 !      integer :: cldmpi
+      INTEGER :: iostat_val, unit_status, user_unit
+      CHARACTER(LEN=256) :: filename
+
 *call version
 #ifdef USE_MPI
       call mpi_init(ierr)
@@ -36,6 +40,13 @@
 #ifdef USE_MPI
       call  mpi_barrier(MPI_COMM_WORLD,ierr)
 #endif
+      IF (unit_status == .TRUE.) THEN
+        WRITE(*,*) "Std output unit", OUTPUT_UNIT, "is already open."
+!       You can add further checks to see the name of the file
+      ELSE
+        WRITE(*,*) "Standard output unit is not open."
+      END IF
+      pause
       print 900,version
 900   format('  collapse  version  ',a)
       read (5,801,end=990)  name

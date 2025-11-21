@@ -68,7 +68,7 @@ sub run_program {
    my ($outfile) = "$outdir/$model.out.$suffix";
    print "$infile.$suffix\n";
    system ("cd $rootdir
-nice -5 $bindir/boom $infile.$suffix >> $outdir/$model.t06");
+nice -5 $bindir/boom $infile.$suffix 2>&1 | tee  $outdir/$model.t06");
    opendir (DIR, $outdir);
    my(@files) = grep(/^$model\.t[0-9][0-9]$/, readdir(DIR));
    closedir(DIR);

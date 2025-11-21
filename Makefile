@@ -42,5 +42,3 @@ dist: distclean
 	rm -f boom-`date +%Y%m%d`.tgz
 	cd .. ; tar czf boom-`date +%Y%m%d`.tgz --exclude RCS \
              --exclude .svn boom --exclude .git boom
-
-

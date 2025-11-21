@@ -413,7 +413,7 @@ clean:
 # 	mv $*.f $*.F
 # 	echo FFLAGS $(FFLAGS)
 # 	$(FC) -c $(FFLAGS) $*.F -o $*.o
-# 	rm $*.F  ## SB commented out for debug
+#	rm $*.F  ## SB commented out for debug
 # 	echo *.F must be removed here
 
 .IGNORE:
@@ -439,7 +439,5 @@ clean:
 #	$(bin)/prefort n comdecks $*.srs
 #	mv $*.f $*.F
 #	$(FC) -c $(FFLAGSBUG) rashi.F -o rashi.o
-
-
 
 $(objs): comdecks Makefile

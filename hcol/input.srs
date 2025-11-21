@@ -1,5 +1,6 @@
 *deck input
       subroutine  input (jmax,ngmax,nxx)
+      USE, INTRINSIC :: ISO_FORTRAN_ENV
       implicit none
 *call dim
 *call grvec
@@ -439,7 +440,8 @@ c     dump file
       open(unit=16,file=diskw(1:l)//namef(1:lng)//'.t06' ! sb 6-->16
      1,status='replace')
       write(*,*)'after open unit=16'
-!      pause
+!      stop 'after open unit=16'	
+!     pause
       if(iprcor.ne.0)  write(*,cor)
       if(ntime .gt. -10)  profile=namef(1:lng)//'.t09'
       lnp=index(profile,' ')-1
@@ -538,6 +540,10 @@ c
       xmun=0.d0
       xmup=0.d0
       xmuhat=0.d0
+      write(*,*)'press enter if job is OK:'
+      write(*,*)'input job=',job
+      pause
+C      read(*,*)
       header(1)=job
       if(job.eq.'          ')  header(1)=name(1:10)
       header(2)=datex
