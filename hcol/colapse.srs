@@ -40,14 +40,16 @@
 #ifdef USE_MPI
       call  mpi_barrier(MPI_COMM_WORLD,ierr)
 #endif
-      IF (unit_status == .TRUE.) THEN
+      IF (unit_status == 1) THEN
         WRITE(*,*) "***NB*** Std output unit"
         WRITE(*,*) "Std output unit", OUTPUT_UNIT, "is already open."
 !       You can add further checks to see the name of the file
       ELSE
+        WRITE(*,*) "unit_status=",unit_status
         WRITE(*,*) "***NB*** Standard output unit is not open."
       END IF
-!      pause
+!      pause  ! for debug
+!      stop 4 ! for debug
       print 900,version
 900   format('  collapse  version  ',a)
       read (5,801,end=990)  name
