@@ -90,6 +90,10 @@ my($rootdir) = "/home/seb/prg/boom";
 or  
 my($rootdir) = "/home/seb/prg/gitWork/boom";  
 
+NB. bin/runboom.sample redirects stdout to the file $outdir/$model.t06. 
+Explore *.t06 text for important messages and diagnostics.
+I add my messages with '***NB***' mark.
+
 ## Boom parameters  
 
 Boom parameters (given in *.srs files like input.srs):  
@@ -149,6 +153,9 @@ will begin from stage 5 and continue to stage 10 (this must be checked).
 
 
 E.g.  
+
+./runboom test3 1 2
+-- a quick initial test
 
 ./runboom test3nr 1 5  
 
