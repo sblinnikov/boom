@@ -138,7 +138,32 @@ The last digit is the keyets c inprof has 2 digits :
 
 ## TO RUN:  
 
+Prepare input model imodels/model.dat, e.g.
+from the root boom/ directory
+
+cp imodels/woosley.dat imodels/model.dat
+
+To run without perl script, try e.g. 
+
+./bin/boom datainp/test3nr.1 
+
+./bin/boom datainp/test3nr.2
+
+etc. until
+
+./bin/boom datainp/test3nr.5
+
+
+To run the same with the perl script runboom:
+
 cd bin  
+
+./runboom test3nr 1 5  (OK in gfortran and in ifx)
+
+will run test3nr models, which are good for fast tests.  
+
+For other models
+
 ./runboom <model name> 1 5  
 
 1 here is the first stage, 5 is the final stage  
@@ -151,15 +176,11 @@ Probably,
 
 will begin from stage 5 and continue to stage 10 (this must be checked).  
 
-
 E.g.  
 
 ./runboom test3 1 2
--- a quick initial test
+-- a quick initial test (crashes in gfortran, OK in ifx)
 
-./runboom test3nr 1 5  
-
-will run test3nr models, which are good for fast tests.  
 
 See the file datainp/README for model names.  
 
