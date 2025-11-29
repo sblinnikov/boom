@@ -70,7 +70,7 @@ Makefile.opts.ifc13 works with this option
 
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
-Now Makefile.opts.ifx works with ifx versions through 2025.0.3 .  
+Now Makefile.opts.ifx works with ifx versions through 2025.3.0 .  
 
 ## BUILDING EXECUTABLE
 
@@ -323,7 +323,7 @@ Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ
 only in comments.  
 
 Both are OK for recent ifx compilers
-(tested through version 2025.0.3).  
+(tested through version 2025.3.0).  
 
 ------------------------------------------------------------  
 
@@ -332,7 +332,7 @@ Both are OK for recent ifx compilers
 Use Makefile.opts.gf7 for gfortran 7.5 and Makefile.opts.gf{strict} for newer versions of gfortran.  
 
 After SeB corrected the code, the warnings on mismatch of actual and formal  
-parameters dissapered, and it works, but there is a dangerous place: 
+parameters disappeared, and it works, but there is a dangerous place: 
 files with extension t06 were linked to unit=6  
 which is stdout, and gfortran failed to work in open statements with modifying status.  
 
