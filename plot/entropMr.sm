@@ -1,4 +1,4 @@
-# entrM 0 # dependence of entropy s on lagr. mass Mr
+# entrM 0 # dependence of entropy s on lagr. mass Mr now see plotr.sm and alike
 entrM 0 #
 	data sMplot.out
 	lines 9 187 # only first snapshot here, make loop for all, like in swdn.sm

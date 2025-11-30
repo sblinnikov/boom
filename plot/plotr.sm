@@ -1,0 +1,18 @@
+#plotr 1 # must be arg like test3nr.t12.datsm
+plotr 1 #
+	data $1 # put into args
+	lines 14 213
+	read {t 1 lr 2}
+	lines 3685 3827
+	read {tf 1 lrf 2}
+	limits 0.2 0.26 5 9
+	expand 1.5
+	box
+	lweight 2
+	xlabel t, s
+	ylabel lg r, cm
+	lweight 3
+	pl t r
+	pl tf rf
+	lweight 1
+	expand 1

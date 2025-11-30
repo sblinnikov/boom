@@ -45,7 +45,7 @@
      1,access='sequential')
       open(22,file=namef(1:len_trim(namef))//'.datsm'
      1,status='unknown')
-      write(22,'(a)')'#this file is prepared for supermongo plots'	
+      write(22,'(a)')'#this file is prepared for supermongo plots'
       rewind ntp
       hx=' time'
       hy=' log(r)'
@@ -155,6 +155,7 @@ c-------------------------------------------------------
       do i=1,nlines
          j=ipl(i)
          print *, '#proc line'
+         write(22,'(a)'),'#proc line'
 	 istartline = 1
          do n=n1,n2
             x=r(1,n) - tbounce
@@ -163,21 +164,30 @@ c-------------------------------------------------------
             if (istartline .eq. 1) then
                print *, 'notation: scaled'
                print *, 'points: ', x, y
+               write(22,'(a)'),'# notation: scaled'
+               write(22,'(a)'),'points: '
+               write(22,'(1p,2e17.10)'), x, y
 	       istartline = 0
             else
                print *, '        ', x, y
+               write(22,'(1p,2e17.10)'), x, y
             endif
 	    endif
          enddo
          print *, ' '
+         write(22,'(a)'),' '
       enddo
 
       do i=1,nshock
          if (i .eq. 1) then
-         print *, '#proc getdata'
-         print *, 'data: ', tshock(i), rshock(i)
+           print *, '#proc getdata'
+           print *, 'data: ', tshock(i), rshock(i)
+           write(22,'(a)'), '#proc getdata'
+           write(22,'(a)'), 'data: '
+           write(22,'(1p,2e17.10)'), tshock(i), rshock(i)
 	 elseif (rshock(i) .gt. 0d0) then
-         print *, '        ', tshock(i), rshock(i)
+           print *, '        ', tshock(i), rshock(i)
+           write(22,'(a,1p,2e17.10)'), '        ', tshock(i), rshock(i)
 	 endif
       enddo
       print *, '#proc lineplot'
@@ -185,13 +195,18 @@ c-------------------------------------------------------
       print *, 'yfield: 2'
       print *, 'linedetails: style=2'
       print *, 'label: Shock'
+      write(22,'(a)'), '#proc lineplot'
+      write(22,'(a)'), 'xfield: 1'
+      write(22,'(a)'), 'yfield: 2'
+      write(22,'(a)'), 'linedetails: style=2'
+      write(22,'(a)'), 'label: Shock'
 
       do i=1,ngain
          if (i .eq. 1) then
-         print *, '#proc getdata'
-         print *, 'data: ', tgain(i), rgain(i)
+           print *, '#proc getdata'
+           print *, 'data: ', tgain(i), rgain(i)
 	 elseif (rgain(i) .gt. 0d0) then
-         print *, '        ', tgain(i), rgain(i)
+           print *, '        ', tgain(i), rgain(i)
 	 endif
       enddo
 
