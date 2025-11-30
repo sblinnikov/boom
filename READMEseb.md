@@ -214,14 +214,14 @@ so use, e.g.
 
 to monitor your run if you have the model tau3 from directory plot/ :
 
-./plotr ../outputs/tau3.t12 2 > tau3.t12.pl  
+ ./plotr ../outputs/tau3.t12 2 > tau3.t12.pl  
 or   
-./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
+ ./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
 -- produces a set of r(t) plots with a step in the second arg (here 2)  
 
-./plotr ../outputs/tau3.t12 > tau3.t12.pl  
+ ./plotr ../outputs/tau3.t12 > tau3.t12.pl  
 or  
-./plotr ../outputs/test3nr.t12 > test3nr.t12.pl  
+ ./plotr ../outputs/test3nr.t12 > test3nr.t12.pl  
 -- if the second arg is omitted, then the default is step=10  
 
 tau3.t12.pl or test3nr.t12 can be plotted  
@@ -232,6 +232,11 @@ with ploticus (http://ploticus.sourceforge.net/)
 For output like qq.pl one can produce png file with:  
  ploticus -f qq.pl -o qq.png -png  
 -- see man ploticus and other examples below  
+
+ ./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
+ ploticus -f test3nr.t12.pl -o test3nr.t12.png -png  
+gives test3nr.t12.png  
+
 
 ./plshockr ../outputs/tau3.t12 100 > tau3.100.shk  
 or  
