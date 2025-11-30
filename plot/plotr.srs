@@ -40,9 +40,12 @@
          stop 'Wrong number of arguments: plotr <filename> <dilution>'
       endif
 
-      open(unit=12,file=namef,status='old'
-     1,access='sequential')
       ntp=12
+      open(unit=ntp,file=namef,status='old'
+     1,access='sequential')
+      open(22,file=namef(1:len_trim(namef))//'.datsm'
+     1,status='unknown')
+      write(22,'(a)')'#this file is prepared for supermongo plots'	
       rewind ntp
       hx=' time'
       hy=' log(r)'
@@ -117,6 +120,7 @@ c      print 910,namein,ntime,time,dtlast,dta
  217  continue
       npt=n
       print *,'// block #',nb,'  number of t points=',npt
+      write(22,'(a,i5,a,i5)')' block No ',nb,'  number of t points=',npt
       n1=1
       n2=npt
       jmax=imass1len
@@ -137,6 +141,16 @@ c-------------------------------------------------------
       print *,'   yrange: 5 9'
       print *,'   yaxis.stubs: inc l 1'
       print *,'   yaxis.label: log-r'
+
+      write(22,'(a)'),'#proc areadef'
+      write(22,'(a)'),'#   title: t vs log-r'
+      write(22,'(a,1p,2e17.10)'),'   xrange: ',
+     1 tmin - tbounce, tmax - tbounce
+      write(22,'(a)'),'#   xaxis.label: time (seconds)'
+      write(22,'(a)'),'#   xaxis.stubs: inc l 0.1'
+      write(22,'(a)'),'#   yrange: 5 9'
+      write(22,'(a)'),'#   yaxis.stubs: inc l 1'
+      write(22,'(a)'),'#   yaxis.label: log-r'
 
       do i=1,nlines
          j=ipl(i)
@@ -192,4 +206,6 @@ c-------------------------------------------------------
 350   continue
 400   continue
 c      call  sium
+      close(22)
+      stop 'Normal end of program plotr'
       end

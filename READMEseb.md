@@ -215,25 +215,29 @@ so use, e.g.
 to monitor your run if you have the model tau3 from directory plot/ :
 
  ./plotr ../outputs/tau3.t12 2 > tau3.t12.pl  
-or   
+or for test3nr model  
  ./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
--- produces a set of r(t) plots with a step in the second arg (here 2)  
+-- produces a set of r(t) plots with a step in the second arg (here 2).  
+The file like test3nr.t12 contains too many profiles of physical quantities,  
+so the step allows to rarefy the output and to get good plots.  
 
+One may omit the second argument:  
+  
  ./plotr ../outputs/tau3.t12 > tau3.t12.pl  
 or  
  ./plotr ../outputs/test3nr.t12 > test3nr.t12.pl  
--- if the second arg is omitted, then the default is step=10  
+-- if the second argument is omitted, then the default is step=10  
 
-tau3.t12.pl or test3nr.t12 can be plotted  
-with ploticus (http://ploticus.sourceforge.net/)  
+tau3.t12.pl or test3nr.t12.pl, etc., can be plotted  
+with ploticus (http://ploticus.sourceforge.net/):  
 
  ploticus tau3.t12.pl (or pl tau3.t12.pl, if alias pl is defined)  
 
-For output like qq.pl one can produce png file with:  
+For output like qq.pl one can produce a png file with:  
  ploticus -f qq.pl -o qq.png -png  
 -- see man ploticus and other examples below  
 
- ./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
+ ./plotr ../outputs/test3nr.t12 15 > test3nr.t12.pl  
  ploticus -f test3nr.t12.pl -o test3nr.t12.png -png  
 gives test3nr.t12.png  
 
