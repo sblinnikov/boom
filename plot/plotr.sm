@@ -1,18 +1,66 @@
-#plotr 1 # must be arg like test3nr.t12.datsm
+# testlines 1 # must be arg like test3nr.t12.datsm
+testlines 1 #
+	data $1 # 
+        read row strtt 1.s
+        define endline 0
+        while {INDEX(strtt[0],'points') == -1} {define endline $($endline+1)
+           read row strtt $endline.s}
+        echo  endline  $endline
+        echo  endline-4  $($endline-4)
+        lines 14 $($endline-4)
+
+# plotr 1 # must be arg like test3nr.t12.datsm
 plotr 1 #
-	data $1 # put into args
-	lines 14 213
-	read {t 1 lr 2}
-	lines 3685 3827
-	read {tf 1 lrf 2}
+	data $1 # 
 	limits 0.2 0.26 5 9
 	expand 1.5
 	box
 	lweight 2
 	xlabel t, s
 	ylabel lg r, cm
+        read row strtt 1.s
+        define begline 0
+        while {INDEX(strtt[0],'points') == -1} {define begline $($begline+1)
+           read row strtt $begline.s}
+        echo  begline  $begline
+        define endline $($begline+1)
+        read row strtt 1.s
+        while {INDEX(strtt[0],'points') == -1} {define endline $($endline+1)
+           read row strtt $endline.s}
+        echo  endline  $endline
+        echo  endline-4  $($endline-4)
+	lines $($begline+1)  $($endline-4)
+#	lines 14 213
+	read {t 1 lr 2}
 	lweight 3
-	pl t r
-	pl tf rf
+	pl t lr
+	define begline $endline
+	define endline $($begline+1)
+	read row strtt 1.s
+        while {INDEX(strtt[0],'points') == -1} {define endline $($endline+1)
+        read row strtt $endline.s}
+        echo  endline  $endline
+        echo  endline-4  $($endline-4)
+	lines $($begline+1)  $($endline-4)
+	ctype red
+	ltype 2
+ 	pl t lr
+	define begline $endline
+	define endline $($begline+1)
+	read row strtt 1.s
+        while {INDEX(strtt[0],'points') == -1} {define endline $($endline+1)
+        read row strtt $endline.s}
+        echo  endline  $endline
+        echo  endline-4  $($endline-4)
+	lines $($begline+1)  $($endline-4)
+	ctype blue
+	ltype 2
+ 	pl t lr
+	lines 3685 3827
+	read {tf 1 lrf 2}
+	ctype 0
+	ltype 0
+	pl tf lrf
 	lweight 1
 	expand 1
+
