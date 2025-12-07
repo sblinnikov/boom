@@ -133,7 +133,7 @@ c     Call convection routines
                              krtime=ntime+10
       print 952,ntime,kdif,jdelye,dtb,delyemx,epsdye
 952   format(' elecap-ye  reduces time step, ntime=',i6,' kdif=',i2
-     1,' jdelye=',i3,' dtb=',1pe10.4,' delyemx=',e8.2,' epsdye=',e8.2)
+     1,' jdelye=',i3,' dtb=',1pe11.4,' delyemx=',e9.2,' epsdye=',e9.2)
                                                  go to 40
                                                  endif
                       do   j=2,jmax
@@ -280,8 +280,8 @@ c
      &         ,                      delemx, dele1mx, dele2mx,
      &        delyfluxmx
 951   format(' big d(e-ye) ntime=',i6,' kdif=',i2,' j=',i3,
-     &' dtb=',1pe10.4,' dy,dy1,dy2=',e8.2,2e9.1,
-     &                ' de,de1,de2=',e8.2,2e9.1,' dyflux=',e8.2)
+     &' dtb=',1pe11.4,' dy,dy1,dy2=',e9.2,2e9.1,
+     &                ' de,de1,de2=',e9.2,2e9.1,' dyflux=',e9.2)
                                                  go to 40
                                                  endif
 c----------------------------------------------------------------

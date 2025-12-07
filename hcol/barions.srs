@@ -88,7 +88,7 @@ cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       eossubf='barion'
       print 901,isx,ro,tmp,ye,tnuci,dnuci
 901   format(' L.S. failed, isx-(SF)=',i2,' at ro=',1pe10.3
-     &,' t=',e9.3,' ye=',0pf5.4,' tnuci=',1pe10.3,' dnuci=',e10.3)
+     &,' t=',e10.3,' ye=',0pf5.4,' tnuci=',1pe10.3,' dnuci=',e10.3)
 c
 c     try a slightly higher temp
       ieosflg=2
