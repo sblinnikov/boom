@@ -153,7 +153,7 @@ c========================================================================
 *comdeck dim
 c Note if you change numaxm, you need to change ntindif in 
 c comdeck pari
-      integer*4, parameter  :: jmaxm=512,ngmaxm=64,numaxm=6
+      integer*4, parameter  :: jmaxm=512,ngmaxm=128,numaxm=6
       integer*4, dimension(jmaxm) :: keosn
       integer*4, dimension(jmaxm,numaxm) :: krates
       integer*4, dimension(numaxm) :: kgainrn
