@@ -1,0 +1,8 @@
+#GNU Fortran, this version does not allow argument-mismatch
+FC=gfortran
+#FFLAGS=-O3 -g
+#FFLAGS=-g
+FFLAGS= -g -O0 -fbounds-check 
+#SYSLIBS= -lgfortran /usr/lib/libg2c.a
+#SYSLIBS= -lgfortran /opt/sage-4.6.2/local/lib/libg2c.a
+SYSLIBS= -lgfortran
