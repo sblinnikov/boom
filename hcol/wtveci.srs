@@ -1,7 +1,7 @@
 *deck wtveci
       subroutine  wtveci (iv,nw,word,nt)
 *call implic
-      character*10 word
+      character(len=*) :: word
       dimension  iv(nw)
 *call krdwtdm
       ntype=1
