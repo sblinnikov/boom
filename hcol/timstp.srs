@@ -71,6 +71,7 @@ c     schulz
       endif
 cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
       aneut(j,1:numax)=-(an1+an2) ! 1d array was (j,:)
+c      aneut(j,:)=-(an1+an2) ! 1d array original form
       acc(j)=-(ap+ag)+sum(aneut(j,1:numax)) + aconv(j)
       
       dvel=dtm*acc(j)

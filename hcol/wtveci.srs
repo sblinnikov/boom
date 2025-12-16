@@ -1,9 +1,13 @@
 *deck wtveci
       subroutine  wtveci (iv,nw,word,nt)
 *call implic
-      character(len=*) :: word
+c      character(len=*) :: word ! fails to read *t09 file
+c      character(*) word
+      character*10 :: word ! crashes with -CB option 
       dimension  iv(nw)
 *call krdwtdm
+      write(*,*)'wtveci word, nt ', word, nt
+!      pause
       ntype=1
       write (nt) ntype,nw,word
       write (nt) (iv(i),i=1,nw)

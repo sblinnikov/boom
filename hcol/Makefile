@@ -424,7 +424,7 @@ clean:
 	echo FFLAGS $(FFLAGS)
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
 ##	rm $*.F  ## SB commented out for debug
-	echo *.F must be removed here
+	echo *.F must be removed here in standard setup
 	
 %.o: %.f
 	$(FC) -c $(FFLAGS) $<

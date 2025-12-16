@@ -2,8 +2,11 @@
       subroutine  rdveci (iv,nw,word,nt)
 *call implic
       character*10 word
+c      character(*) word
       dimension  iv(nw)
 *call krdwtdm
+      write(*,*)'ntype,nwi,word ',ntype,nwi,word
+!      pause
       read (nt,end=91) ntype,nwi,word
       if(ntype.ne.1)  then
                       print *,'inconssistent ntype rdvec'
