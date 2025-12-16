@@ -9,6 +9,7 @@ c Otherwise they are set up 0
 *call dim
 *call corct
       kdorelag = 0
+      krelag = min (krelag,5) ! needed when krelag is not defined 
       if(krelag.gt.0)  then
          if(time.lt.timerlg(krelag))  return
          if(timerlg(krelag).le.0d0)  then
