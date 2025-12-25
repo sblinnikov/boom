@@ -29,6 +29,7 @@
       tbounce = 0d0      
       imassread = 0 
       numargs = iargc()
+!      write(*,*)'numargs=',numargs
       if (numargs .eq. 1) then
          call getarg(1, namef)
          kdilul = 10
@@ -39,6 +40,9 @@
       else
          stop 'Wrong number of arguments: plotr <filename> <dilution>'
       endif
+
+ !     write(*,*)'namef=',namef
+
 
       ntp=12
       open(unit=ntp,file=namef,status='old'
@@ -70,8 +74,12 @@
   909 format(a10)
       read(ntp,*) namein,ntime,time,dtlast,dta,jmax,ngmax,
      &		  numax,khelem,kgainr
-c 910   format(a10,i10,1pe13.6,2e12.4,4i10)
+910   format(a10,i10,1pe13.6,2e12.4,4i10)
 c      print 910,namein,ntime,time,dtlast,dta
+!      write(*,'(2a)')' namein         ntime     time  ',
+!     1 '     dtlast        dta'
+!      write(*,910) namein,ntime,time,dtlast,dta
+
       xxx = ''
       do while (xxx .ne. 'rrrrrrrrrr')  
          read(ntp,909,end=217) xxx
@@ -80,26 +88,30 @@ c      print 910,namein,ntime,time,dtlast,dta
       read (ntp,*,end=217)  ( rin(j),j=1,nw)
       read (ntp,*,end=217)  ( fmassin(j),j=1,nw)
   920 format(1p10e10.2)
+
+!      write(*,*)'rin(1)=',rin(1)
+
       if (khelem .gt. 2) then
          rshock(nshock) = rin(khelem)
-	 tshock(nshock) = rin(1)
-	 nshock = nshock+1
+     	 tshock(nshock) = rin(1)
+	     nshock = nshock+1
       endif
 
       if (kgainr .gt. 2 .and. kgainr .lt. khelem-1) then
          rgain(ngain) = rin(kgainr)
-	 tgain(ngain) = rin(1)
-	 ngain = ngain+1
+	     tgain(ngain) = rin(1)
+	     ngain = ngain+1
       endif
 
       if (imassread .eq. 0) then
          imassread = 1
          fmass1 = fmassin
          imass1len = nw
-	 tmin = rin(1)
-	 tmax = rin(1)
+	     tmin = rin(1)
+	     tmax = rin(1)
       endif
       iprevj = 1
+      n=max(n,1) ! to correct zero n bug
       r(1,n) = rin(1)
       if (rin(1) .gt. tmax) tmax = rin(1)
       do i=2,imass1len
@@ -114,6 +126,9 @@ c      print 910,namein,ntime,time,dtlast,dta
             endif
          enddo
       enddo
+
+!      stop 'test stop in plotr'
+
 
       n=n+1
       if(n.lt.ndim2)  goto  200
@@ -142,20 +157,20 @@ c-------------------------------------------------------
       print *,'   yaxis.stubs: inc l 1'
       print *,'   yaxis.label: log-r'
 
-      write(22,'(a)'),'#proc areadef'
-      write(22,'(a)'),'#   title: t vs log-r'
-      write(22,'(a,1p,2e17.10)'),'   xrange: ',
+      write(22,'(a)')'#proc areadef'
+      write(22,'(a)')'#   title: t vs log-r'
+      write(22,'(a,1p,2e17.10)')'   xrange: ',
      1 tmin - tbounce, tmax - tbounce
-      write(22,'(a)'),'#   xaxis.label: time (seconds)'
-      write(22,'(a)'),'#   xaxis.stubs: inc l 0.1'
-      write(22,'(a)'),'#   yrange: 5 9'
-      write(22,'(a)'),'#   yaxis.stubs: inc l 1'
-      write(22,'(a)'),'#   yaxis.label: log-r'
+      write(22,'(a)')'#   xaxis.label: time (seconds)'
+      write(22,'(a)')'#   xaxis.stubs: inc l 0.1'
+      write(22,'(a)')'#   yrange: 5 9'
+      write(22,'(a)')'#   yaxis.stubs: inc l 1'
+      write(22,'(a)')'#   yaxis.label: log-r'
 
       do i=1,nlines
          j=ipl(i)
          print *, '#proc line'
-         write(22,'(a)'),'#proc line'
+         write(22,'(a)')'#proc line'
 	 istartline = 1
          do n=n1,n2
             x=r(1,n) - tbounce
@@ -164,30 +179,30 @@ c-------------------------------------------------------
             if (istartline .eq. 1) then
                print *, 'notation: scaled'
                print *, 'points: ', x, y
-               write(22,'(a)'),'# notation: scaled'
-               write(22,'(a)'),'points: '
-               write(22,'(1p,2e17.10)'), x, y
+               write(22,'(a)')'# notation: scaled'
+               write(22,'(a)')'points: '
+               write(22,'(1p,2e17.10)') x, y
 	       istartline = 0
             else
                print *, '        ', x, y
-               write(22,'(1p,2e17.10)'), x, y
+               write(22,'(1p,2e17.10)') x, y
             endif
 	    endif
          enddo
          print *, ' '
-         write(22,'(a)'),' '
+         write(22,'(a)')' '
       enddo
 
       do i=1,nshock
          if (i .eq. 1) then
            print *, '#proc getdata'
            print *, 'data: ', tshock(i), rshock(i)
-           write(22,'(a)'), '#proc getdata'
-           write(22,'(a)'), 'data: '
-           write(22,'(1p,2e17.10)'), tshock(i), rshock(i)
+           write(22,'(a)') '#proc getdata'
+           write(22,'(a)') 'data: '
+           write(22,'(1p,2e17.10)') tshock(i), rshock(i)
 	 elseif (rshock(i) .gt. 0d0) then
            print *, '        ', tshock(i), rshock(i)
-           write(22,'(a,1p,2e17.10)'), '        ', tshock(i), rshock(i)
+           write(22,'(a,1p,2e17.10)') '        ', tshock(i), rshock(i)
 	 endif
       enddo
       print *, '#proc lineplot'
@@ -195,11 +210,11 @@ c-------------------------------------------------------
       print *, 'yfield: 2'
       print *, 'linedetails: style=2'
       print *, 'label: Shock'
-      write(22,'(a)'), '#proc lineplot'
-      write(22,'(a)'), 'xfield: 1'
-      write(22,'(a)'), 'yfield: 2'
-      write(22,'(a)'), 'linedetails: style=2'
-      write(22,'(a)'), 'label: Shock'
+      write(22,'(a)') '#proc lineplot'
+      write(22,'(a)') 'xfield: 1'
+      write(22,'(a)') 'yfield: 2'
+      write(22,'(a)') 'linedetails: style=2'
+      write(22,'(a)') 'label: Shock'
 
       do i=1,ngain
          if (i .eq. 1) then
