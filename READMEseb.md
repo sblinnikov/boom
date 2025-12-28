@@ -162,7 +162,13 @@ cd bin
 
 will run test3nr models, which are good for fast tests.  
 
-For other models
+For debug (if compiled with -g option)
+
+gdb ./bin/boom 
+
+r datainp/tau3.1 
+
+For other models in bin/ directory
 
 ./runboom <model name> 1 5  
 
