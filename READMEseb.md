@@ -241,9 +241,15 @@ with ploticus (http://ploticus.sourceforge.net/):
 
 For output like qq.pl one can produce a png file with:  
  ploticus -f qq.pl -o qq.png -png  
+
+ ploticus -f tau3.t12.pl -o tau3.t12.png -png  
+gives tau3.t12.png  
+
+
 -- see man ploticus and other examples below  
 
  ./plotr ../outputs/test3nr.t12 15 > test3nr.t12.pl  
+
  ploticus -f test3nr.t12.pl -o test3nr.t12.png -png  
 gives test3nr.t12.png  
 
