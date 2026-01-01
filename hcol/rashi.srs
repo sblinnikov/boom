@@ -453,7 +453,7 @@ c
 901   format(i6,i4,f8.6,i6,1p4e9.2,0pf7.2,1p3e9.2
      1,0pf6.3,1p2e10.2,i4,0pf6.2)
 903   format(' ntime=',i7,'  time=',3pf8.3,' msec.  dt=',6pf10.3
-     1     ,' musec. kmin=',i3,' khelem=',i3)
+     1     ,' musec. kmin=',i3,' khelem=',i3,' kgainr=',i3)
       if(nuemis.ge.2)
      * print 929,ntime,yetot,ynutot,ynubtot,dlifnu,dlifnub
      *,yl,dlifen,dlifenb
@@ -468,7 +468,7 @@ c
       if(mod(ntime,kmod).ne.0)  goto  151
       write (nt77,904) ntime,time,dtb,kmin,roa(2),khelem
       call flush(nt77)
-904   format(' ntime=',i6,'  time=',3pf8.3,' msec.  dt=',6pf10.3
+904   format(' ntime=',i7,'  time=',3pf8.3,' msec.  dt=',6pf10.3
      1,' musec. kmin=',i3,'  roc=',1pe10.2,'  khelem=',i3)
 151   continue
       dtlast=dta
