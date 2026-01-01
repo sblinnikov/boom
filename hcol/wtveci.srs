@@ -2,11 +2,11 @@
       subroutine  wtveci (iv,nw,word,nt)
 *call implic
 c      character(len=*) :: word ! fails to read *t09 file
-c      character(*) word
-      character*10 :: word ! crashes with -CB option 
+      character(*) word
+c      character*10 :: word ! crashes with -CB option 
       dimension  iv(nw)
 *call krdwtdm
-      write(*,*)'wtveci word, nt ', word, nt
+!      write(*,*)'wtveci word, nt ', word, nt
 !      pause
       ntype=1
       write (nt) ntype,nw,word

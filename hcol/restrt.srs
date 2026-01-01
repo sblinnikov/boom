@@ -14,8 +14,11 @@
       character*10, parameter :: endfile = 'endfile'
       integer*4 :: lastprf, nt, ntimex, mone
       integer*4 :: ntype,nw,i,keof
-      write (6,907) job,ntime
+      write(*,*)'name=',name
+      write (*,907) job,ntime
+      write (16,907) job,ntime
 907   format(' entering restrt. job=',a8,5x,'ntime=',i6)
+!      pause
       if(job.eq.b10)  job=name(1:10)
       if(ntime.eq.0)  goto   500
 c     ------------------------------------------------------------------
