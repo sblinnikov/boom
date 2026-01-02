@@ -3,6 +3,7 @@
 *call implic
 *call vc
       character*10 word
+c      character(*) word
       if(lngplt.le.0)  return
       ncolm=lenvc/np
       lngbuf=ncolm*np

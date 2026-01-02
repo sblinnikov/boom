@@ -2,6 +2,7 @@
       subroutine  rdpar (nt)
 *call implic
       character*10 word
+c      character(*) word
 *call par
 c     read floating variables
       read (nt,end=91) ntype,nw,word

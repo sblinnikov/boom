@@ -2,6 +2,8 @@
       subroutine  wtpar (nt)
 *call implic
       character*10 word
+c      character(*) word
+
 *call par
       ntype=2
       nw=paralen+0.5d0

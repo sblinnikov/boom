@@ -166,7 +166,14 @@ For debug (if compiled with -g option)
 
 gdb ./bin/boom 
 
-r datainp/tau3.1 
+ r datainp/tau3.1 
+ r datainp/tau3.2
+...
+or
+ r datainp/test3nr.1 
+ r datainp/test3nr.2
+...
+etc.
 
 For other models in bin/ directory
 

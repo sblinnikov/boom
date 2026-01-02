@@ -8,7 +8,14 @@
 *call krdwtdm
 *call grvec
       character*10 word
+c      character(*) word
       krd=0
+	write(*,*)'in hcol/rddim.srs'
+	write(*,*)'keosn:',keosn
+	write(*,*)'jmax:',jmax
+	write(*,*)'word:',word
+	write(*,*)'nt:',nt
+!      pause
       call  rdveci (keosn,jmax,word,nt)
       do  nutype=1,numax
       call  rdveci (krates(1,nutype),jmax,word,nt)

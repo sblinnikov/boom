@@ -423,7 +423,7 @@ clean:
 	mv $*.f $*.F
 	echo FFLAGS $(FFLAGS)
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
-	rm $*.F  ## SB commented out for debug
+##	rm $*.F  ## SB commented out for debug
 	echo *.F must be removed here in standard setup
 	
 %.o: %.f
