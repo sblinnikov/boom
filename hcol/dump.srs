@@ -6,6 +6,8 @@
       character*10  dateil ,clockil
       character*80  line
       character*10 endfile,eof1,word
+      character(len=5)  :: time_zone
+      integer, dimension(8) :: dt_values
       data  eof1   /'eof'/
       data  endfile/'endfile'/
       data  nt09 /9/, nt10/10/
@@ -13,6 +15,8 @@
       job=name(1:10)
 c      datex=dateil()
 c      clockx=clockil()
+      call date_and_time(datex, clockx, time_zone, dt_values)
+
       ndmp=ndmp+1
       rewind  nt09
       nt1=9
