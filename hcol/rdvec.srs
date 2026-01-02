@@ -1,8 +1,8 @@
 *deck rdvec
       subroutine  rdvec (v,nw,word,nt)
 *call implic
-c      character*10 word
-      character(*) word
+      character*10 word
+c      character(*) word
       dimension  v(nw)
 *call krdwtdm
       write(*,*)'ntype,nwi,word ',ntype,nwi,word
