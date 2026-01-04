@@ -1,0 +1,74 @@
+*deck div4
+      subroutine  div4(fmass,dmk,dmp,jmax,fm1,fm2,fm3,frz1,frz2,frz3)
+*call implic
+      dimension  dmk(jmax),dmp(jmax),fmass(jmax)
+      jmx=jmax-1
+      n1=frz1*jmx
+      n2=frz2*jmx
+      n3=frz3*jmx
+      if(n3.eq.0)  n3=jmx-(n1+n2)
+      if(n2.eq.0)  n2=jmx-(n1+n3)
+      if(n1.eq.0)  n1=jmx-(n2+n3)
+      n2p=10
+      n3p=10
+      n=n1+n2+n3+n2p+n3p
+      if(n.ne.jmx)  then
+      nmj=n-jmx
+      frac=float(n1)/(n1+n2+n3)
+      n1=n1-nmj*frac
+      frac=float(n2)/(n1+n2+n3)
+      n2=n2-nmj*frac
+      frac=float(n3)/(n1+n2+n3)
+      n3=n3-nmj*frac
+      n=n1+n2+n3+n2p+n3p
+      if(n.ne.jmx)  n3=n3+(jmx-n)
+      n=n1+n2+n3+n2p+n3p
+                    endif
+c
+      dm1=fm1/n1
+      dm2=(fm2-fm1)/n2
+      dm3=(fm3-fm2)/n3
+      q2=(dm2/dm1)**(1d0/float(n2p))
+      q3=(dm3/dm2)**(1d0/float(n3p))
+      j1=2
+      j2=n1+1
+      do  j=j1,j2
+      dmk(j)=dm1
+      enddo
+      j1=j2+1
+      j2=j1+n2p-1
+      do  j=j1,j2
+      dmk(j)=dm1*q2**(j-j1+1)
+      enddo
+      j1=j2+1
+      j2=j1+n2-1
+      do  j=j1,j2
+      dmk(j)=dm2
+      enddo
+      j1=j2+1
+      j2=j1+n3p-1
+      do  j=j1,j2
+      dmk(j)=dm2*q3**(j-j1+1)
+      enddo
+      j1=j2+1
+      j2=j1+n3-1
+      do  j=j1,j2
+      dmk(j)=dm3
+      enddo
+c------------------------------------
+      summus=0d0
+      do  j=2,jmax
+      summus=summus+dmk(j)
+      enddo
+      do  j=2,jmax
+      dmk(j)=dmk(j)*fm3/summus
+      enddo
+c--------------------------------------
+      do   j=2,jmx
+      dmp(j)=0.5d0*(dmk(j)+dmk(j+1))
+      fmass(j)=fmass(j-1)+dmk(j)
+      enddo
+      dmp(jmax)=0.5d0*dmk(jmax)
+      fmass(jmax)=fmass(jmx)+dmk(jmax)
+      return
+      end

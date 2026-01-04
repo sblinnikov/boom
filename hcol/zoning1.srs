@@ -1,0 +1,41 @@
+*deck zoning1
+      subroutine  zoning1 (fmo,dmko,dmpo,jmaxold,fmass,dmk,dmp,jmaxnew)
+*call implic
+*call const
+*call par
+      dimension  fmo(jmaxold),dmko(jmaxold),dmpo(jmaxold)
+      dimension  fmass(jmaxnew),dmk(jmaxnew),dmp(jmaxnew)
+c
+      common  /nzan/n
+      common  /zan/ az,sz
+      external  zanav
+c
+      fmasst=fmo(jmaxold)
+      fmass(1)=0d0
+      dmk(1)  =0d0
+      dmp(1)  =0d0
+      n=jmaxnew-1
+      az=dmko(jmaxold)
+      sz=fmasst
+      q=1.5d0
+      call  newton (q,zanav)
+      print *,' zoning1 ',ntime,'  q=',q
+      do   j=2,jmaxnew
+      dmk(jmaxnew-j+2)=az*q**(j-1)
+      enddo
+      jmx=jmaxnew-1
+      do   j=2,jmx
+      dmp(j)=0.5d0*(dmk(j)+dmk(j+1))
+      fmass(j)=fmass(j-1)+dmk(j)
+      enddo
+      dmp(jmaxnew)=0.5d0*dmk(jmaxold)
+      fmass(jmaxnew)=fmass(jmx)+dmk(jmaxold)
+      print *,'  j   dmk     dmp    fmass      dmko    dmpo   fmo'
+      do   j=1,jmaxnew
+      print 906,j,dmk(j)/solmas,dmp(j)/solmas,fmass(j)/solmas
+     1,dmko(j)/solmas,dmpo(j)/solmas,fmo(j)/solmas
+906   format(i3,3f8.4,3x,3f8.4)
+      enddo
+c
+      return
+      end

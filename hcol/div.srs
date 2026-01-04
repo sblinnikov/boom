@@ -1,0 +1,44 @@
+*deck div
+      subroutine  div(tmass,dmf,dmk,dmp,fms,jm,jx)
+*call implic
+      dimension  dmk(jx),dmp(jx),fms(jx)
+      ix=jx-1
+      im=jm-1
+      dmk(1)=0.0d0
+      dmp(1)=0.0d0
+      fms(1)=0.0d0
+      rat=tmass/dmf
+      x=0.1d0
+      keysof=0
+      del=jx-jm
+      do 100 it=1,100
+      delx=del*x
+      ex=exp(x)
+      dex=exp(delx)
+      ff=im*dex+(dex-1.0d0)/(ex-1.0d0)-rat
+      df=((ex-1.0d0)*del*dex-(dex-1.0d0)*ex)/(ex-1.0d0)**2+im*del*dex
+      dx=-ff/df
+      ab=abs(dx/x)
+      x=x+dx
+      if(keysof.eq.1) go to 112
+      if(ab.lt.(1.0d-5)) keysof=1
+  100 continue
+      print 900
+  900 format(' no convergence in div')
+      stop   ' no convergence in div'
+  112 continue
+      dmz=dmf*dex
+      dmm=dmz
+      do 10  j=2,jx
+      i=j-1
+      if(j.gt.jm) dmm=dmm/ex
+      dmk(j)=dmm
+      fms(j)=fms(i)+dmm
+   10 continue
+      do 20  i=2,ix
+      j=i+1
+      dmp(i)=0.5d0*(dmk(i)+dmk(j))
+   20 continue
+      dmp(jx)=0.5d0*dmk(jx)
+      return
+      end

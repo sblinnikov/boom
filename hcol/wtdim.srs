@@ -1,0 +1,157 @@
+*deck wtdim
+      subroutine  wtdim (nt,jmax,ngmax,numax,nxx,keygr)
+      implicit none
+      integer*4, intent(in) :: nt, jmax, ngmax, numax
+      integer*4, intent(in) :: nxx, keygr
+      integer*4 :: ng, ngm, nutype
+*call dim
+*call krdwtdm
+*call grvec
+      kwt=0
+      call  wtveci (keosn,jmax,'       ',nt)
+      do  nutype=1,numax
+      call  wtveci (krates(1,nutype),jmax,'       ',nt)
+      enddo
+      call  wtvec (acc,jmax,'       ',nt)
+      call  wtvec (dmk,jmax,'       ',nt)
+      call  wtvec (dmp,jmax,'       ',nt)
+      call  wtvec (ea,jmax,'       ',nt)
+      call  wtvec (eb,jmax,'       ',nt)
+      call  wtvec (eprev,jmax,'       ',nt)
+      call  wtvec (fmass,jmax,'       ',nt)
+      call  wtvec (gama,jmax,'       ',nt)
+      call  wtvec (pa,jmax,'       ',nt)
+      call  wtvec (pb,jmax,'       ',nt)
+      call  wtvec (ra,jmax,'       ',nt)
+      call  wtvec (rb,jmax,'       ',nt)
+      call  wtvec (roa,jmax,'       ',nt)
+      call  wtvec (rob,jmax,'       ',nt)
+      call  wtvec (sgma,jmax,'       ',nt)
+      call  wtvec (sgmb,jmax,'       ',nt)
+      call  wtvec (s,jmax,'       ',nt)
+      call  wtvec (ta,jmax,'       ',nt)
+      call  wtvec (tb,jmax,'       ',nt)
+      call  wtvec (vela,jmax,'       ',nt)
+      call  wtvec (velb,jmax,'       ',nt)
+      call  wtvec (rlog,jmax,'       ',nt)
+      call  wtvec (z,jmax,'       ',nt)
+      call  wtvec (xn,jmax,'       ',nt)
+      call  wtvec (xp,jmax,'       ',nt)
+      call  wtvec (xal,jmax,'       ',nt)
+      call  wtvec (xhv,jmax,'       ',nt)
+      call  wtvec (ye,jmax,'       ',nt)
+      call  wtvec (yedot,jmax,'       ',nt)
+      call  wtvec (yeprev,jmax,'       ',nt)
+      call  wtvec (ynu,jmax,'       ',nt)
+      call  wtvec (fmue,jmax,'       ',nt)
+      call  wtvec (ahv,jmax,'       ',nt)
+      call  wtvec (fmunu,jmax,'       ',nt)
+      call  wtvec (fmuhat,jmax,'       ',nt)
+      call  wtvec (delta,jmax,'       ',nt)
+ 
+      call  wtvec (wq  ,jmax,'wq'  ,nt)
+      call  wtvec (alprev,jmax,'alprev',nt)
+      call  wtvec (alpa,jmax,'alpa',nt)
+      call  wtvec (alpb,jmax,'alpb',nt)
+      call  wtvec (empa,jmax,'empa',nt)
+      call  wtvec (empb,jmax,'empb',nt)
+      call  wtvec (bgpa,jmax,'bgpa',nt)
+      call  wtvec (bgpb,jmax,'bgpb',nt)
+c
+      call  wtvec (enu,ngmax,'       ',nt)
+      call  wtvec (denu,ngmax,'       ',nt)
+      call  wtvec (yfull,ngmax,'       ',nt)
+c
+      do  nutype=1,numax
+      call  wtvec (prody(1,nutype),jmax,'       ',nt)
+      call  wtvec (prode(1,nutype),jmax,'       ',nt)
+      call  wtvec (pneut(1,nutype),jmax,'       ',nt)
+      call  wtvec (aneut(1,nutype),jmax,'       ',nt)
+      do   ng=1,ngmax
+      call  wtvec (ya(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (yb(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      call  wtvec (heatnue(1,nutype),jmax,'       ',nt)
+      call  wtvec (fip2m(1,nutype),jmax,'       ',nt)
+      do   ng=1,ngmax
+      call  wtvec (ydot(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (ydotpj(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (ccapt(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (abstpj(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (flum(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (edd(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (cscatis(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (yplusa(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (yminusa(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (yplusb(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (yminusb(1,ng,nutype),jmax,'       ',nt)
+      enddo
+      do   ng=1,ngmax
+      call  wtvec (fxi(1,ng,nutype),jmax,'       ',nt)
+      enddo
+
+      do   ng=1,ngmax
+      do   ngm=1,ngmax
+      call  wtvec (cscat(1,ngm,ng,nutype),jmax,'       ',nt)
+      enddo
+      enddo
+
+      enddo
+c
+      call wtvec(eturba,jmax, '       ', nt)
+      call wtvec(eturbb,jmax, '       ', nt)
+
+      call wtvec(vplusa, jmax, '       ', nt)
+      call wtvec(vminusa, jmax, '       ', nt)
+      call wtvec(roplusa, jmax, '       ', nt)
+      call wtvec(rominusa, jmax, '       ', nt)
+      call wtvec(hplusa, jmax, '       ', nt)
+      call wtvec(hminusa, jmax, '       ', nt)
+      call wtvec(yeplusa, jmax, '       ', nt)
+      call wtvec(yeminusa, jmax, '       ', nt)
+      call wtvec(asyma, jmax,  '       ', nt)
+
+      call wtvec(vplusb, jmax, '       ', nt)
+      call wtvec(vminusb, jmax, '       ', nt)
+      call wtvec(roplusb, jmax, '       ', nt)
+      call wtvec(rominusb, jmax, '       ', nt)
+      call wtvec(hplusb, jmax, '       ', nt)
+      call wtvec(hminusb, jmax, '       ', nt)
+      call wtvec(yeplusb, jmax, '       ', nt)
+      call wtvec(yeminusb, jmax, '       ', nt)
+      call wtvec(asymb, jmax, '       ', nt)
+      call wtvec(zjsa, jmax, '       ', nt)
+      call wtvec(zjsb, jmax, '       ', nt)
+      call wtvec(accp, jmax,  '       ', nt)
+      call wtvec(velpa, jmax, '       ', nt)
+      call wtvec(velpb, jmax, '       ', nt)
+      call wtvec(rpa, jmax, '       ', nt)
+      call wtvec(rpb, jmax, '       ', nt)
+      call wtvec(sgmpa, jmax, '       ', nt)
+      call wtvec(sgmpb, jmax, '       ', nt)
+      call flush(nt)
+      print *,' wtdim  calls ',kwt,'  wtvec'
+      return
+      end

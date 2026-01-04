@@ -1,0 +1,184 @@
+*deck barions
+      subroutine  barions (ro,tmp,ye,eb,pb,sb,ahv,zhv
+     1 ,ebr,ebt,pbr,pbt,xn,xp,xa,xhv)
+*call implic
+*call keyeos
+*call chemp
+*call const
+      common /vareos/ var(4)
+      include 'eos_m4c.inc'
+      parameter (fermi3=1.d-39)
+      parameter (uzero=9.39072d0)
+
+c	This doesn't work
+c	So we need to switch this to the original values.
+c	Need to talk to itamar to see if this is a good idea or no
+c
+c      parameter (rosafa=1.d5)
+c      parameter (tsafa0=6d8)
+c
+
+      parameter (rosafa=1.d7)
+      parameter (tsafa0=6d9)
+
+      save fact,facn,face,facp,dro_dn,dt_dtnuc
+      save ro0,ro1,alfa,xpon
+c
+      data init/0/
+      if(init.eq.0) then
+                    init=1
+                    fact=tmev
+                    facn=1d0/avo/fermi3
+                    face=emev*avo
+                    facp=emev/fermi3
+                    dro_dn=facn
+                    dt_dtnuc=fact
+                    call loadmx()
+                    var(2)=0.155d0
+                    var(3)=-15.d0
+                    var(4)=-10.d0
+                    print '(''rosafa='',1pe12.4)',rosafa
+                    print '(''tsafa0='',1pe12.4)',tsafa0
+                    ro0=1d10
+                    ro1=1d12
+                    alfa=1d-3
+                    xpon=log(alfa)/log(ro0/ro1)
+                    endif
+c--------------------------------------
+      if(ye.gt.0.1d0)  then
+                       tsafa=tsafa0
+                       else
+                       tsafa=6d9
+                       endif
+c--------------------------------------
+      dnuc=ro/facn
+      tnuc=tmp/fact
+      if(tmp.ge.tsafa.and.ro.ge.rosafa)  then
+                                         kregime=1
+                                         dnuci=dnuc
+                                         tnuci=tnuc
+      elseif(tmp.ge.tsafa.and.ro.le.rosafa)  then
+                                         kregime=2
+                                         dnucs=rosafa/facn
+                                         dnuci=dnucs
+                                         tnuci=tnuc
+      elseif(tmp.le.tsafa.and.ro.ge.rosafa)  then
+                                         kregime=3
+                                         tnucs=tsafa/fact
+                                         dnuci=dnuc
+                                         tnuci=tnucs
+       else
+                                         kregime=4
+                                         dnucs=rosafa/facn
+                                         tnucs=tsafa/fact
+                                         dnuci=dnucs
+                                         tnuci=tnucs
+      endif
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ 1    continue
+      ieosflg=2
+      iforf=0
+      iflag=1
+      isx=0
+      var(1)=tnuci
+      pprev=ye*dnuci
+      call Lat_Swes (var,ye,dnuci,iflag,ieosflg,iforf,isx,xprev,pprev)
+      if(isx.eq.1)  goto  10
+      kesfail=10
+      eossubf='barion'
+      print 901,isx,ro,tmp,ye,tnuci,dnuci
+901   format(' L.S. failed, isx-(SF)=',i2,' at ro=',1pe10.3
+     &,' t=',e10.3,' ye=',0pf5.4,' tnuci=',1pe10.3,' dnuci=',e10.3)
+c
+c     try a slightly higher temp
+      ieosflg=2
+      iforf=0
+      iflag=1
+      isx=0
+      tnucii=tnuci*1.05
+      var(1)=tnucii
+      pprev=ye*dnuci
+      call Lat_Swes(var,ye,dnuci,iflag,ieosflg,iforf,isx,xprev,pprev)
+      if(isx.eq.1)  goto  10
+ 9    continue
+      print *,'second call crashed'
+      kesfail=10
+      eossubf='barion'
+      utot=0d0
+      ptot=0d0
+      stot=0d0
+      dpdt=0d0
+      dpdn=0d0
+      dudt=0d0
+      dudn=0d0
+      goto  100
+ 10   continue
+      xhv=xh
+      ahv=a
+      zhv=x*a
+      xmuhat=muhat
+      xmup=muprot
+      xmun=mun
+      xn=xnut
+      xp=xprot
+      xa=xalfa
+      if(kregime.eq.1)   goto  100
+      psafa=ptot
+      usafa=utot
+      dpdns=dpdn
+      dpdts=dpdt
+      dudns=dudn
+      dudts=dudt
+c...................................................................
+      if(kregime.eq.2)   then
+      ptot=psafa*(dnuc/dnucs)
+      utot=usafa
+      dudn=0d0
+      dudt=dudts
+      dpdn=psafa/dnucs
+      dpdt=dpdts*(dnuc/dnucs)
+c...................................................................
+      elseif(kregime.eq.3)  then
+      teta0=(tmp/tsafa)
+      roxpon=(ro0/ro)**xpon
+      f=1d0/(1d0+roxpon)
+      teta=teta0+(1d0-teta0)*f
+      tmpe=teta*tsafa
+      uig =1.5*rgas/a*tmpe/face
+      uigs=uig/teta
+      deluig=uig-uigs
+      utot=usafa+deluig
+      ptot=psafa*teta
+c     now calculate derivatives:
+c     we ignore A derivatives.
+      df_dro   =xpon*roxpon/ro*f**2
+      dteta_dro=(1d0-teta0)*df_dro
+      dteta_dt =(1d0-f)/tsafa
+      dudn=dudns+uig/teta*dteta_dro*dro_dn
+      dudt=      uig/teta*dteta_dt *dt_dtnuc
+      dpdn=dpdns*teta+psafa*dteta_dro*dro_dn
+      dpdt=psafa*dteta_dt*dt_dtnuc
+      else
+c...................................................................
+c     kregime=4
+      uigs=1.5*rgas/a*tsafa/face
+      uig =1.5*rgas/a*tmp  /face
+      utot=usafa+uig-uigs
+      pigs=rgas/a*rosafa*tsafa/facp
+      pig =rgas/a*ro    *tmp  /facp
+      ptot=pig*(psafa/pigs)
+      dudn=0d0
+      dudt=uig/tnuc
+      dpdn=ptot/dnuc
+      dpdt=ptot/tnuc
+                        endif
+100   continue
+      eb=(utot+uzero)*face
+      pb=ptot*facp
+      sb=stot*rgas
+      pbt=dpdt*facp/fact
+      pbr=dpdn*face
+      ebt=dudt*face/fact
+      ebr=dudn*face/facn
+      return
+      end

@@ -1,0 +1,334 @@
+*deck timstp
+      subroutine  timstp (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call corct
+*call par
+*call chemp
+*call keyeos
+*call asdro
+
+      dimension pgradn(1:numax), an1(1:numax), an2(1:numax)
+      dimension sprev(jmaxm), sgm(jmaxm)
+      kromin=0
+      kromax=0
+      ku=0
+      dtnext=1.0d20
+      dtm=0.5d0*(dta+dtb)
+      jmax=imaxp1
+      rii=ra(jmin-1)**2
+      rij=ra(jmin-1)*ra(jmin)
+      rjj=ra(jmin)**2
+      sij=sgma(jmin)*(rii+rij+rjj)*shlish
+      do  200  j=jmin,jmax
+      i=j-1
+      k=min (j+1,jmax)
+      l=min (j+2,jmax)
+      if(mshulz.ne.0)  goto   80
+      r2=ra(j)**2
+      pj=pa(j)+sgma(j)
+      if(j.ge.jmax)  goto   88
+      pk=pa(k)+sgma(k)
+      goto   90
+80    continue
+c
+c     schulz
+      r2=rjj
+      pj=pa(j)+sij/rjj
+      if(j.eq.jmax)  goto   88
+      rkk=ra(k)**2
+      rjk=ra(j)*ra(k)
+      sjk=sgma(k)*(rjj+rjk+rkk)*shlish
+      pk=pa(k)+sjk/rjj
+      rjj=rkk
+      sij=sjk
+      goto   90
+88    continue
+      pk=pext
+90    continue
+      pgrad=pk-pj
+      ap=pai4*r2*pgrad/dmp(j)
+      if (knograv .eq. 0) then
+         ag=grav*fmass(j)/r2
+      else
+         ag=0d0
+      endif
+      if(nuemis.ge.2 .and. roa(j) .gt. roshakf) then
+         if (j .lt. jmax) then
+            pgradn(1:numax)=
+     &           pneut(k,1:numax)-pneut(j,1:numax)
+         else
+            pgradn=-pneut(j,1:numax)
+         endif
+         an1(1:numax)=pai4*r2*pgradn(1:numax)/dmp(j)
+         an2(1:numax)=2.d0*(fip2m(j,1:numax)+
+     &        fip2m(k,1:numax))/
+     +        ra(j)/(roa(j)+roa(k))
+      else
+         an1(1:numax)=0d0
+         an2(1:numax)=0d0
+      endif
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      aneut(j,1:numax)=-(an1+an2) ! 1d array was (j,:)
+c      aneut(j,:)=-(an1+an2) ! 1d array original form
+      acc(j)=-(ap+ag)+sum(aneut(j,1:numax)) + aconv(j)
+      
+      dvel=dtm*acc(j)
+      velb(j)=vela(j)+dvel
+      if (krotate .ne. 0) then 
+         accp(j)=acc(j)
+         velpb(j)=velpa(j)+dtm*accp(j)
+      endif
+      rb(j)=ra(j)+velb(j)*dtb
+      if (krotate .ne. 0) then
+         rpb(j)=rpa(j)+velpb(j)*dtb
+      endif
+      rob(j)=dmk(j)/pai43/(rb(j)**3d0-rb(i)**3)
+      delro=abs((rob(j)-roa(j))/roa(j))
+      if(delro.lt.dromax) go to 120
+      kromax=j
+      goto  310
+  120 if(delro.gt.dromin) kromin=j
+  200 continue
+262   continue
+
+      kmin=0
+
+c The next line copies over the temperature.  The reason for doing this is 
+c that the equation of state does a Newton iteration over the temperature
+c and copying the temperature gives a good first guess for the EOS.
+
+      if (jmin .ge. 3) then
+         tb(2:jmin-1) = ta(2:jmin-1)
+      endif
+      do  300  j=jmin,jmax
+      i=j-1
+      k=max(jmax,j+1)
+      sgm(j) = sgma(j)
+      call  depdv
+     1(roa(j),rob(j),ea(j),eb(j),pa(j),pb(j),ta(j),tb(j)
+     2,sgm(j),s(j),gama(j),sound
+     3,ahv(j),z(j),ye(j),yep(j),ynu(j),xn(j),xp(j),xal(j),xhv(j)
+     4,fmue(j),fmunu(j),fmuhat(j), econv(j), vplusa(j) * 2d0
+     5,dtb,j,keosn(j),ku)
+      if(kesfail.ne.0)  goto   310
+      if(ku.ne.0)       goto   310
+      if (sound .gt. 0d0) then
+         dtbb=(rb(j)-rb(i))/sound
+      else
+         dtbb=3d-5
+      endif
+      if(dtnext.gt.dtbb) then 
+         kmin=j
+         dtnext=dtbb
+      endif
+ 300  continue
+      call viscosity(jmax, ngmax) ! must be called after thermo vars
+                                  ! are set
+      if (krotate .ne. 0) then
+         zjsb(1:jmax) = zjsa(1:jmax)
+      endif
+c     if(nuemis.le.1)  goto  310
+c     call  ecar (jmax,ngmax,nxx)
+310   continue
+      contains
+      subroutine  depdv
+     1(roa,rob,ea,eb,pa,pb,ta,tb
+     2,sgm,s,gama,sound
+     3,ahv,z,ye,yep,ynu,xn,xp,xal,xhv
+     4,fmue,fmunu,fmuhat, econv, vplus
+     5,dtime
+     j,j,keosz,keyerr
+     *)
+*call implic
+*call keyeos
+*call chemp
+      data romx /1d15/
+      data dtmink/ 1d-8 /
+      keyerr=0
+      sgmro = sgm / roa
+      if(rob.ge.romx) go to 600
+      ndts=abs(rob-roa)/(rob+roa)*100+1
+c     ndts=1
+      dtk =dtime/ndts
+      drodt=(rob-roa)/dtime
+
+      ro2=roa
+      e2 =ea
+      p2 =pa
+      t2 =ta
+
+      tik=0
+      ndt=0
+100   ndt=ndt+1
+      tik=tik+dtk
+      ro1=ro2
+      ro2=roa+drodt*tik
+
+      dvv=0.5d0/ro2-0.5d0/ro1
+      e1 =e2
+      p1 =p2
+      t1 =t2
+
+      de =-dvv*(p1+p1 + sgmro * ro1 
+     *     + sgmro * ro1)
+      eps=1.d0+1d-2*abs(de)+1d-4*abs(e1)
+      it=0
+200   it=it+1
+      e2 =e1+de
+      xmue=fmue
+      xmunu=fmunu
+      keyets=1
+      keyeos=keosz
+      jzone=j
+      call  state
+     1(ro2,e2,t2,p2,s,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv,z,ye,ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  goto  999
+      det=-dvv*(p1+p2 + 
+     &     sgmro * ro1 + sgmro * ro2)
+      if(abs(det-de).lt.eps) go to 300
+c
+c      implicit de
+      dde=(det-de)/(1.d0+dvv*dpde)
+      if(it.gt.5) go to 900
+      de=de+dde
+      go to 200
+c     if(it.lt.6) go to 200
+c
+c     finish  a  dtk  step
+300   continue
+      e1=e1+det
+      t2=t2+(e1-e2)*dtde
+      p2=p2+(e1-e2)*dpde
+      e2=e1
+      if(abs(tik-dtime).lt.1d-12) go to 400
+      if(ndt.gt.500) go to 990
+      go to 100
+c
+c     end of dtime
+400   continue
+      eb=e2
+      pb=p2
+      tb=t2
+410   continue
+      fmue=xmue
+      fmunu=xmunu
+      fmuhat=xmuhat
+      yep=yepos
+      if (pb .gt. 0d0) then
+         gama=rob/pb*sound**2
+      else
+         gama=0d0
+      endif
+      return
+c
+c     decrease dtk
+500   continue
+      tik=tik-dtk
+      ro2=ro1
+      e2 =e1
+      p2 =p1
+      t2 =t1
+
+      dtk=dtk*0.5d0
+      if(dtk.lt.dtmink) go to 990
+      go to 100
+600   continue
+      keyets=3
+      keyeos=keosz
+      xmue =fmue
+      xmunu=fmunu
+      jzone=j
+      call  state
+     1(rob,eb,tb,pb,s,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv,z,ye,ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  goto  999
+      go to 410
+900   continue
+      print 901,j,ndt,roa,rob,ea,e1,e2,dtk
+901   format(' j,ndt,roa,rob,ea,e1,e2,dtk ',2i4,1p6e12.4)
+      go to 500
+990   continue
+      print 901,j,ndt,roa,rob,ea,e1,e2,dtk
+      print 902
+      keyerr=j
+902   format(' dtk.le.dtmink')
+999   return
+      end subroutine depdv
+
+      subroutine  depdv1
+     1(roa,rob,ea,eb,pa,pb,ta,tb
+     2,sgm,s,gama,sound
+     3,ahv,z,ye,yep,ynu,xn,xp,xal,xhv
+     4,fmue,fmunu,fmuhat, econv, vplus
+     5,dtime
+     j,j,keosz,keyerr
+     *)
+*call implic
+*call keyeos
+*call chemp
+      data romx /1d15/
+      data dtmink/ 1d-8 /
+      keyerr=0
+
+      keyets=1
+      keyeos=keosz
+      xmue =fmue
+      xmunu=fmunu
+      jzone=j
+      call  state
+     1(roa,ea,ta,pa,s,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv,z,ye,ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  then
+         keyerr=j
+         return
+      endif
+
+
+      keyets=3
+      keyeos=keosz
+      xmue =fmue
+      xmunu=fmunu
+      jzone=j
+      call  state
+     1(rob,eb,tb,pb,s,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv,z,ye,ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  then
+         keyerr=j
+         return
+      endif
+
+      if (sgm .gt. 0d0) then
+         de = sgm * (1d0/roa - 1d0/rob)
+         
+         eb = eb + de
+         keyets=1
+         keyeos=keosz
+         xmue =fmue
+         xmunu=fmunu
+         jzone=j
+         call  state
+     1        (rob,eb,tb,pb,s,sound
+     2        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3        ,ahv,z,ye,ynu,xn,xp,xal,xhv
+     *        ,keyets)
+         if(kesfail.ne.0)  then
+            keyerr=j
+            return
+         endif
+      endif
+
+999   return
+      end subroutine depdv1
+      end subroutine timstp
+

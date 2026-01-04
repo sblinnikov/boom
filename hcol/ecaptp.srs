@@ -1,0 +1,29 @@
+*deck ecaptp
+      subroutine  ecaptp (fmue,fmuni,xp,temp,yedotp,del,enip)
+*call implic
+      data  cep/-3.8d-3/
+      if(abs(del).le.1d-5 )  goto  100
+      fmue2=fmue**2
+      fmue3=fmue2*fmue
+      fmue4=fmue3*fmue
+      fmue5=fmue4*fmue
+      fmue6=fmue5*fmue
+      fmuni2=fmuni**2
+      fmuni3=fmuni2*fmuni
+      fmuni4=fmuni3*fmuni
+      fmuni5=fmuni4*fmuni
+      fmuni6=fmuni5*fmuni
+      rp1=fmue5-fmuni5
+      rp=xp*rp1
+      if(rp.eq.0.d0)  goto   100
+      arg=-del/temp
+      arg=min(arg, 600.d0)
+      arg=max(arg,-600.d0)
+      fermi=(1.d0-exp(arg))
+      yedotp=cep*rp*fermi
+      enip=5.0d0/6.0d0*(fmue6-fmuni6)/rp1
+      return
+100   yedotp=0.0d0
+      enip=0.0d0
+      return
+      end

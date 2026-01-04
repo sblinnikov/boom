@@ -1,0 +1,37 @@
+*deck fabc01
+      subroutine  fabc01(w,wp,fa0,fb0,fc0,fa1,fb1,fc1)
+*call implic
+      parameter(f43=4d0/3d0,f83=8d0/3d0,f415=4d0/15d0,f815=8d0/15d0)
+      parameter(f1235=12d0/35d0,f85=8d0/5d0,f2815=28d0/15d0)
+      parameter(f125=12d0/5d0,f87=8d0/7d0,f165=16d0/5d0,f285=28d0/5d0)
+      parameter(f163=16d0/3d0)
+c
+      if(wp.ge.w) then
+      w3=w**3
+      w4=w*w3
+      w5=w*w4
+      woverwp=w/wp
+      fa0=f415*w5
+      fb0= f43*w4
+      fc0= f83*w3
+      fa1=w5*(f1235*woverwp-f815 )
+      fb1=w4*(  f85*woverwp-f2815)
+      fc1=w3*( f125*woverwp-f43  )
+c
+      else
+c
+      w2=w*w
+      wp2=wp*wp
+      wp3=wp*wp2
+      wwp=w*wp
+      wpoverw=wp/w
+      fa0=wp3*(f83*w2-4d0*wwp+f85*wp2)
+      fb0=wp3*(f163*w-4d0*wp)
+      fc0=f83*wp3
+      fa1=wp3*(( (f87*wpoverw-f165)*wp+f165*w)*wp-f43*w2)
+      fb1=wp3*((-f165*wpoverw+f285)*wp-f83*w)
+      fc1=wp3*(  f125*wpoverw-f43)
+      end if
+c
+      return
+      end

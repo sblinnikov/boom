@@ -1,0 +1,43 @@
+*deck printn
+      subroutine  printn (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call par
+      print 900,name(1:10),ntime,time,dtlast,dta
+900   format(/' Neutrino table   name= ',a10,
+     1/'  ntime=',i6,'  time=',1pe13.6,'  dtlast=',e12.4,'  dta=',e12.4)
+c
+      do  nut=1,numax
+      print *,'nunununununununununununununununununununununununununununun
+     ^unununununununununununununununununununununu'
+      print *,' neutrino type=',nut
+      do  500  ng=1,ngmax
+      print 920,ntime,nut,ng,enu(ng),denu(ng),yfull(ng)
+920   format(//,5x,'ntime=',i6,3x,'nut=',i1
+     1,3x,'Group=',i2,3x,'e=',f6.1,3x,'de=',f6.1
+     2,3x,'yfull=',1pe12.3)
+      print 925
+925   format('   j    ya',8x,'emis',6x,'absor',5x
+     + ,'emisp', 5x, 'absorp', 4x, 'net',7x
+     1 ,'capt',6x,'captp',5x,'scat',6x
+     2 ,'znu',7x,'musq',6x,'ddnue',6x,'ydotnu',6x,'xi')
+      do  400  j=2,jmax
+      occnu=yb(j,ng,nut)/yfull(ng)
+      emiss=ydot(j,ng,nut)*(1.d0-occnu)
+      emissp=ydotpj(j,ng,nut)*(1d0-occnu)
+      absor=ccapt(j,ng,nut)*yb(j,ng,nut)
+      absorp=abstpj(j,ng,nut)*yb(j,ng,nut)
+      ccapj=ccapt(j,ng,nut)/clite
+      ccapjp=abstpj(j,ng,nut)/clite
+      scatg=sum(cscat(j,ng,1:ngmax,nut))/clite
+      print  930,j,ya(j,ng,nut),emiss,absor,emissp,absorp
+     +     ,ynet(j,ng, nut),ccapj, ccapjp
+     1     ,scatg,flum(j,ng,nut),edd(j,ng,nut),ddnue(j,ng,nut)
+     &     ,ydotnu(j,ng,nut),fxi(j,ng,nut)
+930   format(i4,1p15e10.2)
+400   continue
+500   continue
+      enddo
+      return
+      end

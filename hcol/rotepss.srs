@@ -1,0 +1,66 @@
+*deck rotepss
+      subroutine  rotepss(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+*call implic
+*call keyeos
+*call pebkc
+*call chemp
+*call const
+*call nunu
+c
+      ec=0d0
+      ecoul=0d0
+      call  barions (ro,t,ye,eb,pb,sb,ah,zh
+     1,ebr,ebt,pbr,pbt,xn,xp,xa,xh)
+c     the following var. are not defined in swesty, and are zeroed
+      sbr=0d0
+      sbt=0d0
+      xnt=0d0
+      xpr=0d0
+      xpt=0d0
+      xar=0d0
+      xat=0d0
+      xhr=0d0
+      xht=0d0
+c
+      eta=etaelc
+      keyps=1
+      call  electra(ro,t,ye,ee,pe,se
+     1, eer,eet,per,pet,ser,set,keyps)
+      etaelc=eta
+      xmue=etaelc*t/tmev
+c      xmuhat=xmuhat+xmue
+c
+      call  krina(ro,t,ek,pk,sk
+     1, ekr,ekt,pkr,pkt,skr,skt)
+c
+      eofnu=0d0
+      pnu=0d0
+      snu=0d0
+      enr=0d0
+      pnr=0d0
+      snr=0d0
+      ent=0d0
+      pnt=0d0
+      snt=0d0
+      if(nupress.eq.0) goto  50
+      if(ynu.le.0d0)   goto  50
+      call  eosnu(ro,t,ynu,eofnu,pnu,snu,enr,ent,pnr,pnt,snr,snt
+     1,enuy,pnuy,snuy)
+50    continue
+      enu=eofnu
+      e=eb+ee+ek+eofnu
+      p=pb+pe+pk+pnu
+      s=sb+se+sk + snu
+      dedro=ebr+eer+ekr+enr
+      dpdro=pbr+per+pkr+pnr
+      dsdro=sbr+ser+skr + snr
+      dedt=ebt+eet+ekt  + ent
+      dpdt=pbt+pet+pkt  + pnt
+      dsdt=sbt+set+skt  + snt
+c
+      return
+      end

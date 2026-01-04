@@ -1,0 +1,29 @@
+*deck tridig1
+c **************************************************
+c This tridiagonal inversion matrix routine is taken from
+c Numerical Recipes for Fortran page 40
+c
+c I'm writing this subroutine since I'm not sure what
+c the calling arguments of tridig and tridig0 are.
+c **************************************************
+      subroutine tridig1(a,b,c,r,u,nx)
+*call implic
+*call dim
+      dimension gam(jmaxm), a(nx), b(nx), c(nx), r(nx), u(nx)
+      if (b(1) .eq. 0) pause
+      bet=b(1)
+      u(1)=r(1)/bet
+      do j=2,nx
+         gam(j)=c(j-1)/bet
+         bet=b(j)-a(j)*gam(j)
+         if (bet.eq.0) pause
+         u(j)=(r(j)-a(j)*u(j-1))/bet
+      enddo
+
+      do j=nx-1,1,-1
+         u(j)=u(j)-gam(j+1)*u(j+1)
+      enddo
+      return
+      end
+
+      

@@ -1,0 +1,95 @@
+*deck wrtprof
+      subroutine  wrtprof (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call par
+*call const
+      dimension emise1(jmaxm), abse1(jmaxm), fnete1(jmaxm)
+c
+c     prepare snu1 for writing
+      do  j=2,jmax
+      if(nuemis.ge.2.and.ynu(j).gt.1d-5.and.nupress .ne.0)  then
+      call  eosnu(roa(j),ta(j),ynu(j),enux,pnux,snu1(j)
+     1,er,et,pr,pt,sr,st,ey,py,sy)
+                                          else
+                                          snu1(j)=0d0
+                                          endif
+      enddo
+c
+      ntpr=15
+      call wrthead(jmax, ngmax, ntpr)
+      write (ntpr,*) ( ahv    (i),i=1,jmax)
+      write (ntpr,*) ( ea     (i),i=1,jmax)
+      write (ntpr,*) ( fmass  (i),i=1,jmax)
+      write (ntpr,*) ( fmue   (i),i=1,jmax)
+      write (ntpr,*) ( fmuhat (i),i=1,jmax)
+      write (ntpr,*) ( fmunu  (i),i=1,jmax)
+      write (ntpr,*) ( gama   (i),i=1,jmax)
+      write (ntpr,*) ( pa     (i),i=1,jmax)
+      write (ntpr,*) ( ra     (i),i=1,jmax)
+      write (ntpr,*) ( roa    (i),i=1,jmax)
+      write (ntpr,*) ( s      (i),i=1,jmax)
+      write (ntpr,*) ( ta     (i),i=1,jmax)
+      write (ntpr,*) ( vela   (i),i=1,jmax)
+      write (ntpr,*) ( xhv    (i),i=1,jmax)
+      write (ntpr,*) ( xn     (i),i=1,jmax)
+      write (ntpr,*) ( xp     (i),i=1,jmax)
+      write (ntpr,*) ( ye     (i),i=1,jmax)
+      write (ntpr,*) ( yedot  (i),i=1,jmax)
+      write (ntpr,*) ( ynu    (i),i=1,jmax)
+      write (ntpr,*) ( z      (i),i=1,jmax)
+      write (ntpr,*) ( snu1   (i),i=1,jmax)
+      write (ntpr,*) ( eturba (i),i=1,jmax)
+      write (ntpr,*) ( znut   (i),i=1,jmax)
+      write (ntpr,*) ( fluxturb   (i),i=1,jmax)
+      write (ntpr,*) ( fluxye (i),i=1,jmax)
+      write (ntpr,*) ( tconv (i),i=1,jmax)
+      write (ntpr,*) ( roconv(i), i=1,jmax)
+      write (ntpr,*) ( econv(i), i=1,jmax)
+      write (ntpr,*) ( vplusa(i), i=1,jmax)
+      write (ntpr,*) ( pconv(i), i=1,jmax)	
+      write (ntpr,*) ( hplusa(i), i=1,jmax)
+      write (ntpr,*) ( hminusa(i), i=1,jmax)
+      write (ntpr,*) ( roplusa(i), i=1,jmax)
+      write (ntpr,*) ( roplusb(i), i=1,jmax)
+      write (ntpr,*) ( yeplusa(i), i=1,jmax)
+      write (ntpr,*) ( yeplusb(i), i=1,jmax)
+      write (ntpr,*) ( asyma(i), i=1,jmax)
+      write (ntpr,*) ( asymb(i), i=1,jmax)
+
+
+      do  nut=1,numax
+      write (ntpr,908)
+ 908  format(10(10hnnnnnnnnnn))
+
+c--------------------------------------------------------------------
+      write (ntpr,*) ( flumn (i,nut),i=1,jmax)
+      write (ntpr,*) ( flume (i,nut),i=1,jmax)
+c--------------------------------------------------------------------
+c      prepare emise1 & abse1
+      do j=2,jmax	
+         emise1(j)=0d0
+         abse1(j)=0d0
+	 fnete1(j) = 0d0
+         if(nuemis.ge.2  .and. j .ge. jmin)  then
+            do ng=1, ngmax
+               occnu=yb(j,ng, nut) / yfull(ng)
+               emise1(j) = emise1(j) + emev * 
+     +              enu(ng) * 
+     +              (ydot(j, ng, nut) + ydotpj(j, ng, nut)) 
+     +              * (1d0-occnu)  
+               abse1(j) = abse1(j) + emev * enu(ng) *
+     +              (ccapt(j, ng, nut) + abstpj(j,ng,nut))
+     +              * yb(j, ng, nut)
+               fnete1(j) = emise1(j) - abse1(j) 
+           enddo
+         endif
+      enddo
+      write (ntpr,*) ( emise1(i), i=1,jmax)
+      write (ntpr,*) ( abse1(i), i=1,jmax)
+      write (ntpr,*) ( fnete1(i), i=1,jmax)
+      enddo   !  numax
+c
+      call flush(ntpr)
+      return
+      end

@@ -1,0 +1,26 @@
+*deck btmuhat
+      function  btmuhat(ro,ye)
+*call implic
+      parameter  (shlish=1d0/3d0)
+      data  ntry  /0/
+      if(ye.ge.0.46d0 .and. ro.le.1d11)  goto  10
+      ro12=ro/1d12
+      ah=290.d0*(1.d0-ye)**2/1.5d0
+     &     /(1.d0-0.236d0*ro12**shlish+1.94d-3*ro12)
+      if(ah.le.0.d0)  then
+                      ntry=ntry+1
+                      if(ntry.eq.1)
+     & print '('' btmuhat ro='',1pe12.4,'' ye='',0pf7.4,
+     & '' ah='',1pe12.4)',ro,ye,ah
+                      btmuhat=0d0
+                      return
+                      endif
+      wsurf=290.d0*ye**2*(1.d0-ye)**2
+      btmuhat=250.d0*(0.5d0-ye)-wsurf/ah**shlish/ye
+     &              *((3.d0-5.d0*ye)/(1.d0-ye))
+      return
+ 10   continue
+      yee= min (ye,0.464d0)
+      btmuhat=144.d0*(0.46d0-yee)
+      return
+      end

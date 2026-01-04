@@ -1,0 +1,109 @@
+*deck cores
+      subroutine  cores
+     *( roc,s,ah,zh,ye,r,ro,e,p,t,dmk,dmp,keosn,jmax)
+*call implic
+      dimension  r(jmax),ro(jmax),e(jmax),p(jmax),t(jmax)
+      dimension  dmk(jmax),dmp(jmax),keosn(jmax)
+*call const
+*call keyeos
+      data  ipr  /1/
+cpppppppppppppppppppppppp
+      keosz=1
+c     core is built with keos=1
+      xh=1.d0
+      xn=0.d0
+      xp=0.d0
+      xa=0.d0
+      pexmin=1.0d+20
+      pexh=1d75
+      pexl=-pexh
+      pex0=0.d0
+      slow =s/10.d0
+      shigh=s*10.d0
+      sfail=s
+      s1=s
+      s0=s1
+      fmue3=3.0d0
+      fmue2=fmue3
+      newton=0
+      r(1)=0.d0
+      ro(2)=roc
+      dsdm=4.1d-26
+      dsdm=0.0d0
+      fmgvul=1.30d0
+      if (ipr.ne.0)  print  900
+      do  200  it=1,100
+      fmass=0.d0
+      pex=0.d0
+      call  rotov
+     *( roc,s,dmk(2),dmp(2),dmk(3),ro(2),e(2),p(2),t(2)
+     a, fmue2,fmue3,keosz
+     1, ah,zh,ye,xn,xp,xa,xh)
+      r(2)=(dmk(2)/ro(2)/pai43)**shlish
+      ski=s
+      do  100  j=3,jmax
+      i=j-1
+      fmass=fmass+dmk(i)
+      gmm=grav*fmass*dmp(i)/r(i)**4/pai4
+      p(j)=p(i)-gmm
+      if(p(j).le.0.d0)  goto   180
+      ro(j)=ro(i)
+      t (j)=t (i)
+      dsm=dsdm
+      fmm=fmass/solmas
+      if(fmm.ge.fmgvul) dsm=2.0d0*dsdm
+      skj=ski+dsm*dmp(i)
+      call  rosp
+     1( ro(j),e(j),t(j),p(j),skj,snd
+     a, fmue2,j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,xn,xp,xa,xh)
+      r(j)=(r(i)**3+dmk(j)/ro(j)/pai43)**shlish
+      ski=skj
+100   continue
+      fmass=fmass+dmk(jmax)
+      gmm  =grav*fmass*dmp(jmax)/r(jmax)**4/pai4
+      pex  =p(jmax)-gmm
+      if(ipr.eq.0)  goto   110
+      print 901,it,jmax,s,slow,shigh,sfail,pex,pexl,pexh,roc,ro(2)
+110   continue
+      if(abs(pex).le.pexmin)  return
+      newton=newton+1
+      if( pex.le.pexl .or. pex.ge.pexh )    newton=0
+      if(pex.gt.0.d0)  goto   130
+c     pex.le.zero
+      if(s.le.slow)   goto   150
+      pexl=pex
+      slow=s
+      goto   150
+130   continue
+c     pex.gt.zero
+      if(s.ge.shigh)  goto   150
+      pexh=pex
+      shigh=s
+150   continue
+      if(newton.le.2)  goto   160
+      s1=s-(s-s0)/(pex-pex0)*pex
+      if(s1.gt.slow  .and.  s.lt.shigh)  goto   199
+160   continue
+      s1=0.5d0*(slow+shigh)
+      goto   199
+180   continue
+      if(ipr.eq.0)  goto   182
+      print  901,it,j,s,slow,shigh,sfail,pex,pexl,pexh,roc,ro(2)
+182   continue
+      slow=s
+      s1  =0.5d0*(slow+shigh)
+      newton=0
+199   continue
+      s0=s
+      s =s1
+      pex0=pex
+200   continue
+      print 903
+903   format('  no convergence in cores')
+      stop   '  no convergence in cores'
+900   format('  it   j   s',11x,'slow',8x,'shigh',7x,'sfail',7x
+     1,'pex',9x,'pexl',8x,'pexh',8x,'roc',9x,'ro(2)')
+901   format(' ',i3,i4,1p10e12.5)
+      end

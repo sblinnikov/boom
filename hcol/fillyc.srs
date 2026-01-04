@@ -1,0 +1,24 @@
+*deck fillyc
+      subroutine fillyc(key,jmax,ngmax)
+*call implic
+*call dim
+*call par
+*call const
+c
+c     this subroutine is for debugging purposes
+c     it calc y from ynu, assuming complete degeneracy
+c
+      if(key.eq.0)  return
+      do  j=2,jmax
+        yallg=ynu(j)*rob(j)*avo
+        do  ng=1,ngmax
+          n=ngmax+1-ng
+          yn=min(yfull(n),yallg)
+          yb(j,n,1)=yn
+          yallg=max(yallg-yn,0d0)
+        enddo
+      enddo
+c     ------------------
+      key=0
+      return
+      end

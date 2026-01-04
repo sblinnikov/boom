@@ -1,0 +1,34 @@
+*deck printoc
+      subroutine  printoc (jmax,ngmax,nut)
+*call implic
+*call dim
+*call const
+*call par
+      parameter (ndimc=200)
+      character*1 ccc(ndimc)
+c     print  occupation
+      print 970,nut,ntime,time
+970   format(/,' Occupation table for neutrino=',i1
+     ^/,5x,'ntime =',i6,'  time=',3pf8.4,' msec')
+      jdil=jmax/132+1
+      do ng=1,ngmax
+         nch=0
+         do j=2,jmax,jdil
+            nch=nch+1
+            nch=min(nch,ndimc)
+            oc=ya(j,ng,nut)/yfull(ng)*10+0.49
+            ioc=int(oc)
+            if (ioc.lt.10) then
+               write (ccc(nch),971) ioc
+ 971           format(i1)
+            elseif(ioc.eq.10) then
+               ccc(nch)='f'
+            elseif(ioc.gt.10) then
+               ccc(nch)='x'
+            endif
+         enddo
+      print 972,(ccc(j),j=1,nch)
+972   format(' ',131a1)
+      enddo
+      return
+      end

@@ -1,0 +1,44 @@
+*deck ratebrem
+c ----------------------------
+c This routine calculates nucleon-nucleon Bremsstrahlung
+c 
+c The rates are taken from Burrows and Thompson 
+c arxiv:astro-ph/0211404v1 p. 234
+c
+c Whether to use this production method depends in kbrem.  The
+c default is to include the process
+c ----------------------------
+      subroutine ratebrem(ro,tmv,fmuev,fmuhatv,xnv,
+     +enung,denung, ydot2,gamma2)
+      implicit none
+      real*8, intent (in) :: 
+     &     ro, tmv, fmuev, fmuhatv, xnv
+      real*8, intent (in) :: enung, denung
+      real*8, intent (out) :: ydot2, gamma2
+      real*8 :: yfullng
+*call const
+*call dim      
+*call cori
+*call expm
+      real*8 :: arg, ex, qnb, dqnbdw
+      real*8, parameter :: xi = 0.5
+
+      qnb = 1.04d30 * xi * (xnv * ro / 1d14)**2 * 
+     &	  tmv**5.5  ! ergs cm-3 s-1
+      dqnbdw = 0.24d0 * qnb / tmv * (enung / tmv) ** 2.4d0
+     &	    * expm(-1.1d0 * enung / tmv)  ! cm-3 s-1
+c     Convert from energy production to particle production
+c     Divide by 2.0 since each reaction produces 2 particles
+
+      if (enung .le. zero) then
+      ydot2 = zero
+      gamma2 = zero
+      return
+      endif
+      ydot2 = dqnbdw * denung / enung / 2.0 ! cm-3 s-1
+c     use Kirchoff's law to find absorption
+      yfullng = denung * enung * enung / facdis ! cm-3
+      arg=(enung-fmuev+fmuhatv)/tmv
+      ex=expm(arg)
+      gamma2=ydot2*ex/yfullng ! s-1
+      end           

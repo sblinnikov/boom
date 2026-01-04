@@ -1,0 +1,131 @@
+*deck wzconf
+      subroutine  wzconf (fmass,r,u,t,ro,ye,jmax)
+*call implic
+*call keyeos
+*call const
+*call corct
+      dimension  fmass(jmax),r(jmax),u(jmax),t(jmax),ro(jmax),ye(jmax)
+      dimension  xmw(199),rw(199),uw(199),tw(199),row(199),yew(199)
+      dimension  dmw(199)
+      dimension  pw (199)
+      knusave=nupress
+      kcoul=keycoul
+      nt=2
+      read  (nt,*,end=10000) (dmw(j),j=2,jmax)
+10000 read  (nt,*,end=10001) ( rw(j),j=2,jmax)
+10001 read  (nt,*,end=10002) ( uw(j),j=2,jmax)
+10002 read  (nt,*,end=10003) ( tw(j),j=2,jmax)
+10003 read  (nt,*,end=10004) (row(j),j=2,jmax)
+10004 read  (nt,*,end=10005) (yew(j),j=2,jmax)
+10005 read  (nt,*,end=10006) ( pw(j),j=2,jmax)
+10006 continue
+      print 901,row(2),tw(2),yew(2)
+901   format(' initial configuration from woosley '
+     1,/'  roc=',1pe10.2,'  tc=',e10.2,'  yec',0pf8.4)
+      print 902
+902   format('   j    dm',10x,'r',11x,'u',11x,'t',11x,'ro',10x
+     1         ,'ye',10x,'p',11x,'erm')
+      rw(1)=0.d0
+      r3i=0.d0
+      fmass(1)=0.d0
+      do    j=2,jmax
+      xmw(j)=0.d0
+      r3o=rw(j)**3
+      dmm=row(j)*pai43*(r3o-r3i)
+      dm=dmm/solmas
+      er=(dm-dmw(j))/dmw(j)
+      print 903,j,dmw(j),rw(j),uw(j),tw(j),row(j),yew(j),pw(j),er
+903   format(i4,1p8e12.4)
+      dmw(j)=dmm
+      fmass(j)=fmass(j-1)+dmw(j)
+      r3i=r3o
+      enddo
+c
+      uw(1)=0.d0
+      tw(1)=0.d0
+      nupress=0
+      keycoul=0
+      ynu=0.d0
+      xn=0.d0
+      xp=0.d0
+      xal=0.d0
+      xhv=1.d0
+      ahv=56.d0
+      z=26.d0
+      e=0.d0
+905   format('   j   ro',8x,'t',7x,'tcor',3x,'ye',6x,'pw',8x
+     1,'peos',6x,'pzig',6x,'dp')
+      if(jmaxinp.lt.0) stop ' jmaxinp not specified, wzconf'
+      jmxeq1=jmaxinp
+      do  80  j=2,jmax
+      keyets=2
+      keyeos=1
+      jzone=j
+      call  state
+     1( row(j),e,tw(j),pzig,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      keyeos=keos
+      if(keos.eq.2.or.keos.eq.3) keyeos=2
+      if(j.gt.jmxeq1)            keyeos=1
+      call  state
+     1( row(j),e,tw(j),p,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+      if(kesfail.ne.0)  then
+                        keyeos=1
+      call  state
+     1( row(j),e,tw(j),p,s,sound
+     2, tr,te,pr,dpde,sr,se
+     3, ahv,z,yew(j),ynu,xn,xp,xal,xhv
+     *,keyets)
+                        endif
+      dp=(p-pw(j))/pw(j)
+      tx=tw(j)
+      if(j.le.jmxeq1)  then
+                       keosz=keos
+                       else
+                       keosz=1
+                       endif
+      call  trop
+     1 (row(j),e,tx,pw(j),s,snd,j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,yew(j),xn,xp,xa,xh)
+      if(kesfail.ne.0)  then
+                        if(keosz.eq.1)  then
+                                     print *,' trop failed from wzconf'
+                                     stop    ' trop failed from wzconf'
+                                     endif
+                        keosz=1
+                        call  trop
+     1                  (row(j),e,tx,pw(j),s,snd,j,keosz
+     2                  ,tr,te,pr,pe,sr,se
+     3                  ,ah,zh,yew(j),xn,xp,xa,xh)
+                        endif
+      tt=tw(j)/tmev
+      tp=tx/tmev
+c     tw(j)=tx
+c     differences in pressure are small t not modified
+      if(j.eq.2)  print  905
+      print 907,j,row(j),tt,tp,yew(j),pw(j),p,pzig,dp
+907   format(i4,1pe10.2,0p3f8.3,1p4e10.2)
+80    continue
+      print *,'  t not modified  '
+      r(1)=0.d0
+      u(1)=0.d0
+      t(1)=0.d0
+      ro(1)=0.d0
+      ye(1)=0.d0
+      do  90  j=2,jmax
+      r(j)=rw(j)
+      u(j)=uw(j)
+      t(j)=tw(j)
+      ro(j)=row(j)
+      ye(j)=yew(j)
+90    continue
+      nupress=knusave
+      keycoul=kcoul
+      return
+      end

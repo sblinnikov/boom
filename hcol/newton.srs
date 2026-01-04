@@ -1,0 +1,21 @@
+*deck newton
+      subroutine  newton(x,fun)
+*call implic
+      external  fun
+      data rel,eps  / 0.20d0 , 1.0d-6 /
+      do 100  it=1,99
+      call  fun(x,f,df)
+      dx=-f/df
+      r=abs(dx/x)
+      if(r.lt.rel) go to 10
+      dx=rel*x*sign(1.0d0 , dx)
+   10 continue
+      x=x+dx
+      if(r.lt.eps) go to 110
+  100 continue
+      print 901,x,f,df
+      stop 'no convergence in newton'
+  110 return
+901   format(' no convergence in newton. x=',1pe12.4,'  f=',e12.4
+     1,'  df=',e12.4)
+      end

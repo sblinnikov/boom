@@ -1,0 +1,81 @@
+*deck findroe
+      subroutine  findroe(roe,beta,nu,nup,drodb,drodnu,keypos)
+c
+c     find roe as function of beta and nu
+c     roe=facroe*(beta**1.5)*fi12
+c     facroe=8*pai*sqrt(2)/(avo*lamdae**3)
+c     facroe=facen/(me*c**2)/avo
+c
+*call implic
+*call roerop
+      real*8  nu,nup
+      data facroe /4.132028d+06/
+      s12=0.5d0
+      s32=1.5d0
+      roep=0.0d0
+      dropdnu=0.0d0
+      dropdb=0.0d0
+c
+c     electrons
+      call  divine(nu,f12,df12,s12)
+      call  divine(nu,f32,df32,s32)
+      s42=2.0d0
+      call  divine(nu,f42,df42,s42)
+      u=(f42/f32)**2
+      dudnu=2.0d0*u*(df42/f42-df32/f32)
+      us=u*u
+      x=beta*u
+      f=1.0d0+x*(2.5d0+x*(2.0d0+0.5d0*x))
+      df=2.5d0+x*(4.0d0+1.5d0*x)
+      f=sqrt(f)
+      df=0.5d0*df/f
+      dfdb=u*df
+      dfdu=beta*df
+      fi12=f12+(f-1.0d0)*f32/u
+      dfidu=(u*dfdu-f+1.0d0)*f32/us
+      dfidnu=dfidu*dudnu+df12+(f-1.0d0)*df32/u
+      dfidb=dfdb*f32/u
+      if(keypos.eq.0) go to 100
+c
+c     positrons
+      call  etanu(nu,eta,detadnu)
+      etap=-eta-2.0d0/beta
+      call  nueta(etap,nup,dnpdetp)
+      call  divine(nup,fp12,dfp12,s12)
+      call  divine(nup,fp32,dfp32,s32)
+      s42=2.0d0
+      call  divine(nup,fp42,dfp42,s42)
+      up=(fp42/fp32)**2
+      dupdnup=2.0d0*up*(dfp42/fp42-dfp32/fp32)
+      ups=up*up
+      xp=beta*up
+      fp=1.0d0+xp*(2.5d0+xp*(2.0d0+0.5d0*xp))
+      dfp=2.5d0+xp*(4.0d0+1.5d0*xp)
+      fp=sqrt(fp)
+      dfp=0.5d0*dfp/fp
+      dfpdb=up*dfp
+      dfpdup=beta*dfp
+      fpi12=fp12+(fp-1.0d0)*fp32/up
+      dfpidup=(up*dfpdup-fp+1.0d0)*fp32/ups
+      dfpidnp=dfpidup*dupdnup+dfp12+(fp-1.0d0)*dfp32/up
+      dfpidb=dfpdb*fp32/up
+      dfpidb=dfpidb+2.0d0*dfpidnp*dnpdetp/(beta*beta)
+      dfpidnu=-dfpidnp*dnpdetp*detadnu
+c
+  100 continue
+      b12=sqrt(beta)
+      b32=b12*beta
+      roem=facroe*b32*fi12
+      dromdnu=roem*dfidnu/fi12
+      dromdb=facroe*b12*(1.5d0*fi12+beta*dfidb)
+      if(keypos.eq.0) go to 110
+      roep=facroe*b32*fpi12
+      dropdnu=roep*dfpidnu/fpi12
+      dropdb=facroe*b12*(1.5d0*fpi12+beta*dfpidb)
+  110 continue
+      roe=roem-roep
+      drodnu=dromdnu-dropdnu
+      drodb=dromdb-dropdb
+  799 continue
+      return
+      end

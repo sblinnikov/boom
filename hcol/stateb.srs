@@ -1,0 +1,142 @@
+*deck stateb
+      subroutine  stateb (ro,e,t,p,s,snd
+     1, tr,te,pr,pe,sr,se
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     *, keyets)
+*call implic
+*call chemp
+*call keyeos
+*call const
+      data  eps/1d-5/
+      data ntry/0/
+c
+c------------------------------------
+      if(ntry.eq.0) then
+      ntry=1
+      print *,' stateb first entry'
+      endif
+c------------------------------------
+c     regular entry
+c
+      tt=t
+      sentry=s
+      s=s/rgas
+c
+      if(keyets.eq.1) then
+c
+c   keyets=1  -  (ro,e) given
+      ee=e
+      tplus=1d13
+      tminus=1000.d0
+      if(t.eq.0.d0) t=5.d9
+      do 100 it=1,99
+      call  rotepsb(ro,t,ee,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, dxndro,dxndt,dxpdro,dxpdt
+     4, dxadro,dxadt,dxhdro,dxhdt
+     *)
+      ff=ee-e
+      if(ff.gt.0.d0)  tplus= min (t,tplus)
+      if(ff.lt.0.d0)  tminus= max (t,tminus)
+      if(it.le.10)  then
+      dt=-ff/dedt
+      ab=abs(dt)/t
+      if(ab.lt.eps) go to 500
+      if(ab.gt.0.5d0) dt=0.5d0*t*sign(1.0d0,dt)
+      t=t+dt
+      else
+      dt=tplus-tminus
+      ab=abs(dt)/t
+      if(ab.lt.eps) go to 500
+      t=0.5d0*(tminus+tplus)
+      endif
+100   continue
+      go to 900
+      elseif(keyets.eq.2) then
+c
+c   keyets=2  -  (ro,t) given
+      call  rotepsb(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, dxndro,dxndt,dxpdro,dxpdt
+     4, dxadro,dxadt,dxhdro,dxhdt
+     *)
+      go to 510
+      elseif(keyets.eq.3) then
+c
+c   keyets=3  -  (ro,s) given
+      ss=s
+      if(t.eq.0.d0) t=5.d9
+      do 300 it=1,99
+      call  rotepsb(ro,t,e,p,ss
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, dxndro,dxndt,dxpdro,dxpdt
+     4, dxadro,dxadt,dxhdro,dxhdt
+     *)
+c
+      ff=ss-s
+      dt=-ff/dsdt
+      ab=abs(dt)/t
+      if(ab.lt.eps) go to 500
+      if(ab.gt.0.5d0) dt=0.5d0*t*sign(1.0d0,dt)
+      t=t+dt
+300   continue
+      go to 900
+      else
+      print *,'  keyets=',keyets,'  illegal. stopped in stateb'
+      stop  'illegal keyets'
+      endif
+c
+c   finish calculations
+500   continue
+      if(keyets.ne.1) e=e+dedt*dt
+      if(keyets.ne.3) s=s+dsdt*dt
+      t=t+dt
+      p=p+dpdt*dt
+      xn=xn+dxndt*dt
+      xp=xp+dxpdt*dt
+      xa=xa+dxadt*dt
+      xh=xh+dxhdt*dt
+510   continue
+      te=1.d0/dedt
+      tr=-dedro/dedt
+      pe=dpdt/dedt
+      pr=dpdro-pe*dedro
+      se=dsdt/dedt
+      sr=dsdro-se*dedro
+c     rotepsb returns s in boltzman units
+      s=s*rgas
+      se=se*rgas
+      sr=sr*rgas
+c
+      if(abs(dxhdt ).le.1d-50)  dxhdt =0.d0
+      if(abs(dxhdro).le.1d-50)  dxhdro=0.d0
+      xne=dxndt/dedt
+      xnr=dxndro-xne*dedro
+      xpe=dxpdt/dedt
+      xpr=dxpdro-xpe*dedro
+      xae=dxadt/dedt
+      xar=dxadro-xae*dedro
+      xhe=dxhdt/dedt
+      xhr=dxhdro-xhe*dedro
+      sndsq=pr+pe*p/ro**2
+      sndsq= max (sndsq,1d-30)
+      snd=sqrt(sndsq)
+      xmuhat=xmun-xmup
+      xmunu=etanue*t/tmev
+      return
+c
+c   errors
+900   continue
+      print 910,keyets,ro,e,ee,t,tt,p,s,ss,ff,dt,ye,ynu
+910   format(' keyets=',i2,' ro=',1pe12.5,'  e=',e12.5,'  ee=',e12.5
+     1,'  t=',e12.5,'  tt=',e12.5,'  p=',e12.5/
+     2,'  s=',e12.5,'  ss=',e12.5,'  ff=',e12.5,'  dt=',e12.5
+     3,'  ye=',e12.5,'  ynu=',e12.5)
+      s=sentry
+      kesfail=5
+      eossubf='stateb'
+      return
+      end

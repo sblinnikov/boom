@@ -1,0 +1,9 @@
+*deck nuescat
+      subroutine  nuescat(enu,ro,ye,scat)
+*call implic
+c          enu................           Mev
+c          scat...............           cm-1
+      parameter (ce=1d-21)
+      scat=ce*ye*ro*enu
+      return
+      end

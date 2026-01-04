@@ -1,0 +1,28 @@
+*deck loceof
+      subroutine  loceof (nt,kend)
+*call implic
+      character*10 endfile,eof1,word,desc
+      data  eof1   /'eof'/
+      data  endfile/'endfile'/
+      kend=0
+      nm=0
+1     read (nt,*,end=150,iostat=ios) ntype,nw,desc ! form!!!
+      word=desc
+      if(nw.le.0)  goto  2
+      if(ntype.eq.1)  read (nt,*) iii
+      if(ntype.eq.2)  read (nt,*) vvv
+      if(ntype.eq.3)  read (nt,*) word
+ 2    continue
+      nm=nm+1
+      if(word.eq.endfile)  goto  80
+      if(word.eq.eof1)     return
+      goto   1
+80    print 90, nm,nt
+90    format(' eof not found',i10,'  records in tape',i2,'  ')
+      kend=1
+      back space nt
+      return
+ 150  continue
+      print *,' loceof end encountered on read '
+      return
+      end

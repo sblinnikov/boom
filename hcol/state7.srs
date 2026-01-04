@@ -1,0 +1,111 @@
+*deck state7
+      subroutine  state7 (ro,e,t,p,s,snd
+     1, tr,te,pr,pe,sr,se
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     *, keyets)
+*call implic
+*call chemp
+*call keyeos
+*call const
+*call rrttyy
+      data  eps/1d-5/
+      data ntry/0/
+c
+c-----------------------------------
+      if(ntry.eq.0) then
+      ntry=1
+      print *,' state7 first entry'
+c     Load in the eos table
+      if(t.le.0.d0) t=5.d9
+      call  eostab(ro,t,ye,ynu,ee,p,s,xh,xa,xn,xp,ah,zh	
+     1     ,yepos,xmuhat,xmue,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      endif
+c-----------------------------------
+c     regular entry
+c
+      tt=t
+      sentry=s
+c
+      if(keyets.eq.1) then
+c
+c   keyets=1  -  (ro,e) given
+      ee=e
+c   Set these at the edge of the EOS tables
+      tplus=tmax
+      tminus=tmin
+      if (t .lt. tminus .or. t .gt. tplus) t=5.d9	
+      do it=1,99
+         call  eostab(ro,t,ye,ynu,ee,p,s,xh,xa,xn,xp,ah,zh
+     1        ,yepos,xmuhat,xmue,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+         ff=ee-e
+         if(ff.gt.0.d0)  tplus= min (t,tplus)
+         if(ff.lt.0.d0)  tminus= max (t,tminus)
+         dt=tplus-tminus
+         ab=abs(dt)/t
+         if(ab.lt.eps) go to 500
+         t=0.5d0*(tminus+tplus)
+      enddo
+      go to 900
+      elseif(keyets.eq.2) then
+c
+c   keyets=2  -  (ro,t) given
+      call  eostab(ro,t,ye,ynu,e,p,s,xh,xa,xn,xp,ah,zh
+     1,yepos,xmuhat,xmue,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      go to 510
+      elseif(keyets.eq.3) then
+c
+c   keyets=3  -  (ro,s) given
+      ss=s
+      tplus=tmax
+      tminus=tmin
+      if (t .lt. tminus .or. t .gt. tplus) t=5.d9	
+      do it=1,99
+         call  eostab(ro,t,ye,ynu,e,p,ss,xh,xa,xn,xp,ah,zh
+     1        ,yepos,xmuhat,xmue,dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+c
+         ff=ss-s
+         if(ff.gt.0.d0)  tplus= min (t,tplus)
+         if(ff.lt.0.d0)  tminus= max (t,tminus)
+         dt=tplus-tminus
+         ab=abs(dt)/t
+         if(ab.lt.eps) go to 500
+         t=0.5d0*(tminus+tplus)
+      enddo
+      go to 900
+      else
+      print *,'  keyets=',keyets,'  illegal. stopped in state7'
+      stop  'illegal keyets'
+      endif
+c
+c   finish calculations
+500   continue
+      if(keyets.ne.1) e=e+dedt*dt
+      if(keyets.ne.3) s=s+dsdt*dt
+      t=t+dt
+      p=p+dpdt*dt
+510   continue
+      te=1.d0/dedt
+      tr=-dedro/dedt
+      pe=dpdt/dedt
+      pr=dpdro-pe*dedro
+      se=dsdt/dedt
+      sr=dsdro-se*dedro
+c
+      sndsq=pr+pe*p/ro**2
+      sndsq= max (sndsq,1d-30)
+      snd=sqrt(sndsq)
+      xmunu=etanue*t/tmev
+      return
+c
+c   errors
+900   continue
+      print 910,keyets,ro,e,ee,t,tt,p,s,ss,ff,dt,ye,ynu
+910   format(' keyets=',i2,' ro=',1pe12.5,'  e=',e12.5,'  ee=',e12.5
+     1,'  t=',e12.5,'  tt=',e12.5,'  p=',e12.5/
+     2,'  s=',e12.5,'  ss=',e12.5,'  ff=',e12.5,'  dt=',e12.5
+     3,'  ye=',e12.5,'  ynu=',e12.5)
+      s=sentry
+      kesfail=8
+      eossubf='state7'
+      return
+      end

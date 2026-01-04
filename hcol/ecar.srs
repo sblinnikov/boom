@@ -1,0 +1,30 @@
+*deck ecar
+      subroutine  ecar (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call corct
+*call keyeos
+*call par
+c     uses acc to store  ec
+      if(jmxeq1.lt.jmin) return
+      tmin=3d9
+      do  10  j=jmin,jmax
+ 10   acc(j)=-8d18
+      keyets=2
+      keyeos=keos
+      do  20  j=jmin,jmxeq1
+      jzone=j
+      call  state
+     1(rob(j),acc(j),tmin,pmin,smin,sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     1,ahvc,zc,ye(j),ynu(j),xnc,xpc,xalc,xhvc
+     *,keyets)
+ 20   continue
+      if(mod(ntime+1,nprnt).ne.0)  return
+      do  30  j=jmin,jmax
+      print 930,j,rob(j),tb(j),eb(j),acc(j)
+ 930  format(' j ro t e ec ',i4,1p4e11.2)
+ 30   continue
+      return
+      end

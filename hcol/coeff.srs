@@ -1,0 +1,134 @@
+*deck coeff
+      subroutine  coeff(ro,keyprk)
+*call implic
+*call const
+*call azy
+*call cfnp
+*call barion
+      save  xprkl,xprk1l,c11mn,c11lmx,c11lmn,c11mx
+     &     ,c21mx,c21lmx
+      expm(arg)=exp(max(min(arg,argmax),-argmax))
+      data xpruk/1.d-4/
+      data  argmax /600d0/
+      data ntry/0/
+      if(ntry.ne.0) go to 10
+      ntry=1
+      xprkl= log(xpruk)
+      xprk1l= log(1.d0-xpruk)
+      c11mn=8.d-27
+      c11lmx=174.d0
+      c11lmn= log(c11mn)
+      c11mx= expm(c11lmx)
+      c21mx=c11mx
+      c21lmx=c11lmx
+10    continue
+c
+      rl= log(ro)
+      avrol=avol+rl
+      alfa=ah-zh
+      beta=zh
+      amb=alfa-beta
+      tamb=2.d0*amb
+      d11=-beta/tamb
+      d21=alfa/tamb
+      d12=1.d0/amb
+      d22=-d12
+      c13=alfa/ah
+      c23=beta/ah
+      c14=ye-1.d0
+      c24=-ye
+      ye2=2.d0*ye
+      ye2l= log(ye2)
+      ye21=1.d0-ye2
+      ye21l= log(ye21)
+      ahl= log(ah)
+      a4l=2.d0*twol
+c
+      cal=pfal-2.d0*(pfnl+pfpl)+3.d0*avrol
+      calr=3.d0/ro
+      calt=dpfal-2.d0*(dpfnl+dpfpl)
+      cbl=pfhl-alfa*pfnl-beta*pfpl+(ah-1.d0)*avrol
+      cblr=(ah-1.d0)/ro
+      cblt=dpfhl-alfa*dpfnl-beta*dpfpl
+c
+      ga=a4l+cal
+      gh=ahl+cbl
+      gar=calr
+      gat=calt
+      ghr=cblr
+      ght=cblt
+      c11l=(beta*ga-2.0d0*gh)/tamb
+      c11lr=(beta*gar-2.d0*ghr)/tamb
+      c11lt=(beta*gat-2.0d0*ght)/tamb
+      if(c11l.lt.c11lmn)  goto  16
+      if(c11l.gt.c11lmx)  goto  14
+      c11= expm(c11l)
+      goto  20
+14    continue
+      c11=c11mx
+      goto  20
+16    continue
+      c11=c11lmn
+      c11l=c11lmn
+20    continue
+      c21l=(2.0d0*gh-alfa*ga)/tamb
+      if(c21l.gt.c21lmx)  goto  25
+      c21= expm(c21l)
+      goto  30
+25    continue
+      c21=c21mx
+30    continue
+      c21lr=(2.d0*ghr-alfa*gar)/tamb
+      c21lt=(2.0d0*ght-alfa*gat)/tamb
+c
+c   define keyprk
+      keyprk=0
+      c11lpr=(1.d0-d11)*xprkl-d12*xprk1l+ye21l-d11*ye2l
+cpp
+cpp   print 951,c11l,c11lpr
+951   format('  c11l,c11lpr ',1p2e12.4)
+      if(c11l.lt.c11lpr) go to 900
+      keyprk=4
+cpp
+cpp   print 952,cal,cbl
+952   format(' cal cbl ',1p2e12.4)
+c
+      if(                  ro.le.2d8  .and.  c11l.gt.0d0  )  goto  900
+      if(ye.lt.0.1d0 .and. ro.le.2d11 .and.  c11l.gt.0d0  )  goto  900
+      if(cal.lt.-23.and.cbl.lt.-23.d0)                       goto  900
+c
+      ca=0.d0
+      cb=0.d0
+      if(cal.gt.c11lmx)  goto  35
+      if(cal.le.-50.d0)  goto  40
+      ca= expm(cal)
+      goto   40
+35    continue
+      ca=c11mx
+40    continue
+      if(cbl.gt.c11lmx)  goto  45
+      if(cbl.le.-50.d0)  goto  50
+      cb= expm(cbl)
+      goto   50
+45    continue
+      cb=c11mx
+50    continue
+c     if(cal.gt.-50.) ca= expm(cal)
+c     if(cbl.gt.-50.) cb= expm(cbl)
+      keyprk=1
+cpp
+cpp   print 953,c11l
+953   format(' c11l ',1pe12.4)
+      if(c11l.lt.0.d0) go to 910
+      keyprk=2
+cpp
+cpp   print 954,c21l,cal
+954   format(' c21l,cal ',1p2e12.4)
+      if(c21l.le.cal) go to 900
+      keyprk=3
+900   continue
+      return
+910   continue
+      if(c11l.lt.-50.d0)  keyprk=0
+      goto   900
+      end

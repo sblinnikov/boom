@@ -1,0 +1,64 @@
+*deck ratenub
+      subroutine ratenub(ro,t,fmue,fmuhat,xn,xp,xhv,ahv,zhv,enu,denu
+     1,emiss,absorb)
+*call implic
+*call const
+c
+c This rates are taken from Bruenn (1985)
+c See emisabs.srs for the units
+c
+      save  coefn
+c
+      data  block / 0.025d0 /
+      data  gep   /1d0/
+      data  ftep  /1083.9d0/
+      data  wep   /1.293d0/
+      data  wh    /4.3d0/
+      data  geh   /2d0/
+      data  fteh  /19950d0/
+      data  argm  /115d0/
+      data  ntry  /0/
+      data cg2 /5.18d-44/
+      data cgv,cga /  1d0, 1.23d0/
+c--------------------------------------------------------
+      if(ntry.eq.0)  then
+         ntry=1
+         coefn = cg2*(cgv**2+3.*cga**2)/pai
+      endif
+
+      emiss=0d0
+      absorb=0d0
+
+c The next line is important to prevent floating point errors
+
+      if (enu .gt. wep + enelmev) then
+         dnn=xn*ro*avo
+         dnp=xp*ro*avo
+c Approximate the eta functions.  Do not take into account neutron and
+c proton blocking.  Careful that you get your np's and pn's correct.
+         etanp=dnn
+         etapn=dnp
+
+
+         coefemn=coefn*etanp
+         coefabn=coefn*etapn
+
+c Note that enu is opposite in sign than the emisabs case
+
+         enun = enu-wep
+         enun2 = enun*enun
+         factn=enun2*max(1.-enelmev*enelmev/enun2,0d0)
+         arg1=(enun+fmue)/t
+         if(arg1.gt. argm) then
+            feqn=0d0
+         elseif(arg1.lt.-argm) then
+            feqn=1d0
+         else
+            feqn=1d0/(1d0+exp(arg1))
+         endif
+         emiss=coefemn*factn*feqn !        cm-1
+         absorb=coefabn*factn*(1.-feqn) !        cm-1
+      endif
+      return
+      end
+

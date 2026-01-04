@@ -1,0 +1,83 @@
+*deck enrbal
+      subroutine  enrbal (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call const
+*call corct
+*call par
+      etot=0.d0
+      egrav=0.d0
+      egrav1=0.d0
+      egrav2=0.d0
+      ekin=0.d0
+      ekin1=0.d0
+      etrm=0.d0
+      fmantle=zero
+      eblowg=zero
+      eblowk=zero
+      rm=0.d0
+      rm2=0.d0
+      rm3=0.d0
+      rm5=0.d0
+      do  100  i=2,jmax
+      j=i+1
+      dmki=dmk(i)
+      dmpi=dmp(i)
+      ri=ra(i)
+      ri2=ri**2
+      ri3=ri2*ri
+      ri5=ri3*ri2
+      ro=roa(i)
+      pi=pa(i)+sgma(i)
+      if(i.lt.jmax)  then
+                     pj=pa(j)+sgma(j)
+                     else
+                     pj=pext
+                     endif
+      pgrad=pj-pi
+      if(kchkdif.eq.0) then
+                       accel=-(pai4*ri2*pgrad/dmp(i)+grav*fmass(i)/ri2)
+                       else
+                       accel=0d0
+                       endif
+      dvel=0.5d0*dtb*accel
+      vi=vela(i)+dvel
+      ei=ea(i)*dmki
+      rk=0.5d0*(ri+ra(i-1))
+      fmassi=0.5d0*(fmass(i)+fmass(i-1))
+      etrm=etrm+ei
+      eki=dmpi*vi**2
+      ekin=ekin+eki
+      egravi=       (0.5d0*(ri2-rm2)*(fmass(i-1)-pai43*ro*rm3)
+     1+pai4/15.d0*ro*(ri5-rm5) ) * ro
+      egrav=egrav+egravi
+      egrav1=egrav1+fmassi*dmki/rk
+      egrav2=egrav2+fmass(i)*dmpi/ri
+      esc=sqrt ( two*grav*fmass(i)/ra(i) )
+      if(vi.gt.esc)  then
+         fmantle=fmantle+dmk(i)
+         eblowk=eblowk+eki
+         eblowg=eblowg+egravi
+      endif	
+      rm=ri
+      rm2=ri2
+      rm3=ri3
+      rm5=ri5
+100   continue
+      ekin=0.5d0*ekin
+      egrav =egrav *grav*pai4
+      egrav1=egrav1*grav
+      egrav2=egrav2*grav
+      eblowg=eblowg*grav*pai4
+      eblowk=eblowk*0.5d0
+      eblow=eblowk-eblowg+eprs
+      fmantle=fmantle/solmas
+      etot=-egrav+ekin+etrm+eout+eprs+dlifen
+     1     +enutot
+      if(abs(etot0).gt.1e-9) then
+                             ebal=(etot-etot0)/etot0
+                             else
+                             ebal=1d0
+                             endif
+      return
+      end

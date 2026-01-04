@@ -1,0 +1,87 @@
+*deck compres
+      subroutine  compres(jmax,ngmax)
+*call implic
+*call dim
+*call grvec
+*call const
+*call par
+c     _______________________
+c     internal working arrays
+      dimension yaj(ngmaxm),ybj(ngmaxm),a(ngmaxm),b(ngmaxm)
+      dimension c(ngmaxm),ascr(ngmaxm),bscr(ngmaxm),ff(ngmaxm)
+      dtf=dtb
+      mgmax=ngmax-1
+      a(1)=0d0
+      c(ngmax)=0d0
+      areai=0d0
+      voli=0d0
+      do 500 j=2,jmax
+      i=j-1
+      areaj=pai4*rb(j)**2
+      volj=areaj*rb(j)/3.0
+      dvolj=volj-voli
+      if(inkeygr.ne.0)  then
+                        bgq=0.5*(bgpb(i)+bgpb(j))
+                        dvolj=dvolj/bgq
+                        endif
+      diverge=-(areaj*velb(j)-areai*velb(i))/dvolj
+c      diverge=(rob(j)-roa(j))/dtf*2d0/(roa(j)+rob(j))
+c      diverge=(rob(j)-roa(j))/dtf/rob(j)
+      divmdt=-dtf*diverge
+c      divmdt=0d0
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      dveldr=(velb(j)-velb(i))/(rb(j)-rb(i))
+      areai=areaj
+      voli=volj
+      do 40 ng=1,ngmax
+      yaj(ng)=yb(j,ng,nutype)
+      p2=max(0.5*(3.0*edd(j,ng,nutype)-1.0),0d0)
+      q2=max(0.5*(1.0-edd(j,ng,nutype))    ,0d0)
+      ff(ng)=-dtf*enu(ng)*(p2*dveldr+q2*diverge)
+   40 continue
+      b(1)=1.0+divmdt+2.0*ff(1)/(denu(1)+denu(2))
+      c(1)=-2d0*ff(2)/(denu(1)+denu(2))
+      do 60 ng=2,mgmax
+      ngm=ng-1
+      ngp=ng+1
+      a(ng)=+ff(ngm)/(denu(ngm)+denu(ng))
+      b(ng)=1.0+divmdt+ff(ng)*(denu(ngm)/(denu(ngm)+denu(ng))
+     1                        -denu(ngp)/(denu(ng)+denu(ngp)))/denu(ng)
+      c(ng)=-ff(ngp)/(denu(ng)+denu(ngp))
+   60 continue
+      a(ngmax)=+ff(mgmax)/(denu(mgmax)+denu(ngmax))
+      b(ngmax)=1.0+divmdt
+     1     +ff(ngmax)*denu(mgmax)/denu(ngmax)/(denu(mgmax)+denu(ngmax))
+      call tridig(a,b,c,yaj,ybj,ascr,bscr,ngmax)
+c-------------------------------------
+c     renormalize
+      tota=0d0
+      totb=0d0
+      do  ng=1,ngmax
+      tota=tota+yaj(ng)
+      totb=totb+ybj(ng)
+      enddo
+      if(totb.gt.0) then
+                    fac=tota/totb
+                    do  ng=1,ngmax
+                    ybj(ng)=ybj(ng)*fac
+                    enddo
+                    endif
+c-------------------------------------
+      do 80 ngg=1,mgmax
+      ng=ngmax+1-ngg
+      ngm=ng-1
+      odef=ybj(ng)-yfull(ng)
+      if(odef.le.(0d0)) go to 80
+      ybj(ng)=yfull(ng)
+      ybj(ngm)=ybj(ngm)+odef
+   80 continue
+      decomp=0d0
+      do  ng=1,ngmax
+      decomp=decomp+enu(ng)*(ybj(ng)-yaj(ng))
+      yb(j,ng,nutype)=ybj(ng)
+      enddo
+      prode(j,nutype)=prode(j,nutype)+decomp/dtf
+  500 continue
+      return
+      end

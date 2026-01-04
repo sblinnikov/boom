@@ -1,0 +1,42 @@
+*deck readin
+      subroutine  readin (imx,jmx,kmx)
+*call implic
+*call l
+      dimension  a(10)
+c     a(1)=ee
+c     a(2)=pp
+c     a(3)=ss
+c     a(4)=xhh
+c     a(5)=xnn
+c     a(6)=xpp
+c     a(7)=aa
+c     a(8)=zz
+c     a(9)=xmu
+c     a(10)=xmuhat
+      nad(l,i,j,k)=l+(i-1)*ll+(j-1)*ll*ii+(k-1)*ll*ii*jj
+      data  zero  /0.d0/
+      ll=10
+      ii=imx
+      jj=jmx
+      do  1  n=1,lecs
+      ecs(n)=zero
+1     continue
+      npt=0
+10    continue
+      read (1,800,end=99) a,i,j,k
+      if(k.gt.kmx)  goto   99
+800   format(bz,10e12.5,3i2)
+      i=imx+1-i
+      k=kmx+1-k
+      if(i.le.0 .or. i.gt.imx)  stop  'wrong i in readin'
+      if(j.le.0 .or. j.gt.jmx)  stop  'wrong j in readin'
+      if(k.le.0 .or. k.gt.kmx)  stop  'wrong k in readin'
+      n=nad(1,i,j,k)
+      call  movlev (a,ecs(n),ll)
+      npt=npt+1
+      goto  10
+99    continue
+      print *,npt,' entries read from ltape.'
+      print *,' readin done.'
+      return
+      end

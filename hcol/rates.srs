@@ -1,0 +1,315 @@
+*deck rates
+      subroutine  rates (jmax,ngmax,nut)
+      implicit none
+      integer, intent(IN) :: jmax, ngmax, nut
+*call const
+*call corct
+*call dim
+*call par
+*call expm
+      real*8, dimension(ngmaxm) :: blocky
+      real*8, parameter :: yebot=0.05d0
+      real*8 :: x
+      integer*4:: j, ng, mgmax, ngp, ngprime
+      real*8 :: tmv, enung, ydotj, ccaptj, emissn, absorbn
+      real*8 :: emissa, absorba, emiss, absorb
+      real*8 :: arg, ex, absorb2, absn, abshv, abshe, abst
+      real*8 :: b1is, scat2, scatn, scatp, scatal, scathv
+      real*8 :: a0out, a1out, siges, enuprim, a0in
+      real*8 :: emissb, absorbb
+      real*8 :: dummy
+c
+c Calculate emission and absorption rates
+c A description of keyrates 1+2 this is in Myra et. al ApJ 318, 744 M
+c The difference between keyrates 1 and 2 is that 2 takes into account
+c the electron mass and 2 doesn't.  I don't think it matters much.
+c
+c keyrates 3-5 are taken from Bruenn (1985).
+c keyrate 4 turns off heavy nuclei absorption.
+c keyrate 5 calculates emission from absorbion using Kirchoff's law
+c   it seems to overestimate emission, perhaps because it does not
+c   take into account stimulated absorption
+c
+c I don't know what keyrate 6 is
+c
+c The default right now is 3.  This makes it consistent with most
+c supernova codes which also use the Bruenn rates, although there
+c have been some new papers in 2003 which look at nuclei cross
+c sections in a different way
+
+      select case(nut)
+      case(1)
+         do  j=2,jmax
+            if(krates(j,nut).eq.0) cycle	
+            tmv=tb(j)/tmev
+            do ng=1,ngmax
+               enung=enu(ng)
+               select case (keyrate) 
+               case(1)
+                  call  ratehp2 (xp(j),xhv(j),ahv(j),
+     +                 z(j),fmuhat(j),fmue(j)
+     1                 ,tmv,rob(j),enung,denu(ng),ydotj,
+     +                 ccaptj)
+                  if(ye(j).le.yebot) ydotj=0d0
+                  ydot (j,ng,nut)=ydotj
+                  ccapt(j,ng,nut)=ccaptj
+               case (2)
+                  call  ratehp3 (xp(j),xhv(j),ahv(j),
+     +                 z(j),fmuhat(j),fmue(j)
+     1                 ,tmv,rob(j),enung,denu(ng),
+     +                 ydotj,ccaptj)
+                  if(ye(j).le.yebot) ydotj=0d0
+                  ydot (j,ng,nut)=ydotj
+                  ccapt(j,ng,nut)=ccaptj
+               case (3)
+                  call emisabs(enung,rob(j),tmv,xn(j),
+     +                 xp(j),xhv(j),ahv(j),z(j),
+     1                 fmue(j),fmuhat(j),emissn,absorbn,
+     &                 emissa, absorba)
+                  if(ye(j).le.yebot) then
+                     ydot(j,ng,nut)=0d0
+                  else
+                     ydot(j,ng,nut)=
+     ^                    clite*(emissa + emissn)*yfull(ng)
+                  endif
+		  if (kprobug .eq. 1) then
+                     ccapt(j,ng,nut)=
+     &                    clite*absorba
+                  else
+                     ccapt(j,ng,nut)=
+     &                    clite*(absorba + absorbn)
+                  endif
+               case (4)
+                  call emisabs(enung,rob(j),tmv,xn(j),
+     +                 xp(j),xhv(j),ahv(j),z(j),
+     1                 fmue(j),fmuhat(j),emiss,absorb,dummy,dummy)
+c -- we need more args, thus 2 dummies
+c orig:                      fmue(j),fmuhat(j),emiss,absorb)
+                  if(ye(j).le.yebot) then
+                     ydot(j,ng,nut)=0d0
+                  else
+                     ydot(j,ng,nut)=clite*emiss*yfull(ng)
+                  endif
+c     
+c     ydot(emisabs) is consistent with ydot(ratehp),
+c     while the absorb doesnt obey the kirchoff's law.
+c     therefore we recalculate the absorption from the emission.
+c     
+                  arg=(enung-fmue(j)+fmuhat(j))/tmv
+                  ex=expm(arg)
+                  absorb2=emiss*ex
+                  ccapt(j,ng,nut)=clite*absorb2
+               case (5)
+c     This routine seems to overestimate neutrino emissivity
+                  call emisabs(enung,rob(j),tmv,xn(j),
+     +                 xp(j),xhv(j),ahv(j),z(j),
+     1                 fmue(j),fmuhat(j),emiss,absorb,dummy,dummy)
+c -- we need more args, thus 2 dummies
+c orig:                      fmue(j),fmuhat(j),emiss,absorb)
+                  ccapt(j,ng,nut)=clite*absorb
+c     
+c     take the absorption c.s. from emisabs and calculate the emission
+c     from it thru the Kirchoff's law.
+c     
+                  if(ye(j).le.yebot) then
+                     ydot(j,ng,nut)=0d0
+                  else
+                     arg=(enung-fmue(j)+fmuhat(j))/tmv
+                     ex=expm(arg)
+                     emiss=absorb/ex
+                     ydot(j,ng,nut)=clite*emiss*yfull(ng)
+                  endif
+               case (6)
+                  call nuabs(rob(j),tb(j),fmue(j),xn(j),
+     +                 xal(j),xhv(j),ahv(j),z(j)
+     1                 ,enung,absn,abshe,abshv,abst)
+                  ccapt(j,ng,nut)=clite*abst
+                  if(ye(j).le.yebot) then
+                     ydot(j,ng,nut)=0d0
+                  else
+                     arg=(enung-fmue(j)+fmuhat(j))/tmv
+                     ex=expm(arg)
+                     ydot(j,ng,nut)=ccapt(j,ng,nut)*yfull(ng)/ex
+                  endif
+               case default
+c--------------------------------------------------------------------
+                  stop 'invalid keyrate'
+               end select
+            enddo               ! end loop on ng
+         enddo                  ! end loop on j
+      case (2)                  ! nut
+c     nut=2 for emission, capture & scattering of nub
+c     and emission of nu and nub of pair production
+         do  j=2,jmax
+            if(krates(j,nut).eq.0) cycle	
+            tmv=tb(j)/tmev
+            do ng=1,ngmax
+               enung=enu(ng)
+c     I changed the calling arguments from the Itamar's original code.
+               
+               call  ratenub(rob(j),tmv,fmue(j),fmuhat(j),xn(j),
+     +              xp(j), xhv(j),
+     1              ahv(j),z(j),enung,denu(ng),emiss,absorb)
+               if(ye(j).le.yebot) then
+                  ydot(j,ng,nut)=0d0
+               else
+                  ydot(j,ng,nut)=clite*emiss*yfull(ng)
+               endif
+               ccapt(j,ng,nut)=clite*absorb
+            enddo               ! end loop on ng
+         enddo                  ! end loop on j
+      case (3:6)
+c     nut=3 for emission, capture & scattering of mu and tau neutrinos
+c     and emission of nu and nub of pair production
+         do  j=2,jmax
+            if(krates(j,nut).eq.0) cycle
+            tmv=tb(j)/tmev
+            do ng=1,ngmax
+               enung=enu(ng)
+	       blocky(1:ngmax) = min(ya(j,1:ngmax,3) / 
+     +              yfull(1:ngmax), 1d0)
+               call  ratemt(rob(j),tmv,fmue(j),fmuhat(j),
+     +              xn(j),xhv(j)
+     1              ,ahv(j),z(j),enung,denu(ng), ngmax, blocky,
+     +	            j, ng, ydotj,ccaptj)
+               if (kbrem .eq. 1) then
+                  call ratebrem(rob(j), tmv, fmue(j), fmuhat(j),
+     +                 xn(j), enung, denu(ng), 
+     +		       emissb, absorb)
+               else
+                  emissb = 0d0
+                  absorb = 0d0
+               endif
+               ydot (j,ng,nut)=ydotj + emissb
+               ccapt(j,ng,nut)=ccaptj + absorb
+            enddo               ! end loop on ng
+         enddo                  ! end loop on j
+      case default
+         stop 'invalid nut'
+      end select
+
+      
+
+c------------------------------------------------------------------
+      do j=2,jmax
+         if(krates(j,nut).eq.0) cycle
+         tmv = tb(j) / tmev
+         do ng=1,ngmax
+            enung=enu(ng)
+            select case (keyscat)
+            case (1)
+               call cohscat(enung,rob(j),
+     +              xn(j),xp(j),xal(j),xhv(j),
+     1              ahv(j),z(j),b1is)
+               cscat(j,ng,ng,nut)=-clite*b1is
+            case(2)
+               call coscat2(enung,rob(j),xn(j),
+     +              xp(j),xal(j),xhv(j),
+     1              ahv(j),z(j),scat2)
+               cscat(j,ng,ng,nut)=clite*scat2
+            case(3)
+               call coscat3(enung,rob(j),xn(j),
+     +              xp(j),xal(j),xhv(j),
+     1              ahv(j),z(j),
+     &              scatn, scatp, scatal, scathv)
+               cscat(j,ng,ng,nut)=
+     &              clite*(scatn+scatp+scatal+scathv)
+            case default
+               call coscat2(enung,rob(j),xn(j),
+     +              xp(j),xal(j),xhv(j),
+     1              ahv(j),z(j),scat2)
+               cscat(j,ng,ng,nut)=clite*scat2*keyscat
+            end select
+         enddo
+
+         do ng=1,ngmax
+            enung=enu(ng)
+            call nesan(enung,enung,tmv,fmue(j),a0out,a1out,nut)
+            siges=(a0out-a1out)*enung**2*denu(ng)
+            cscat(j,ng,ng,nut)=cscat(j,ng,ng,nut)+clite*siges
+            cscatis(j,ng,nut)=cscat(j,ng,ng,nut)
+         end do                 ! ng loop
+c---------------------------------------------------
+         if(kdnscat.gt.0)  then
+            mgmax=ngmax-1
+            do ng=1,mgmax
+               enung=enu(ng)
+               ngp=ng+1
+               do ngprime=ngp,ngmax
+                  enuprim=enu(ngprime)
+                  call nesan(enung,enuprim,tmv,fmue(j),
+     +                 a0out,a1out,nut)
+                  arg=(enuprim-enung)/tmv
+                  if(arg.le.(-115d0)) then
+                     ex=0d0
+                  else
+                     ex=exp(arg)
+                  endif
+                  a0in=a0out*ex
+                  siges=enuprim**2*denu(ngprime)*a0out
+                  cscat(j,ng,ngprime,nut)=clite*siges
+                  siges=enung**2*denu(ng)*a0in
+                  cscat(j,ngprime,ng,nut)=clite*siges
+               end do ! ngprime loop
+           end do ! ng loop
+        endif
+      enddo
+
+c------------------------------------------------------------------
+c Reduce matter interaction by dilution factor
+c This is to perform the test for neutrino diffusion outlined in
+c Bruenn (1985)
+      if (kdilbru .ne. 0) then
+         do j=2,jmax
+            if(krates(j,nut).eq.0) cycle
+            cscatis(j,1:ngmax,nut)= 0d0
+            cscat(j,1:ngmax,1:ngmax,nut)=0d0
+            if (rb(j) .gt. confrb0) then
+               ydot(j,1:ngmax,nut)=ydot(j,1:ngmax,nut)*confefac
+               ccapt(j,1:ngmax,nut)=ccapt(j,1:ngmax,nut)*confefac
+            endif
+         enddo
+      endif
+
+      if (ktest0 .eq. 1) then
+         do j=2,jmax
+            if(krates(j,nut).eq.0) cycle
+            if (time .le. ftest1) then
+               if (rb(j) .le. ftest0) then
+                  cscatis(j,1:ngmax,nut) = 
+     &                 ftest2 * clite
+                  ydot(j,1:ngmax,nut)=
+     &                 ydot(j,1:ngmax,nut)*ftest4
+                  ccapt(j,1:ngmax,nut)=
+     &                 ccapt(j,1:ngmax,nut)*ftest4
+               else
+                  cscatis(j,1:ngmax,nut) = 
+     &                 ftest3 * clite
+                  ydot(j,1:ngmax,nut)=
+     &                 ydot(j,1:ngmax,nut)*ftest5
+                  ccapt(j,1:ngmax,nut)=
+     &                 ccapt(j,1:ngmax,nut)*ftest5
+               endif
+            else
+               if (rb(j) .le. ftest0) then
+                  cscatis(j,1:ngmax,nut) = 
+     &                 ftest6 * clite
+                  ydot(j,1:ngmax,nut)=
+     &                 ydot(j,1:ngmax,nut)*ftest8
+                  ccapt(j,1:ngmax,nut)=
+     &                 ccapt(j,1:ngmax,nut)*ftest8
+               else
+                  cscatis(j,1:ngmax,nut) = 
+     &                 ftest7 * clite
+                  ydot(j,1:ngmax,nut)=
+     &                 ydot(j,1:ngmax,nut)*ftest9
+                  ccapt(j,1:ngmax,nut)=
+     &                 ccapt(j,1:ngmax,nut)*ftest9
+               endif
+            endif
+            do ng=1,ngmax
+               cscat(j,ng,ng,nut) = cscatis(j,ng,nut)
+            enddo
+         enddo
+      endif
+      end

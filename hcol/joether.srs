@@ -1,0 +1,1420 @@
+*deck joether
+c subroutine joether
+c ************************************************** 
+c This subroutine uses the convection model of Sutherland and Wilson
+c Ap. J, 280:282-297 (1984) (keyjoe = 7,8,9) or the model of
+c Gemehyr and Winkler, Astron. Astrophys. 253, 92-100 (1992)
+c
+c The original prescription was for Raleigh-Taylor instabilities.
+c I have modified the prescription to use a convective time scale
+c instead of the R-T time scale.
+c
+c What this procedure does depends on the value of zjoecons
+c
+c keyjoe   = Parameters to control convection
+c            7 - Do constant mixing time throughout semiconvective zone
+c            8 - couple overshoot mixing time with average mixing in 
+c                convective zone
+c            9 - convective velocity in overshoot region is average of
+c                convective velocity in unstable region
+c           10 - use Gemehyr and Winkler
+c           11 - Same as above except that sturb is lower bounded by 0d0
+c           12 - Add ye-driven convection
+c           13 - Same as above except that sturb is lower bounded by 0d0
+c
+c           20 - Use Joe's new convection formulation
+c           21 - Add diverence term
+c           22 - Use Brunt-Vaisala acceleration formulation
+c           24 - Add kinetic energy transport
+c
+c zjoecons = the value of the mixing parameter.  zero means no convection
+c zsalt    = the value of the salt mixing parameter
+c zoverma  = overshoot mass
+c zoverti  = overshoot timescale (keyjoe = 7)
+c            overshoot timescale / average convective time (keyjoe = 8)
+c
+c zjclim = Courant limiter.  Limits convective time scale to courant time
+c
+c constants for Gemehyr method
+c zalmlt
+c zalc
+c zalt
+c zalnu
+c zallam
+c zcd
+c zvisbase = viscosity base
+c
+c Joe's convective method
+c zvisbase = velocity minimum
+c
+c Flags for sutherland and wheeler
+c keynuad = advect neutrinos (1=yes 0=no)
+c keyyecv = do composition mixing
+c
+c Flags for joe's convection
+c keycvro = 0 (default) - Get density from entropy difference
+c         = 1 - Get density by matching pressures
+c
+c fconml = Mixing length constant
+c fconmr = Mixing length constant for small radii
+c
+c fconrs = roplusa / hplusa constant
+c fconrye = roplusa / yeplusa constant
+c fconldx = How nuch to add ledoux convection
+c
+c fconas = hplusa growth constant
+c fconaye = yeplusa growth constant
+c fcondis = dissapation parameter in stable regions
+c
+c fconbra = dissipation parameter in the mean velocity field
+c
+c Also to test the procedure, set kchkdif to non-zero
+c **************************************************
+
+      subroutine joether (jmax, ngmax, nxx)
+*call implic
+*call dim
+*call corct
+*call const
+*call par
+*call keyeos
+*call chemp
+*call asdro
+
+c     Filter out small values to avoid floating point problems
+      data vstabfac /5e-1/
+      data epsdro /1e-2/
+      data deltaye /2e-2/
+      data roblock /1e-4/
+
+      save iperturb
+
+      dimension pplusa(jmaxm), pminusa(jmaxm), pmean(jmaxm), sndq(jmaxm)
+      dimension tplusa(jmaxm), tminusa(jmaxm), ha(jmaxm)
+      dimension eplusa(jmaxm), eminusa(jmaxm), emean(jmaxm)
+      dimension drods(jmaxm), drodp(jmaxm), dsdp(jmaxm)
+      dimension dropdt1(jmaxm), dropdt2(jmaxm)
+      dimension dromdt1(jmaxm), dromdt2(jmaxm)
+      dimension deds(jmaxm), smean(jmaxm)
+      dimension vmfrac(jmaxm), vpfrac(jmaxm)
+      dimension timebv(jmaxm), finvmxlength(jmaxm), difterm(jmaxm)
+      dimension ksaltmix(jmaxm), dasymdt(jmaxm)
+
+      dimension drodye(jmaxm), drodyes(jmaxm), fluxke(jmaxm)
+      dimension dsdye(jmaxm)
+
+c     If zjoecons is equal to 0 then skip this procedure entirely
+c     If bounce has not occurred, skip this procedure entirely
+      kromax = 0
+      if (infall .ne. 0 .and. kchkdif .eq. 0) then
+         return
+      endif
+      
+
+      if (keyjoe .eq. 0) then
+         return
+      endif
+
+      if (keyjoe .lt. 10 .and. zjoecons .eq. 0d0) then
+         return
+      endif
+
+
+
+      dtm = (dta + dtb) /2d0
+
+c Don't mix through the shock
+      if (kchkdif .ne. 0) then
+         jmax1 = jmax - 3
+         if (iperturb .ne. 1) then
+            do j=2, jmax1+1
+               vplusa(j) = max(zvisbase,vplusa(j))
+            enddo
+            iperturb = 1
+        endif
+      else
+         jmax1 = min(jmax-3, khelem)
+      endif
+
+      jmin1 = max(jmin, 3)	
+c Start convective print out
+      if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+         print 900, ntime, time, dtb
+         if (zjclim .ne. 0.0) then
+            print 905
+         endif
+      endif
+
+c Zero out the variables
+      
+
+      aconv(1:jmax1+1) = 0d0
+      econv(1:jmax1+1) = 0d0
+      tconv(1:jmax1+1) = 0d0
+      pconv(1:jmax1+1) = 0d0
+      yeconv(1:jmax1+1) = 0d0
+      roconv(1:jmax1+1) = 0d0
+      fluxts(1:jmax1+1) = 0d0
+      fluxye(1:jmax1+1) = 0d0
+      fluxro(1:jmax1+1) = 0d0
+      timebv(1:jmax1+1) = 0d0
+      drods(1:jmax1+1) = 0d0
+      eturbb(1:jmax1+1) = 0d0
+      asyma(1:jmax1+1) = fconasym
+      yconv(1:jmax+1, 1:ngmax, 1:numax) = 0d0
+
+         if (keyjoe .eq. 20 .or. keyjoe .eq. 21 .or. 
+     &        keyjoe .eq. 22 .or. keyjoe .eq. 23 .or.
+     &	      keyjoe .eq. 24) then
+c **************************************************
+c Use Joe's patented convection routine
+c **************************************************
+         if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+            print 970
+         endif
+ 970     format(
+     &        '   j', 3x, 'vplusa', 
+     &        6x, 'hplusa', 6x, 'roplusa',
+     &        6x, 'yeplusa', 6x,
+     &        'dvpdt', 6x, 'dspdt',
+     &        6x, 'fluxts', 6x,
+     &        'dyepdt', 6x, 'fluxye', 6x, 'drods', 6x,
+     &	      'drodye', 6x, 'drodyes', 6x, 'dsdye', 6x, 'timebv')
+
+         do j=jmin1, jmax1+1
+            k = j+1
+	    i = j-1
+c     Calculat fraction of matter in up and down streams
+            vpji = (vplusa(j) + vplusa(i)) / 2.0
+            vmji = (vminusa(j) + vminusa(i)) /2.0
+
+            vsum = abs(vpji + vmji)
+            if (vsum .gt. 0d0) then
+               vmfrac(j) = vpji / vsum
+               vpfrac(j) = vmji / vsum
+            else
+               vmfrac(j) = 0.5
+               vpfrac(j) = 0.5
+            endif
+
+c     Call equation of state
+c     I can probably get rid of this with the line 
+c     t=ta(j)
+
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+            ro1 = ro
+	    t=ta(j)
+            ynu0 = ynu(j)
+            call state 
+     +           (roa(j), ea(j), t, p, s0, snd,
+     +           tr, te, pr, pe, sr, se,
+     +           ahv(1), z(1), ye(j), ynu0, 
+     +           xn(1), xp(1), xal(1), xhv(1),
+     +           1)
+
+c ***********************************
+c Calculate thermodynamic variables
+c Look at the section in the Gemehyr routine to see what this is
+c ***********************************
+
+c     Calculate (dro /ds) p = const
+            drods(j) = 1 / (sr - se / pe * pr)
+
+c     Calculate (de /ds) ro = const
+            deds(j) = 1 / se
+
+c     Calculate (dro/dp) s = const
+            drodp(j) = 1 / (pr - pe / se * sr)
+
+c     Calculate (ds/dp) ro = const
+            dsdp(j) = -drods(j) / drodp(j)
+            pmean(j) = p
+            smean(j) = s0
+            sndq(j) = snd
+c            if (roa(j) + roplusa(j) * vpfrac(j) .lt. 0d0 .or.
+c     &           roa(j) - roplusa(j) * vmfrac(j) .lt. 0d0) then
+c               print *, 'Negative ro', j, roa(j), roplusa(j), 
+c     &              vmfrac(j)
+c               kromax = j
+c               return
+c            endif
+
+c Calculate ye derivatives
+c This is probably a tremendous waste of CPU cycles because the EOS does an
+c internal newton method.  I can probably save a lot of iterations by
+c restructuring the derivatives
+
+c     Calculate (dro / dye) p, t = constant
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+
+	    t=ta(j)
+	    ynu1=ynu(j)
+            call state 
+     +           (roa(j), e1, t, p1, s1, snd,
+     +           tr1, te1, pr1, pe1, sr1, se1,
+     +           ahv1, z1, ye(j) - deltaye/2d0, ynu1, 
+     +           xn1, xp1, xal1, xhv1,
+     +           2)
+
+
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+
+	    t=ta(j)
+            ynu2=ynu(j)
+            call state 
+     +           (roa(j), e2, t, p2, s2, snd,
+     +           tr2, te2, pr2, pe2, sr2, se2,
+     +           ahv2, z2, ye(j) + deltaye/2d0, ynu2, 
+     +           xn2, xp2, xal2, xhv2,
+     +           2)
+            pye = (p2 - p1) / deltaye ! ro, t constant
+            sye = (s2 - s1) / deltaye ! ro, t constand
+            pro = pr - pe / te * tr  ! dpdro t, ye constant
+            sro = sr - se / te * tr  ! dsdro t, ye constant
+
+c     CHECK THESE DERIVATIVES
+            drodye(j) = -pye / pro
+            dsdye(j) = sye + drodye(j) * sro
+
+c     Calculate (dro / dye) p, s = constant
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+	    ynu2=ynu(j)
+
+	    sin = s(j)
+	    t1 = ta(j) ! reset temperatures
+            call state 
+     +           (roa(j), e1, t1, p1, sin, snd,
+     +           tr1, te1, pr1, pe1, sr1, se1,
+     +           ahv1, z1, ye(j) - deltaye/2d0, ynu1, 
+     +           xn1, xp1, xal1, xhv1,
+     +           3)
+
+
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+
+	    sin = s(j)            
+            t2 = ta(j) ! reset temperatures
+            call state 
+     +           (roa(j), e2, t2, p2, sin, snd,
+     +           tr2, te2, pr2, pe2, sr2, se2,
+     +           ahv2, z2, ye(j) + deltaye/2d0, ynu2, 
+     +           xn2, xp2, xal2, xhv2,
+     +           3)
+            pye = (p2 - p1) / deltaye ! ro, s constant
+
+            pro = pr - pe / se * sr  ! dpdro s, ye constant
+            drodyes(j) = -pye / pro 
+
+c     Call equation of state
+            pminusa(j) = pa(j)
+c	Calculate Brunt-Vasala Time scale
+
+            dlnro=log(roa(k)/roa(i))
+            dlnp = log(pa(k)/pa(i)) 
+            dlnt = log(ta(k)/ta(i))
+            dlns = log(s(k)/s(i))
+            dlnye = log(ye(k)/ye(i))
+            dfracs = abs(hplusa(k) - hplusa(i)) / s(j)
+            dr=(ra(k)-ra(i))/2d0
+
+            geff = grav * fmass(j) / (ra(j)* ra(j))
+
+            sledoux=(dlnro - dlnp/gama(j))/dr
+               
+            if (sledoux .gt. 0d0) then 
+c     Calculate the convective time scale using the Brunt-Vasala time scale
+               timebv(j) = -sqrt(sledoux * geff ) 
+            else
+               timebv(j) = sqrt(-sledoux * geff )
+            endif
+         enddo
+
+
+         do j=2,jmin1
+            vplusb(j) = 0d0
+            vminusb(j) = 0d0
+            dvpdt(j) = 0d0
+            dvmdt(j) = 0d0
+               dropdt(j) = 0d0
+               dromdt(j) = 0d0
+               hplusb(j) = 0d0
+               hminusb(j) = 0d0
+               roplusb(j) = 0d0
+               rominusb(j) = 0d0
+               fluxro(j) = 0d0
+               fluxts(j) = 0d0
+               fluxye(j) = 0d0
+               do j1=1,ngmax
+                  do j2=1,numax
+                     dypdt(j,j1,j2) = 0d0
+                     dymdt(j,j1,j2) = 0d0
+                     fluxy(j,j1,j2) = 0d0
+                  enddo
+               enddo
+            enddo
+
+	
+	
+         
+         do j=jmin1,jmax1
+            i = j-1
+            k = j+1
+            ro = roa(j)
+            vpji = (vplusa(j) + vplusa(i)) / 2.0
+            vmji = (vminusa(j) + vminusa(i)) /2.0
+ 
+            r2k = ra(k) * ra(k)
+            r2j = ra(j) * ra(j)
+            r2i = ra(i) * ra(i)
+            rij = (ra(i) + ra(j))/2d0
+
+c ************************************************************
+c
+c Lot's of derivatives being calculated here.  
+c To keep everything straight
+c The outer edge of shell j is also numbered j.
+c 
+c Therefore
+c   shell j lies between edges i and j
+c   edge  j lies between shells j and k
+c
+c   space quantities and fluxs (i.e. velocities and distances)
+c      are defined at the edges
+c  
+c   thermo quantities are defined at the 
+c      shell centers
+c ************************************************************
+
+            drkj = ra(k) - ra(j)
+            drji = ra(j) - ra(i)
+
+c *********************************************
+c 
+c Why is dr = drji * 2d0?  Because........
+c We aren't calculating the derviative between the center of shell i,j
+c but rather the deviative between the values at the edges of shell j.
+c 
+c If you do an interpolation of the values you end with the the 
+c numerical deriviative being (a(k) - a(i)) / (r(j) - r(i)) / 2d0.
+c
+c That's why
+c ra(k) - ra(i)
+c 
+c *********************************************
+
+            dr = drji * 2d0
+
+c ********************
+c drs is the distance between the centers of shells k and shells j
+c 
+c Remember that radius is defined between the shells
+c ********************
+            drs = 0.5 * (ra(k) - ra(i))
+
+c ********************
+c drp is the distance between the edges of shells k and i
+c
+c ********************
+            drp = (ra(k) - ra(i))
+
+            ds = smean(k) - smean(j)
+            dp = pa(k) - pa(j)
+c            dpp = pplusa(k) - pplusa(j) + smpa(k) - smpa(j)
+c            dpm = pminusa(k) - pminusa(j) + smma(k) - smma(j)
+            dpp = pa(k) - pa(j)
+            dpm = pa(k) - pa(j)
+
+            drpr2 = r2j * dr
+            drijr2 = rij * rij * drji
+
+            dvel = (vela(k) - vela(i))
+ 
+            vpgradvp = (vplusa(j) - vplusa(i)) /
+     &           (ra(j) - ra(i)) * vplusa(j)
+            vmgradvm = (vminusa(k) - vminusa(j)) / 
+     &           (ra(k) - ra(j)) * vminusa(j)
+            divv = (r2k * vela(k) - r2i * vela(i)) / drpr2
+            divvp = (r2k * vplusa(k) - r2i * vplusa(i)) / drpr2
+            divvm = (r2k * vminusa(k) - r2i * vminusa(i)) / drpr2
+          
+            divv = 0d0
+            divvp = 0d0
+            divvm = 0d0
+
+c Calculate the inverse mixing length
+            finvmxlength(j) =  abs(dp / drs / pa(j)) / fconml
+            tscale = sndq(j) * abs(dp / drs / pa(j)) / fconml
+c            if (finvmxlength(j) .lt. 1d0/ ra(j) / fconmr) then
+c               finvmxlength(j) = 1d0/ra(j) / fconmr
+c            endif
+
+            if (finvmxlength(j) .gt. 0d0) then
+               vadv = vplusa(j)
+               if (vadv .lt. zvisbase) then
+                  vadv = zvisbase
+               endif
+               difterm(j) =
+     &              -abs(timebv(j) / finvmxlength(j) 
+     &              / finvmxlength(j) *
+     &              ((vplusa(k) - vplusa(j)) /
+     &              (ra(k) - ra(j)) -
+     &              (vplusa(j) - vplusa(i)) /
+     &              (ra(j) - ra(i))) / (ra(k) - ra(i))) / 2d0
+           else
+               difterm(j) = 0d0
+            endif
+
+
+            if (keyjoe .eq. 21) then
+               rpjk = (vpfrac(j) * roplusa(j) + 
+     &              vpfrac(k) * roplusa(k)) /2d0
+               rpij = (vpfrac(i) * roplusa(i) +
+     &              vpfrac(j) * roplusa(j)) / 2d0
+               rmjk = (vmfrac(j) * roplusa(j) +
+     &              vmfrac(k) * roplusa(k)) / 2d0
+               rmij = (vmfrac(i) * roplusa(i) +
+     &              vmfrac(j) * roplusa(j)) / 2d0
+
+               rojk = (roa(j) + roa(k))/2d0
+               roij = (roa(i) + roa(j)) / 2d0
+
+               divrpv = (r2j * rpjk * vela(j) -
+     &              r2i * rpij *vela(i)) / drijr2
+               divrmv = (r2j * rmjk * vela(k) -
+     &              r2i * rmij * vela(i)) / drijr2
+               divrvp = (r2j * rojk * vplusa(j) -
+     &              r2i * roij  * vplusa(i)) / drijr2
+               divrvm = (r2j * rojk * vminusa(j) -
+     &              r2i * roij  * vminusa(i)) / drijr2
+            endif
+
+            if (keycvro .eq. 1) then
+               dropdt(j) = 
+c     &           -vpji * ((roa(k) + roplusa(k) * vpfrac(k)) - 
+c     &           (roa(i) + roplusa(i) * vpfrac(i))) / dr
+     &           -sndq(j) * abs(dp/drs/pa(j)) 
+     &           * (drodp(k) * (pplusa(k) - pminusa(k)) + 
+     &           drodp(i) * (pplusa(i) - pminusa(i))) / 2d0 
+c     &           -vmji * ((roa(k) - roplusa(k) * vmfrac(k)) -
+c     &           (roa(i) - roplusa(i) * vmfrac(i))) / dr
+     &           - divrpv - divrvp - divrmv - divrvm
+
+               dromdt(j) = 0d0
+            else
+               dropdt(j) = 0d0
+            endif
+	    l = k+1	
+            roplusa(j) = hplusa(j) * drods(j) / 2d0
+     &           + fconldx * drodyes(j) * 
+     &           yeplusa(j)  * fconrs  / 2d0
+
+            if (roplusa(j) .gt. 0d0 .or.
+     &	        (smean(j) / rgas .lt. 3.0 .and. 
+     &	(hplusa(j) .lt. 0d0 .or. hplusa(i) .lt. 0d0 .or. 
+     &  hplusa(k) .lt.0d0))) then
+               roplusa(j) = drodye(j) * yeplusa(j) * fconrye
+            endif
+
+            rokj = 0.5d0 * (roa(k) + roa(j))
+            ropkj = roplusa(j) * 0.5
+            romkj = roplusa(j) * 0.5
+            dvpdt(j) = 
+     +           - vplusa(j) * abs(vplusa(j) *
+     +           finvmxlength(j))
+
+
+            if (keyjoe .eq. 23) then
+c     Do complicated figuring out to avoid numerical instabilities
+               if (vplusa(k) .gt. vplusa(i)) then
+                  dv2term = (vplusa(k) - vplusa(i)) / 
+     &                 (ra(k) - ra(i)) * 
+     &                 (vplusa(k) - vplusa(j)) /
+     &                 (ra(k) - ra(j))
+               else
+                  dv2term = (vplusa(k) - vplusa(i)) /
+     &                 (ra(k) - ra(i)) *
+     &                 (vplusa(j) - vplusa(i)) /
+     &                 (ra(j) - ra(i))
+               endif
+               dvpdt(j) = dvpdt(j) + dv2term
+            else
+               dvpdt(j) = dvpdt(j)   +  
+     +              (vplusa(k) * vplusa(k)   - 
+     +              vplusa(j) * vplusa(j))  /
+     +              (ra(k) - ra(i))
+     +              * (1d0 - (asyma(k) +
+     +              asyma(j)))
+            endif
+
+            dvmdt(j) = 0d0
+            vminusa(j) = 0d0
+            
+            if (roplusa(j) .lt. 0d0) then
+               dvpdt(j) = dvpdt(j) +
+     &              dpp / drs * ropkj / rokj / rokj
+               dvmdt(j) = dvmdt(j) +
+     &              dpm / drs * romkj / rokj / rokj
+            endif
+
+
+c Is this derivative correct?
+c            aconv(j) = vplusa(j) * abs(vplusa(j) * 
+c     +	    finvmxlength(j))
+c     +           - ((vplusa(k) - vplusa(i)) / (ra(k) - ra(i))) ** 2d0
+c     +	/ finvmxlength(j)
+            
+            aconv(j) = - vela(j) * 
+     +	         abs(vplusa(j) *  finvmxlength(j)) * fconbra
+            vsum = vpji + vmji
+            
+	    timebvmax = max(timebv(j), timebv(i))
+	    timebvmax = max(timebv(k), timebvmax)
+            if (timebvmax .ge. 0d0) then
+               dhpdt(j) =  - fcondis * hplusa(j)
+     &              * timebvmax
+               dyepdt(j) = - fcondis *
+     &              yeplusa(j) * timebvmax
+            else
+               dhpdt(j) = 0d0
+               dyepdt(j) = 0d0
+            endif
+
+            dhpdt(j) =  dhpdt(j) -           hplusa(j)
+     &           * finvmxlength(j) * vsum 
+
+            dyepdt(j) = dyepdt(j) -
+     &           yeplusa(j) * finvmxlength(j) * vsum 
+
+	    dhpdt(j) = dhpdt(j) +  vsum *
+     &           (hplusa(k) - hplusa(j)) / (ra(k) - ra(j)) 
+     +   * (1d0 - (asyma(k) +
+     +	               asyma(j)))
+
+	    dyepdt(j) = dyepdt(j) +  vsum *
+     &           (yeplusa(k) - yeplusa(j)) / (ra(k) - ra(j))
+     +   * (1d0 - (asyma(k) +
+     +	               asyma(j)))
+
+c            if (roplusa(j) .lt. 0d0) then
+               dhpdt(j) = dhpdt(j)
+     &              - vsum * (smean(k) - smean(j)) * 2d0
+     &              / (ra(k) - ra(i)) 
+     &              * fconas
+               dyepdt(j) = dyepdt(j)
+     &              -fconaye * vsum * (ye(k) - ye(j)) * 2d0
+     &              / (ra(k) - ra(i))
+               dyemdt(j) = 0d0
+c            endif
+               dasymdt(j) = -asyma(j) * (1d0 - asyma(j))
+     &	  * vplusa(j) * finvmxlength(j)
+     +           + (1d0 - 2d0 * asyma(j)) * fconasym *
+     +              vplusa(j) * finvmxlength(j)
+c     &              - divasym
+         enddo
+
+         do j=jmin1,jmax1
+            i = j-1
+               k = j+1
+               r2 = ra(j) * ra(j)
+               dr = dmp(j) / pai4 / r2 / roa(j)
+c     radius squared at the center of the shell
+c     and at point i and point j
+               ro = roa(j)
+               roij = (roa(i) + roa(j)) / 2d0
+               rojk = (roa(j) + roa(j)) / 2d0
+
+               r2 = (ra(j) + ra(i)) * (ra(j) + ra(i)) / 4d0
+               rak2 = ra(k) * ra(k)
+               rai2 = ra(i) * ra(i)
+               raj2 = ra(j) * ra(j)
+               drji = ra(j) - ra(i)
+               drjr2 = drji * r2
+               drjr2ro = drji * ((ra(j) + ra(i)) /2d0) ** 2d0 *
+     &              (roa(j) + roa(i)) / 2d0
+
+               vplusb(j) = vplusa(j)
+     &              + dvpdt(j) * dtb
+               vminusb(j) = vminusa(j)
+     &              + dvmdt(j) * dtb
+
+               yeplusb(j) = yeplusa(j)	 + 
+     &              dyepdt(j) * dtb
+
+                hplusb(j) = hplusa(j)	 + 
+     &              dhpdt(j)  * dtb
+	
+                asymb(j) = asyma(j)
+     &      + dasymdt(j) * dtb
+                if (vplusb(j) .eq. 0d0) then
+                   asymb(j) = 0.5
+                endif
+
+               if (keycvro .eq. 1) then
+                  roplusb(j) = roplusa(k) + dropdt(j) * dtb
+               else
+                  roplusb(j) = hplusb(j) * drods(j)
+               endif
+
+               
+               if (vplusb(j) .lt. 0d0) then
+ !!!!!! NEED TO THINK ABOUT THIS A LOT
+! Thought about this.  If I make the hplus assumption then this doesn't
+! have an effect since vplus is never less than zero
+                  vminusb(j) = 0d0
+                  vplusb(j) = 0d0
+               endif
+
+
+               if (dtb * vplusb(j) .gt. vstabfac * drji)
+     &              then
+                     kromax = j
+                     return
+                  endif
+
+c               delro = abs(roplusb(j) - roplusa(j)) / roa(j)
+c               if (delro .gt. epsdro) then
+c                  print *, 'Epsro too high', delro
+c                  kromax = j
+c                  return
+c               endif
+
+
+c ********************
+c  This is the artificial viscosity section
+c  Use a standard Ritchmeyer viscosity
+c ********************
+
+               smpb(j) = 0d0
+               smmb(j) = 0d0
+               if ((rob(j) + vpfrac(j) * roplusb(j) .gt. 
+     &              roa(j) + vpfrac(j) * roplusa(j)) .and.
+     &              (velb(j) + vplusb(j) .lt. velb(i) +
+     &              vplusb(i))) then
+                  smpb(j) = asig*rob(j) * 
+     &                 ((velb(j) + vplusb(j)) - 
+     &                 (velb(i) + vplusb(i))) ** 2
+               endif
+
+               if ((rob(j) - vmfrac(j) * roplusb(j) .gt. 
+     &              roa(j) - vmfrac(j) * roplusa(j)) .and.
+     &              ((velb(j) - vminusb(j)) .lt. 
+     &              (velb(j) - vminusb(i)))) then
+                  smmb(j) = asig*rob(j) * 
+     &                 ((velb(j) - vminusb(j)) - 
+     &                 (velb(i) - vminusb(i))) ** 2
+               endif
+c               fluxro(j) = vfrac * roplusa(j)
+               fluxro(j) = 0d0
+            enddo
+
+
+            do j=jmin1,jmax1
+c     Calculate enthapy flux at the points
+               i = j-1
+               k = j+1
+
+               hpj = hplusa(j) * (ta(j) + ta(k)) / 2d0
+
+               vp = (vplusa(j) + vplusb(j)) / 2d0
+               vm = (vminusa(j) + vminusb(j)) / 2d0
+               vsum = vp + vm
+               if (vsum .ne. 0d0) then
+c                  vfrac = vp * vm / vsum
+	          vfrac = vsum
+                  vfracro = vfrac * ( roa(j) + roa(k) +
+     &                 rob(j) + rob(k)) / 4d0
+               else
+                  vfrac = 0d0
+                  vfracro = 0d0
+               endif
+
+               fluxts(j) = vfracro * hpj * asyma(j) * (1d0 - asyma(j))
+               fluxye(j) = vfracro * yeplusa(j) 
+     & * asyma(j) * (1d0 - asyma(j))	
+               fluxro(j) = 0d0
+            enddo
+
+            do j=2,jmax1+1
+               i = j-1
+               k = j+1
+               r2 = (ra(j) + ra(i)) * (ra(j) + ra(i)) / 4d0
+               drji = ra(j) - ra(i)
+               drjr2 = drji * r2
+               drjr2ro = drji * ((ra(j) + ra(i)) /2d0) ** 2d0 *
+     &              (roa(j) + roa(i)) / 2d0
+               rai2 = ra(i) * ra(i)
+               raj2 = ra(j) * ra(j)
+               rak2 = ra(k) * ra(k)
+
+               econv(j) = -(raj2 * fluxts(j) - rai2 * fluxts(i)) 
+     &              * pai4 / dmk(j)
+               roconv(j) = -(raj2 * fluxro(j) - rai2 * fluxro(i)) 
+     &              / drjr2
+               yeconv(j) = -(raj2 * fluxye(j) - rai2 * fluxye(i))
+     &              * pai4 / dmk(j)
+	       pconv(j) = fcontp * rob(j) * ((vplusa(j) 
+     &              + vplusa(i))/2d0) ** 2d0
+
+       roji = (roa(j) + roa(i)) / 2d0
+       rojk = (roa(j) + roa(k)) / 2d0
+
+c	Balance kinetic energy
+	if (keyjoe .eq. 24) then
+               econv(j) = econv(j) + (1d0 - 2d0 * asyma(j)) * 
+     &    (vplusa(j) + vplusa(i))
+     &         * (raj2 * vplusa(j) * vplusa(j) * rojk -
+     &            rai2 * vplusa(i) * vplusa(i) * roji)
+     &	         * 3d0 / 4d0 * pai4
+     &          / dmk(j)
+	endif
+
+	       econv(j) = econv(j) +
+     &	(vplusa(j) * vplusa(j) / 2d0 -
+     &	 vplusb(j) * vplusb(j) / 2d0) * 3d0
+
+               delmi = 2 * pai * rai2 * 
+     &              (vplusa(i) + vminusa(i)) * roij
+               delmj = 2 * pai * raj2 * 
+     &              (vplusa(j) + vminusa(j)) * rojk
+
+               if (keynuad .ne. 0) then
+ 
+               do j1=1, ngmax
+                  do j2=1,numax
+                     yconv(j, j1,j2) =
+     &                    delmi / dmk(j) 
+     &                    * (ya(i, j1, j2) - ya(j, j1, j2))
+     &                    + delmj / dmk(j) 
+     &                    * (ya(k, j1, j2) - ya(j, j1, j2))
+                  enddo
+               enddo
+               endif
+
+ 150           continue
+ 980           format(
+     &              i4, 1pe9.2, e9.2, e9.2, e9.2, e9.2, e9.2,
+     &              e9.2, e9.2, e9.2, e9.2, e9.2, e9.2,
+     &              e9.2, e9.2, e9.2, e9.2, e9.2, e9.2,
+     &              e9.2, e9.2, e9.2, e9.2, e9.2, e9.2, e9.2, e9.2,
+     &	e9.2)
+               if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+                  print 980, j, vplusa(j),
+     &                 hplusa(j) / rgas, roplusa(j),
+     &                 yeplusa(j), 
+     &                 dvpdt(j),dhpdt(j) / rgas,
+     &                 fluxts(j),
+     &                 dyepdt(j), fluxye(j), drods(j) * rgas, 
+     &	drodye(j), drodyes(j), dsdye(j), timebv(j),
+     &	finvmxlength(j), asyma(j)
+               endif
+            enddo
+
+
+            vplusb(jmax1) = 
+     &           fconper * sqrt(gama(jmax1)*pa(jmax1)/roa(jmax1))
+            vminusb(jmax1) = 
+     &           fconper * sqrt(gama(jmax1)*pa(jmax1)/roa(jmax1))
+	asymb(jmax1) = 0.5d0
+            hplusb(jmax1) =  0d0
+	    yeplusb(jmax1) =  0d0
+
+c	vplusb(jmax1) = zvisbase
+c	vminusb(jmax1) = zvisbase
+c	hplusb(jmax1) = 0d0
+
+
+
+c This is to set up initial velocity perturbation
+
+         elseif (keyjoe .ge. 10 .and. keyjoe .le. 13) then
+
+c **************************************************
+c Use Gemeyer and Winkler convection prescription
+c **************************************************
+
+c     Print out header
+         if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+            print 960
+         endif
+ 960     format('   j', 3x, 'detdt', 6x, 'zsturb', 6x, 'znutj', 6x,
+     +        'eturb', 6x, 'ds/dr', 6x, 'dp/dr',6x, 'dt/ds',6x,
+     +        'divfturb', 6x, 'tconv')
+
+c ****************************************
+c Calculate turbulent viscosities and gradients
+c
+c     The general rule for the code is that thermodynamic quantities are
+c     measured at the shells, and hydrodynamic ones are measured at the
+c     points.
+c
+c     In this procedure, I calculate the gradient for various quanities
+c     at the points in the first loop through the model.
+c
+c     Then I use them to calculate second derivatives at shells in the 
+c     following loop.
+c **************************************** 
+
+         do j=2,jmax1
+c     Intermediate quantities
+            i = j-1
+            if (i .lt. 2) i=2
+            k = j+1
+
+c     Calculate mixing length
+            r2 = ra(j) * ra(j)
+            geff = grav * fmass(j) / r2
+            zmixl = abs(pa(j)/roa(j)/geff)
+
+c     Calculate eddy viscosity
+c     This should be in units of inverse time
+c     znut(j) are for the terms in the zones
+c     znutp is the eddy viscosity at the j'th point
+
+            znut(j) = zalnu * zmixl * sqrt(eturba(j))
+            znut(k) = zalnu * zmixl * sqrt(eturba(k))
+
+            dr = dmp(j) / pai4 / r2 / roa(j)
+            znutp = (znut(j) + znut(k)) 
+     +           / 4d0 / dr * (roa(j) + roa(k))
+
+c     Calculate composition gradients
+c     The gradients are accurate at the j'th point
+c     Use znutp to calculate this.  Using znutp may be important for 
+c         insuring correct diffusion
+
+
+            fluxturb(j) = znutp * (eturba(k) - eturba(j)) * zalturb
+            fluxye(j) = znutp * (ye(k) - ye(j)) * zalt
+            do j1 = 1, ngmax
+               do j2 = 1,numax
+                  fluxy(j, j1, j2) = 
+     +                 znutp * (ya(k,j1,j2) - ya(j, j1, j2)) * zalt
+               enddo
+            enddo
+            fluxts(j) = znutp * (ea(k) - ea(j)) * zalc
+         enddo
+
+         do j=3,jmax1
+c **********
+c Various intermediate quantities
+c Some of this is rather confusing since some of the quantities are
+c measured at the shells and some are measured at the points
+c I've tried to do the "right thing"
+c **********
+            i = j-1
+            k = j+1
+            ro = roa(j)
+
+c     radius squared at the center of the shell
+c     and at point i and point j
+            r2 = (ra(j) + ra(i)) * (ra(j) + ra(i)) / 4d0
+            rak2 = ra(k) * ra(k)
+            rai2 = ra(i) * ra(i)
+            raj2 = ra(j) * ra(j)
+            drji = ra(j) - ra(i)
+
+c     dr * rho for shell j
+            drroj = drji * ro
+c     dr * r2 for shell j
+            drjr2ro = drji * r2 * ro
+
+c     gradv/rho for shell j
+            gradvro = (vela(j) - vela(i)) / drroj
+c     divv/rho for shell j
+c     Perhaps use the identity div v = dV/dt
+            divvro =  (vela(j) +vela(i)) /ra(j) + gradvro
+
+c     Some more intermediate quantities
+c     These intermediate quanitites are measured at the center of the 
+c     shell
+
+            ds = s(k) - s(i)
+            dp = pa(k) - pa(i)
+            dye = ye(k) - ye(i)
+
+c     Not sure about this
+            dr = ra(k) - ra(i)
+
+c     Calculate turbulent pressure
+            pt = 2d0/3d0 * eturba(j)
+
+c     Call equation of state
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+            ro1 = ro
+            
+            call state 
+     +           (ro1, ea(j), t, p, s0, snd,
+     +           tr, te, pr, pe, sr, se,
+     +           ahv(1), z, ye(j), ynu(1), 
+     +           xn, xp, xal, xhv,
+     +           1)
+            
+            xmue=fmue(j)
+            xmunu=fmunu(j)
+            xmuhat=fmuhat(j)
+            keyeos = keosn(j)
+            jzone = j
+
+c     The following is to calculate (drho/dye) (p,s)=constant so that
+c     we can calculate lepton driven convection
+
+            if (keyjoe .eq. 12 .or. keyjoe .eq. 13) then
+               xmue=fmue(j)
+               xmunu=fmunu(j)
+               xmuhat=fmuhat(j)
+               keyeos = keosn(j)
+               jzone = j
+
+c     This is arbitrary
+               delye = 0.01
+            
+               call state 
+     +              (ro, ea(j), t, p1, s1, snd,
+     +              tr, te, pr1, pe, sr1, se,
+     +              ahv(1), z, ye(j) + delye, ynu(1), 
+     +              xn, xp, xal, xhv,
+     +              1)
+c     To get the following expression for (dyedro) p,s = constant
+c     expand out dro.  
+               drodye1  = (-(p1-p)/pr - (s1-s0)/sr)/delye
+            endif
+
+c     Calculate eddy viscoous
+            pnu = -2d0 * znut(j) * (gradvro - divvro)
+            geff = grav * fmass(j) / r2
+            zmixl = abs(pa(j)/ro/geff)
+
+c     Calculate turbulent pressure
+            pturb = 2d0 / 3d0 * eturba(j)
+
+c ***********************************
+c Calculate thermodynamic variables
+c The equation of state gives
+c    (dx/dro) e is constant and (dx/de) ro is constant
+c We need to derive the quantities where pressure is constant.
+c 
+c To do calculate (ds/dt) p=const, 
+c    expand ds, dt, and dp in terms of partial derivatives with respect to
+c    de and dro.  Then set dp = 0, and calculate de with respect to dro
+c    substitute in the equations for ds and dt.
+c
+c It took me several hours to figure out how to do this.
+c ***********************************
+
+c     Calculate (ds /dt) p = const
+            dsdt = (sr - se / pe * pr) / (tr - te / pe * pr)
+
+c     Calculate (drho / dt) p = const
+            drhodt = 1 / ( tr - te / pe * pr )
+
+c     Calculate turbulent function
+c     zvisbase is intended to simulate the non-turbulent viscosity of the
+c     system.  This is necessary to cause the system to trigger turbulence
+c     since zero is an unstable fixed point.
+            zhflux = drhodt / ro /ro / dsdt * ds /dr
+
+c     Add in ye-driven convection
+            if (keyjoe .eq. 12 .or. keyjoe .eq. 13) then
+               zhflux = zhflux + drodye1 * dye / dr /ro /ro
+            endif
+
+            zsturb = -zalc * (znut(j) +zvisbase ) 
+     +           * ( zhflux * dp /dr)
+
+
+c     Lower bound zsturb if keyjoe .eq. 11
+            if ((keyjoe .eq. 11 .or. keyjoe .eq. 13)
+     +           .and. zsturb .lt. 0d0) then
+               zsturb = 0d0
+            endif
+
+c     Calculate turbulent coupling
+            turbcp = zcd * eturba(j) * sqrt(eturba(j)) / 
+     +           zmixl - zsturb 
+
+c     Calculate divfturb
+            divfturb = (raj2 * fluxturb(j) -
+     +           rai2 * fluxturb(i)) /drjr2ro 
+
+c     Calculate time derivative
+            detdt = - pnu * gradvro - pturb * divvro - turbcp 
+     +           + divfturb 
+
+c     Damp mixing near sound speed
+            detdt = detdt / 
+     +           (1d0 + zald * ro * (sqrt(2d0 *eturba(j)) / snd) ** 5d0)
+
+c     Calculate convective mixing time scale
+            if (znut(j) .gt. 0d0) then
+               tconv1 = drji * drji / znut(j) / zalt
+            else
+               tconv1 = 0d0
+            endif
+            tconv(j) = tconv1
+
+ 950        format(
+     +           i4, 1pe9.2,e9.2,e9.2,e9.2,e9.2,e9.2,e9.2,
+     +           e9.2,e9.2,e9.2)
+            if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+               print 950, j, detdt, zsturb, znut(j), eturba(j), 
+     +              ds/dr, dp/dr, cp, divfturb, tconv1
+            endif
+c     Calculate composition changes
+            
+c     Figure the change in electron density
+c     The fluxes are gradients calculated at the points
+c     The result is good for the shell
+
+            if (keyyecv .ne.0) then
+               yeconv(j) = (raj2*fluxye(j) - 
+     +              rai2 * fluxye(i))/drjr2ro
+            endif
+            if (keynuad .ne. 0) then
+               do j1=1,ngmax
+                  do j2=1,numax
+                     yconv(j,j1,j2) = (raj2 * fluxy(j,j1,j2) -
+     +                    rai2 * fluxy(i,j1,j2)) / drjr2ro
+                  enddo
+               enddo
+            endif
+            econv(j) =  (raj2 * fluxts(j) - rai2 * fluxts(i)) 
+     +           / drjr2ro
+
+c     Figure the changes in energy
+            eturbb(j) = eturba(j) + detdt * dtb
+c     Prevents underflows
+            if (eturbb(j) .lt. 1d-40) then
+               eturbb(j) = 0d0
+            endif
+c            econv(j) = econv(j) - (eturbb(j) - eturba(j))/dtb
+         enddo
+      else
+
+c **************************************************
+c Use Sutherland and Wheeler convection
+c keyjoe = 7, 8, 9
+c **************************************************
+
+
+         do j=3,jmax1
+c Check for Ledoux convection
+            k = j+1
+            i = j-1
+
+c     Zero out time scales
+            tinvledoux = 0d0
+            tinvsalt = 0d0
+
+            dlnro=log(roa(k)/roa(j))
+            dlnp = log(pa(k)/pa(j))
+            dlnt = log(ta(k)/ta(j))
+            dlns = log(s(k)/s(j))
+            dr=ra(k)-ra(j)
+
+            geff = grav * fmass(j) / (ra(j)* ra(j))
+
+            if (zjoecons .gt. 0d0) then
+               sledoux=dlns/dr
+               
+               if (sledoux .gt. 0d0) then 
+c     Calculate the convective time scale using the Brunt-Vasala time scale
+                  tinvledoux = sqrt(sledoux * geff ) / zjoecons
+               endif
+            endif
+
+c     Check for salt finger convection
+c     Criterion modified from 
+c     Wilson and Mayle,Physics Reports, 227 (1993) 97-111
+c     This is equation 27
+
+c     Since the code doesn't directly give us drho/dye * dye/dr, we fudge
+c     and calcuate the value by taking the total derivative of drho/dye 
+c     and subtracting partial derivatives from it
+
+            if (zsalt .gt. 0d0) then
+c     Call equation of state to get derivatives
+               xmue=fmue(j)
+               xmunu=fmunu(j)
+
+               xmuhat=fmuhat(j)
+               keyeos = keosn(j)
+               jzone = j
+            
+               call state 
+     +              (roa(j), ea(j), t, p, s(1), snd,
+     +              tr1, te, pr1, pe, sr, se,
+     +              ahv(1), z, ye(j), ynu(1), 
+     +              xn, xp, xal, xhv,
+     +              1)
+
+               xmue=fmue(k)
+               xmunu=fmunu(k)
+               xmuhat=fmuhat(k)
+               keyeos = keosn(k)
+               jzone = k
+
+               call state 
+     +              (roa(k), ea(k), ta(1), pa(1), s(1), snd,
+     +              tr2, te, pr2, pe, sr, se,
+     +              ahv(1), z(1), ye(k), ynu(k), 
+     +              xn, xp, xal, xhv,
+     +              1)
+
+               tr = (tr1+tr2)/2d0
+               pr = (pr1+pr2)/2d0
+
+               ssalt = (roa(k) - roa(j))/dr - (pa(k) - pa(j))/dr/pr -
+     +              (ta(k) - ta(j))/dr/tr
+
+               if (ssalt .gt. 0d0) then
+
+c     Calculate neutrino density
+                  ronu = 0d0
+                  do j1=1,ngmaxm
+                     ronu = ronu + ya(j,j1,nutype) * enu(j1) * emev
+                  enddo
+                  ronu = ronu / clite2
+
+c     Calculate isobaric compressibility
+                  chi = - (ta(j)+ta(k))/(roa(j)+roa(k))/tr
+c     Calculate inverse salt finger mixing time
+                  stime = geff / chi * roa(j) / ronu * dr / dlnt 
+                  if (stime .gt. 0d0) then
+                     tinvsalt = ssalt/roa(j) * sqrt(stime) / zsalt 
+                     if (keyjout .gt. 0 .and. 
+     +                    mod(ntime,keyjout) .eq. 0) then
+                        print *, j, tinvsalt,chi,roa(j)/ronu,
+     +                       dr/dlnt,ssalt
+                     endif
+                  else
+                     tinvsalt = 0d0
+                  endif
+               endif
+            endif
+
+c     Combine mixing times
+            tinvconv = tinvledoux + tinvsalt
+            if (tinvconv .ne. 0d0) then
+               tconv(j) = 1d0 / tinvconv
+            endif
+         enddo
+
+
+c ********************
+c Courant limiter
+c ********************
+
+         if (zjclim .ne. 0.0) then
+            do j=3,jmax1
+c     Calculate sound speed
+               sound = sqrt(gama(j)*pa(j)/roa(j))
+c     Calculate courant time
+               courant = (ra(j+1) - ra(j)) / sound
+c     Limit mixing time scale to fraction of courant time
+               if (tconv(j) .gt. 0d0 .and. 
+     +              tconv(j) .lt. zjclim * courant) then
+                  tconv(j) = zjclim * courant
+c Start printout of courant time
+                  if (keyjout .gt. 0 .and. 
+     +                 mod(ntime,keyjout) .eq. 0) then
+                     print 908, j, sound, courant, zjclim * courant
+                  endif
+                  if (tconv(j) .lt. zjclim * courant) then
+                     tconv(j) = zjclim * courant
+                  endif
+
+               endif
+            enddo
+         endif
+
+
+c     ********************
+c     Semiconvection routine
+c     ********************
+         if (zoverma .gt. 0d0 .and. zoverti .gt. 0d0) then
+
+c     Find inner boundary for mixing regions
+
+            jmixin = 0
+            do j=3,jmax1
+               if (tconv(j) .gt. 0d0 .and. 
+     +              tconv(j+1) .gt. 0d0 .and. tconv(j+2) .gt. 0d0) then
+                  jmixin = j
+c     Break out of loop
+                  goto 30
+               endif
+            enddo
+ 30         continue
+
+            if (jmixin .gt. 0) then
+
+c     Calculate mass averaged convection time
+c     If keyjoe is equal to eight
+               if (keyjoe .eq. 8) then
+                  zmass = 0d0
+                  zmasst = 0d0
+                  do j=jmixin, jmax1
+                     if (tconv(j).gt. 0d0) then
+                        zmass = zmass + dmp(j)
+                        zmasst = zmasst + dmp(j) * tconv(j)
+                     else
+                        goto 35
+                     endif
+                  enddo
+ 35               continue
+                  tconav = zmasst / zmass
+               endif
+
+c    Calculate harmonic mean if keyjoe is equal to nine
+               if (keyjoe .eq. 9) then
+                  zmass = 0d0
+                  zmasst = 0d0
+                  do j=jmixin, jmax1
+                     if (tconv(j).gt. 0d0) then
+                        zmass = zmass + dmp(j)
+                        zmasst = zmasst + dmp(j) / tconv(j)
+                     else
+                        goto 36
+                     endif
+                  enddo
+ 36               continue
+                  tconav =  zmass / zmasst
+               endif
+
+               zmixloc = zoverma
+               toutcon = tconv(jmixin)
+               j = jmixin
+
+ 40            continue
+               if (keyjoe .eq. 8 .or. keyjoe .eq. 9) then
+                  tconv(j) = tconav * zoverti
+               else
+                  tconv(j) = zoverti
+               endif
+               zmixloc = zmixloc - dmk(j) / solmas
+               j = j-1
+               if (zmixloc .gt. 0d0 .and. j .gt. 2) goto 40
+            endif
+         endif
+
+         do j=3,jmax1
+            if (tconv(j) .gt. 0d0) then
+               k = j+1
+               i = j-1
+c     Calculate the convective acceleration
+               dri = ra(j) - ra(i)
+               dri1 = ra(k) - ra(j)
+               dvi = vela(j) - vela(i)
+               dvi1 = vela(k) - vela(j)
+
+               znut(j) = dri * dri / tconv(j)
+               znutp = znut(j) / dri * roa(j)
+              
+               fluxturb(j) = znutp * (eturba(k) - eturba(j)) 
+               fluxye(j) = znutp * (ye(k) - ye(j)) 
+               fluxts(j) = znutp * (ea(k) - ea(j)) 
+             
+               accel = - (roa(j) * dri + roa(k) * dri1) / tconv(j) *
+     +              (dvi / roa(j) / dri - dvi1 / roa(k) / dri1)
+
+c     Figure the total acceleration due to convection
+               aconv(i) = aconv(i) - 0.5d0 * dmk(j)/dmk(i) * accel
+               aconv(j) = aconv(j) + accel
+               aconv(k) = aconv(k) - 0.5d0 * dmk(j)/dmk(k) * accel
+
+c     Calculate mass fractions
+               fracj = (dmk(k) / (dmk(k) + dmk(j))) / tconv(j)
+               frack = (dmk(j) / dmk(k)) * fracj
+            
+
+c     Figure and add the specific energy
+               econv(j) = econv(j) + (ea(k) - ea(j)) * fracj
+               econv(k) = econv(k) - (ea(k) - ea(j)) * frack
+               if (keyyecv .ne. 0) then
+c     Figure the change in electron density
+                  yeconv(j) = yeconv(j) + (ye(k) - ye(j)) * fracj
+                  yeconv(k) = yeconv(k) - (ye(k) - ye(j)) * frack
+               endif
+
+               if (keynuad .ne. 0) then
+                  do j1=1,ngmax
+                     yconv(j, j1, nutype) = yconv(j,j1, nutype) + 
+     +                    (ya(k,j1, nutype) - ya(j,j1, nutype)) * fracj
+                     yconv(k, j1, nutype) = yconv(k,j1,nutype) - 
+     +                    (ya(k,j1, nutype) - ya(j,j1,nutype)) * frack
+                  enddo
+                  do j1 = 1, ngmax
+                     do j2 = 1,numax
+                        fluxy(j, j1, j2) = 
+     +                       znutp * (ya(k,j1,j2) - ya(j, j1, j2))
+                     enddo
+                  enddo
+
+               endif
+            endif
+         enddo
+c     End Sutherland and Wheeler
+      endif 
+
+
+c More of the convective printout
+      if (keyjout .gt. 0 .and. mod(ntime,keyjout) .eq. 0) then
+         print 910
+      endif
+
+ 900  format('  Convective mixing   ntime=',i6,'   time=',e13.6,
+     +     '   dtb=',e13.6)
+ 905  format('   j',4x,'sound',8x,'courant',8x,'courant*zjclim')
+ 908  format(i4,1pe9.2,e9.2,e9.2)
+ 910  format('   j',4x,'aconv',8x,'econv',8x, 'eturb',4x,'tconv'
+     &     , 4x, 'pconv', 4x, 'roconv')
+ 920  format(i4,1pe9.2,e9.2,e9.2,e9.2, e9.2, e9.2)
+
+      do j=2,jmax1+1
+         if (keyjout .gt.0 .and. mod(ntime,keyjout) .eq. 0
+     +        .and. (econv(j) .ne. 0d0 .or. eturbb(j) .ne. 0d0)) then
+            print 920,j,aconv(j),econv(j),eturbb(j), tconv(j), 
+     &           pconv(j), roconv(j)
+         endif
+      enddo
+      return
+      end      
+
+      subroutine swapstream(a, b)
+*call implic
+      tmp = a
+      a = -b
+      b = -tmp
+      end
+
+
+      subroutine avgstream(a, b)
+*call implic
+      tmp = abs(a+b)
+      a = tmp/2d0
+      b = tmp/2d0
+      end

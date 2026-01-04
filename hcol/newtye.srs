@@ -1,0 +1,49 @@
+*deck newtye
+      subroutine  newtye (x,kinus,ye0,ce,fmuhat)
+*call implic
+      parameter  (shlish=1d0/3d0,tsh=-2d0/3d0)
+c
+      save  a
+c
+      data  rel,eps  / 0.20d0 , 1.0d-6 /
+      data  ntry     / 0 /
+c---------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     a=2d0**shlish
+                     endif
+c---------------------------------
+      x0=x
+c     x=ye
+      if(x.eq.ye0)  x=0.99d0*ye0
+      do 100  it=1,99
+      ye0mx=ye0-x
+      if(ye0mx.gt.0d0)  then
+      xsh=x**shlish
+      yexsh=ye0mx**shlish
+      f=ce*(xsh-a*yexsh)-fmuhat
+      df=shlish*ce*(1d0/xsh**2+a/yexsh**2)
+                        else
+                        xsh=x**shlish
+                        f=ce*xsh-fmuhat
+                        df=shlish*ce/xsh**2
+                        endif
+      dx=-f/df
+      r=abs(dx/x)
+      if(r.lt.rel) go to 10
+      dx=rel*x*sign(1.0d0 , dx)
+10    continue
+      x=x+dx
+      if(r.lt.eps) go to 110
+      x=max(min(x,ye0),eps)
+100   continue
+      print 900,x0,ye0,fmuhat,ce
+     $,x,f,df
+900   format(' no convergence in newtye x0=',f8.4,' ye0=',f8.4
+     $,' muhat=',f8.3,' ce=',1pe10.2,/,' last iteration x f df ='
+     $,1p3e12.3)
+      kinus=0
+      return
+110   kinus=1
+      return
+      end

@@ -1,0 +1,214 @@
+*deck nesan
+      subroutine  nesan(w,wp,tm,fmue,a0out,a1out,type)
+      implicit none
+*call const
+
+c
+c     ************************************************************
+c     *                        units                             *
+c     *                                                          *
+c     *        enu,enup..................        Mev             *
+c     *        tm,fmue...................        Mev             *
+c     *        a0out,a1out...............        cm-1*Mev-3      *
+c     *                                                          *
+c     ************************************************************
+      real*8, intent(in) :: w, wp, tm, fmue
+      integer, intent(in) :: type
+      real*8, intent(out) :: a0out, a1out
+
+c     type=1 nuel-el scat
+c     type=2 nuelbar-el scat
+c     type=3 (nu+nubar)(mue or tau)-el scat (averaged between nu and nubar)
+c       constsc=2d0*pai/clite/(planck*clite/emev)**3    !!! sec/cm4/Mev3
+
+      real*8, parameter ::ca=0.5d0,cv=0.5d0+2.d0*sthw2	
+      real*8, parameter :: ali(3) = 
+     &     (/(ca+cv)**2, (ca-cv)**2, ((ca-1)**2 + (cv-1)**2)/) 
+      real*8, parameter :: alii(3) =
+     &     (/(ca-cv)**2, (ca+cv)**2, ((ca-1)**2 + (cv-1)**2)/) 
+      real*8, parameter :: constsc = 0.5d0/(clite*facdis)
+      dimension fk11(8),fk12(8),fk21(8),fk22(8)
+      real*8, parameter ::
+     &     f415=4d0/15d0,f43=4d0/3d0,f83=8d0/3d0,f1635=16d0/35d0
+      real*8, parameter ::
+     &     f45=4d0/5d0,f215=2d0/15d0,f23=2d0/3d0
+c
+      real*8, parameter :: cg2=1.55d-33 !!! cm3/Mev2*sec
+
+      real*8 :: fk11, fk12, fk21, fk22, fmuep, w2, wp2
+      real*8 :: wmwp, wmwp2, wwp, wwp2, x, ftm
+      real*8 :: ft0wp, ft1wp, ft2wp
+      real*8 :: ftt0xwp, ftt1xwp, ftt2xwp
+      real*8 :: ftt3xwp, ftt4xwp, ftt5xwp, ftt6xwp, ftt7xwp
+      real*8 :: fmuetm, arg, wfmuetm, wtok
+      real*8 :: a0i, b0i, c0i, a1i, b1i, c1i
+      real*8 :: a0ii, b0ii, c0ii, a1ii, b1ii, c1ii
+      real*8 :: fgam0i, fgam1i, fgam0ii, fgam1ii
+      real*8 :: ho0i, fl0i, ho0ii, fl0ii
+      real*8 :: ho1i, ho1ii, fo0, fo1, ex, exm1, onemx
+      integer*4 :: kweqwp
+
+c-----------------------------------------------------------------
+      if(type.le.0 .or. type.ge.4)  then
+               print *,' wrong type ',type,' in nesen'
+               stop 'wrong type in nesan'
+                                    endif
+        if(abs(w-wp).lt.1d-6) then
+                              kweqwp=1
+                              else
+                              kweqwp=0
+                              endif
+        fmuep=fmue+wp-w
+c
+        w2=w*w
+        wp2=wp*wp
+        wmwp=w-wp
+        wmwp2=wmwp*wmwp
+        wwp=w*wp
+        wwp2=wwp*wwp
+c
+        x=max(0.d0,wp-w)
+        if(kweqwp.eq.0) then
+        call findfk(fmue/tm,x/tm,fk11)
+        call findfk(fmue/tm,wp/tm,fk12)
+        call findfk(fmuep/tm,x/tm,fk21)
+        call findfk(fmuep/tm,wp/tm,fk22)
+c
+        ftm=tm
+        ft0wp=ftm*(fk12(1)-fk22(1))
+        ftm=ftm*tm
+        ft1wp=ftm*(fk12(2)-fk22(2))
+        ftm=ftm*tm
+        ft2wp=ftm*(fk12(3)-fk22(3))
+c
+        ftm=tm
+        ftt0xwp=ftm*((fk11(1)-fk21(1))-(fk12(1)-fk22(1)))
+        ftm=ftm*tm
+        ftt1xwp=ftm*((fk11(2)-fk21(2))-(fk12(2)-fk22(2)))
+        ftm=ftm*tm
+        ftt2xwp=ftm*((fk11(3)-fk21(3))-(fk12(3)-fk22(3)))
+        ftm=ftm*tm
+        ftt3xwp=ftm*((fk11(4)-fk21(4))-(fk12(4)-fk22(4)))
+        ftm=ftm*tm
+        ftt4xwp=ftm*((fk11(5)-fk21(5))-(fk12(5)-fk22(5)))
+        ftm=ftm*tm
+        ftt5xwp=ftm*((fk11(6)-fk21(6))-(fk12(6)-fk22(6)))
+        ftm=ftm*tm
+        ftt6xwp=ftm*((fk11(7)-fk21(7))-(fk12(7)-fk22(7)))
+        ftm=ftm*tm
+        ftt7xwp=ftm*((fk11(8)-fk21(8))-(fk12(8)-fk22(8)))
+c
+        else
+c
+        call findfk(fmue/tm,x/tm,fk11)
+        call findfk(fmue/tm,w/tm,fk12)
+        fmuetm=1d0/(1d0+exp(-fmue/tm))
+c       wfmuetm=1d0/(1d0+exp((w-fmue)/tm))
+        arg=(w-fmue)/tm           !!! arg>>1
+        if(arg.ge.(115d0)) then
+                           wfmuetm=0d0
+                           else
+                           wfmuetm=1d0/(1d0+exp(arg))
+                           endif
+c
+        ftm=tm
+        ft0wp=ftm*wfmuetm
+        wtok=w/tm
+        ftm=ftm*tm
+        ft1wp=ftm*(fk12(1)+wtok*wfmuetm)
+        wtok=wtok*w/tm
+        ftm=ftm*tm
+        ft2wp=ftm*(2d0*fk12(2)+wtok*wfmuetm)
+c
+        ftm=tm
+        wtok=1d0
+        ftt0xwp=ftm*(fmuetm-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt1xwp=ftm*(fk11(1)-fk12(1)-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt2xwp=ftm*(2d0*(fk11(2)-fk12(2))-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt3xwp=ftm*(3d0*(fk11(3)-fk12(3))-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt4xwp=ftm*(4d0*(fk11(4)-fk12(4))-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt5xwp=ftm*(5d0*(fk11(5)-fk12(5))-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt6xwp=ftm*(6d0*(fk11(6)-fk12(6))-wtok*wfmuetm)
+        ftm=ftm*tm
+        wtok=wtok*w/tm
+        ftt7xwp=ftm*(7d0*(fk11(7)-fk12(7))-wtok*wfmuetm)
+c
+        end if
+c
+        call fabc01(w,wp,a0i ,b0i ,c0i ,a1i ,b1i ,c1i )
+        call fabc01(wp,w,a0ii,b0ii,c0ii,a1ii,b1ii,c1ii)
+        if(wp.gt.w) then
+              call fgam(  w,wp,ftt0xwp,ftt1xwp,ftt2xwp,fgam0i ,fgam1i )
+              call fgam(-wp,-w,ftt0xwp,ftt1xwp,ftt2xwp,fgam0ii,fgam1ii)
+              end if
+c
+        ho0i=f415*ftt5xwp+f43*ftt4xwp*w+f83*ftt3xwp*w2
+        if(wp.gt.w) ho0i=ho0i+fgam0i
+        fl0i=ho0i
+        ho0i=ho0i+a0i*ft0wp+b0i*ft1wp+c0i*ft2wp
+c
+        ho0ii=f415*ftt5xwp-f43*ftt4xwp*wp+f83*ftt3xwp*wp2
+        if(wp.gt.w) ho0ii=ho0ii+fgam0ii
+        fl0ii=ho0ii
+        ho0ii=ho0ii+a0ii*ft0wp-b0ii*ft1wp+c0ii*ft2wp
+c
+        ho1i=0.5d0*(w2+wp2)*fl0i-f1635*ftt7xwp-f45*(3d0*w-wp)*ftt6xwp
+     1      -f215*(37d0*w2-26d0*wwp+wp2)*ftt5xwp
+     2      -f23*w*wmwp*(7d0*w-wp)*ftt4xwp-f43*w2*wmwp2*ftt3xwp
+        if(wp.gt.w) ho1i=ho1i+fgam1i
+        ho1i=ho1i/wwp
+        ho1i=ho1i+a1i*ft0wp+b1i*ft1wp+c1i*ft2wp
+c
+        ho1ii=0.5d0*(w2+wp2)*fl0ii-f1635*ftt7xwp+f45*(3d0*wp-w)*ftt6xwp
+     1      -f215*(37d0*wp2-26d0*wwp+w2)*ftt5xwp
+     2      -f23*wp*wmwp*(7d0*wp-w)*ftt4xwp-f43*wp2*wmwp2*ftt3xwp
+        if(wp.gt.w) ho1ii=ho1ii+fgam1ii
+        ho1ii=ho1ii/wwp
+        ho1ii=ho1ii+a1ii*ft0wp-b1ii*ft1wp+c1ii*ft2wp
+c
+        fo0=constsc*cg2*(ali(type)*ho0i+alii(type)*ho0ii)
+        fo0=fo0/pai/wwp2
+        fo1=constsc*cg2*(ali(type)*ho1i+alii(type)*ho1ii)
+        fo1=fo1/pai/wwp2
+        if(kweqwp.eq.1) then
+                        a0out=fo0
+                        a1out=fo1
+                        go to 799
+                        end if
+        if(wp.gt.w) then
+        arg=(w-wp)/tm           !!! arg<0
+        if(arg.le.(-115d0)) then
+                            ex=0d0
+                            else
+                            ex=exp(arg)
+                            endif
+        exm1=ex-1.0
+        a0out=fo0*ex/exm1
+        a1out=fo1*ex/exm1
+        else
+        arg=(wp-w)/tm           !!! arg<0
+        if(arg.le.(-115d0)) then
+                            ex=0d0
+                            else
+                            ex=exp(arg)
+                            endif
+        onemx=1.0-ex
+        a0out=fo0/onemx
+        a1out=fo1/onemx
+        end if
+c
+  799 continue
+      return
+      end

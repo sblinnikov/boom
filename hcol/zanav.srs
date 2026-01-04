@@ -1,0 +1,11 @@
+*deck zanav
+      subroutine  zanav (q,f,df)
+*call implic
+      common  /nzan/ n
+      common  /zan/  a,s
+      qn=q**n
+      sa=s/a
+      f=qn*q-(1.d0+sa)*q+sa
+      df=(n+1)*qn-sa
+      return
+      end

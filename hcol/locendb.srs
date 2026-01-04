@@ -1,0 +1,5 @@
+*deck locendb
+      subroutine  locendb(nt)
+*call implic
+      call locend (nt)
+      end

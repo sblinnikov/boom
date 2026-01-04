@@ -1,0 +1,5471 @@
+*deck eoswesty
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       EOS_M4C
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         3/3/92  Model 4C modifications completed
+c                  12/15/90 Modified from model 4A to include the
+c                  phase boundary cutoffs and Maxwell construction
+c                  boundaries.
+c                  7/13/90 Modified from model 1-d to include Maxwell
+c                  construction
+c                  5/25/90  MODEL 1D
+c
+c                  Please report any problems to me at:
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU or
+c                            fswesty@sbast3.sunysb.edu
+c
+c
+c    CALL LINE:    CALL EOS_M4C(INPVAR,YE,BRYDNS,IFLAG,EOSFLG,FFLAG,
+c                  XPREV,P_PREV)
+c
+c    INPUTS:       INPVAR = TEMP, INTERNAL ENG, OR ENTROPY
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c                  IFLAG = 1 --> INPVAR IS TEMPERATURE
+c                          2 --> INPVAR IS INTERNAL ENERGY (NOT IMPLEM)
+c                          3 --> INPVAR IS ENTROPY (NOT IMPLEMENTED)
+c                          (IFLAG=1 is now assumed at this level)
+c                  FFLAG = "FORCING FLAG"  0 --> NO FORCING
+c                                          1 --> FORCE A PARTICULAR
+c                                                SCHEME TO BE USED
+c
+c
+c    OUTPUTS:      EOSFLG = 1 --> Not implemented in model 4B
+c                           2 --> GENERAL EOS
+c                           3 --> BULK EOS (includes alpha's)
+c                  XPREV = PREVIOUS VALUE OF X (MUST BE SUPPLIED ON
+c                          FIRST CALL)
+c                  P_PREV = PREVIOUS VALUE OF PROTON DENSITY (MUST BE
+c                          SUPPLIED ON FIRST CALL)
+c
+c
+c
+c
+c    INCLUDE FILES:  EOS_M4C.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE LAT_SWES (INPVAR,YE,BRYDNS,IFLAG,EOSFLG,FFLAG,SSFLAG,
+     1                   XPREV,P_PREV)
+c
+      IMPLICIT NONE
+c
+      DOUBLE PRECISION OUTVAR(4)
+c
+c
+c                       This include file contains all variable
+c                       declarations.  NOTE:: no implicit typing
+c                       scheme is followed in this code; if you
+c                       have any doubt as to a variables type CHECK
+c                       IT!!!!.  Also note that ALL variables are
+c                       declared explicitly.
+c
+      INCLUDE 'eos_m4c.inc'
+c........................................................
+c      on real underflow ignore
+c........................................................
+c
+c
+c                         Set the "switch" flag to zero
+      SWTFLG = 0
+      RSFLAG=1
+c
+c                         Set T equal to the input variable (the entropy
+c                         and internal energy options should go through
+c                         INVEOS untill further notice)
+      T = INPVAR(1)
+c
+c
+c                         If the "forcing" flag is set then skip
+c                         the EOS determination logic and go straight
+c                         to the EOS determined by EOSFLG
+      IF(FFLAG.EQ.1) THEN
+        GOTO 10
+      ELSE
+c                         Otherwise let the EOS logic module determine
+c                         the correct EOS to use
+        CALL EOSLOG(INPVAR,YE,BRYDNS,EOSFLG)
+      ENDIF
+c
+c
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c                        Try NUCEOS first and if not successfull
+c                        then try bulk EOS
+ 10   CONTINUE
+      IF(EOSFLG.EQ.1) THEN
+c
+        CALL NUCEOS(INPVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+c                    If the nuclear EOS failed and the reset flag is set
+c                    then reset the initial guesses and try again
+        IF((SSFLAG.NE.1).AND.(RSFLAG.EQ.1)) THEN
+          CALL RESET(INPVAR,YE,BRYDNS,OUTVAR)
+          OUTVAR(1) = INPVAR(1)
+          CALL NUCEOS(OUTVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+c
+c                    Make a last ditch effort at convergence
+          IF(SSFLAG.NE.1) THEN
+            OUTVAR(2) = 0.155
+            OUTVAR(3) = -15.0
+            OUTVAR(4) = -20.0
+            CALL NUCEOS(OUTVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+          ENDIF
+c
+        ENDIF
+c
+c
+c
+        IF((XH.GT.HEAVCT).AND.(SSFLAG.EQ.1)) THEN
+c                    Set EOS flag to full scheme
+          EOSFLG = 2
+c
+c                    Else if fraction of nuclei is less than the minimum
+c                    or if NUCEOS was unsuccessful use the no nuclei EOS
+        ELSE
+          IF(FFLAG.NE.1) THEN
+c
+            CALL ALFEOS(INPVAR,YE,BRYDNS,P_PREV,SSFLAG)
+c
+            IF((SSFLAG.NE.1).AND.(FFLAG.EQ.1)) THEN
+              EOSFLG = 1
+              WRITE(*,*) 'A2 failed at try = ',T,BRYDNS,YE
+              GOTO 999
+            ENDIF
+c
+c                    Set nuclei to bulk EOS
+            EOSFLG = 3
+c                    Save value of proton fraction
+            P_PREV = YE*BRYDNS
+c
+            GOTO 999
+c
+          ELSE
+            IF(NF_FLG.EQ.1)
+     1          WRITE(*,*) 'NUC failed at t,rho = ',t,brydns
+            GOTO 999
+          ENDIF
+        ENDIF
+c
+      ENDIF
+c
+c
+c          End of NUCEOS--BULK EOS calculations
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c
+c
+c
+c
+c
+c
+c
+c
+c
+c
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c                            CALCULATE FULL EOS (INCLUDING NUCLEI)
+      IF(EOSFLG.EQ.2) THEN
+c
+c                    Call the nuclear EOS
+        CALL NUCEOS(INPVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+c
+c                    If the nuclear EOS failed and the reset flag is set
+c                    then reset the initial guesses and try again
+        IF((SSFLAG.NE.1).AND.(RSFLAG.EQ.1)) THEN
+cccc          WRITE(*,*) ' EOS_M4C:: r.i.gs.'
+          CALL RESET(INPVAR,YE,BRYDNS,OUTVAR)
+          OUTVAR(1) = INPVAR(1)
+          CALL NUCEOS(OUTVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+c
+c                    Make a last ditch effort at convergence
+          IF(SSFLAG.NE.1) THEN
+            OUTVAR(2) = 0.155
+            OUTVAR(3) = -15.0
+            OUTVAR(4) = -20.0
+            CALL NUCEOS(OUTVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+          ENDIF
+c
+c
+c
+          IF(SSFLAG.NE.1) THEN
+cccc            WRITE(*,*) '     r.i.gs. failure @ try: ',inpvar
+            GOTO 999
+          ELSE
+            INPVAR(2) = OUTVAR(2)
+            INPVAR(3) = OUTVAR(3)
+            INPVAR(4) = OUTVAR(4)
+          ENDIF
+c                    Otherwise quit and return
+        ELSEIF((SSFLAG.NE.1).AND.(FFLAG.EQ.1)) THEN
+          GOTO 999
+        ENDIF
+c
+c
+c
+c
+c                    If fraction of heavies is greater than the minimum
+c                    parameter, then this EOS is OK
+        IF((XH.GT.HEAVCT).AND.(SSFLAG.EQ.1)) THEN
+c                    Set EOS flag to full scheme
+          EOSFLG = 2
+c
+c                    Else if fraction of nuclei is less than the minimum
+c                    or if NUCEOS was unsuccessful use the no nuclei EOS
+        ELSE
+c                    If the forcing flag is not set
+          IF(FFLAG.NE.1) THEN
+c                    Set nuclei to no nuclei EOS
+            EOSFLG = 3
+c                    Set flag to indicate switch is being made
+            SWTFLG = 1
+c
+            WRITE(*,*) ' NUCEOS failed at try =',t,brydns,ye
+            WRITE(*,*) ' where it shouldnt have; Bulk EOS was used'
+            WRITE(*,*) ' IV = ',INPVAR
+            WRITE(*,*) ' '
+c
+c                    Branch to bulk EOS
+            GOTO 50
+c
+c                    Otherwise since forcing flag is set then declare
+c                    a failure and return
+          ELSE
+c                      If the failure message flag is set then announce
+c                      the failure
+            IF(NF_FLG.EQ.1)
+     1          WRITE(*,*) 'NUC failed at t,r = ',t,brydns
+            GOTO 999
+          ENDIF
+        ENDIF
+c
+      ENDIF
+c                              END OF FULL EOS CALULATIONS
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c
+c
+c
+c
+c
+c
+c
+c
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c                              CALCULATE BULK EOS
+ 50   CONTINUE
+      IF(EOSFLG.EQ.3) THEN
+c
+        CALL ALFEOS(INPVAR,YE,BRYDNS,P_PREV,SSFLAG)
+c
+        IF((SSFLAG.EQ.0).AND.(FFLAG.EQ.1).AND.(NF_FLG.EQ.1)) THEN
+          WRITE(*,*) 'A1 failed at t,rho = ',t,brydns
+          GOTO 999
+        ENDIF
+c                           If this EOS was used as a result of the
+c                           nuclear EOS failing then set the
+c                           success flag to indicate a warning
+        IF(SWTFLG.EQ.1) THEN
+          SSFLAG = 2
+        ENDIF
+c
+c                           Save the value of the proton fraction
+        P_PREV = YE*BRYDNS
+c
+        GOTO 999
+c
+      ENDIF
+c                END OF BULK EOS CALCULATIONS
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c
+c
+c
+c
+c
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c                              CALCULATE VIA MAXWELL CONSTRUCTION
+      IF(EOSFLG.EQ.4) THEN
+c
+        CALL MAXWEL(INPVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+c                 Save the value of the proton fraction
+        P_PREV = YE*BRYDNS
+c
+c                 If Maxwell EOS failed then announce the failure
+        IF(SSFLAG.NE.1) THEN
+          WRITE(*,*) ' MAXWEL failed at try = '
+          WRITE(*,*) T,BRYDNS,YE
+        ENDIF
+c
+          GOTO 999
+c
+      ENDIF
+c                END OF MAXWELL CONSTRUCTION CALCULATIONS
+c-----------------------------------------------------------------------
+c-----------------------------------------------------------------------
+c
+c
+c
+ 999  RETURN
+c
+      END
+c
+cnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnu
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         NUCEOS.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       NUCEOS
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         7/13/90 Modified from model 1-d
+c
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU or
+c                            fswesty@sbast3.sunysb.edu
+c
+c    CALL LINE:    CALL NUCEOS(INPVAR,YE,BRYDNS,X_PREV,SSFLAG)
+c
+c    INPUTS:       INPVAR = TEMP, INTERNAL ENG, OR ENTROPY
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c    OUTPUTS:      XPREV = PREVIOUS VALUE OF X (MUST BE SUPPLIED ON
+c                  FIRST CALL)
+c                  SSFLAG = SUCCESS FLAG 0 --> FAILURE
+c                                        1 --> SUCCESS
+c
+c
+c
+c    INCLUDE FILES:  EOS_M4C.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE NUCEOS(INPVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+      IMPLICIT NONE
+c
+c
+      INCLUDE 'eos_m4c.inc'
+      INCLUDE 'el_eos.inc'
+c
+c
+c                       Function type declarations
+c
+      DOUBLE PRECISION F_1_2, F_3_2, FINV12, FHALFI, FHALFO
+      double precision fhalf
+c
+      DOUBLE PRECISION ZNG, ZPG
+      INTEGER TCFLAG, ftflag
+c
+      INTEGER KKI,LLI
+      DOUBLE PRECISION RESULT(5), R_CHECK(5)
+      double precision a_tmp(5,5)
+      DOUBLE PRECISION NI_MIN
+c
+      integer cflag, schflg
+      double precision dtst1, dtst2
+      double precision break, dnsi, dtmp8
+      double precision dtmp1,dtmp2,dtmp3,dtmp4,dtmp5,dtmp6,dtmp7
+cc      double precision tbsph, tbph, tbnh, tbspl, tbpl, tbnl
+cc      double precision dbspdx, dbpdx, dbndx, dbspdu, dbpdu, dbndu
+cc      double precision tsgl, tsgh, thl, thh, dsgdx, dhfdx, ds2dx,dzdx
+cc      double precision dpt1dx, dpt2dx
+c
+      INCLUDE 'force.inc'
+c.........................................................
+c      on real underflow ignore
+c.........................................................
+c
+c                         Set the scheme flag to zero
+      SCHFLG = 0
+c
+c
+ 5    CONTINUE
+c
+c
+c
+c
+c                         Set T equal to the input variable (the entropy
+c                         and internal energy options are not implemented
+c                         in this version)
+      T = INPVAR(1)
+      NSUBI = INPVAR(2)
+      ETA_PO = INPVAR(3)
+      ETA_NO = INPVAR(4)
+c
+c
+c                         Calc the quantum concentration of nucleons
+      NQ = 2.36D-4*T**1.5
+c
+c                         Calc the Fermi integral coefficent
+      UQ = 20.721
+c
+      MQ = (T/UQ)**1.5
+c
+      KQ = ((T/UQ)**2.5)/(2.0*PI**2)
+c
+      LQ = UQ*(MQ**OVR53)/(3.0*(PI**2))
+c
+      ETAMAX = 0.95*FINV12(2.0*(PI**2)*BRYDNS/MQ)
+c
+      IF(ETA_PO.GE.ETAMAX) ETA_PO = ETAMAX-0.1
+      IF(ETA_NO.GE.ETAMAX) ETA_NO = ETAMAX-0.1
+      NI_MIN = DMAX1(4.5D-2,BRYDNS)
+      IF(NSUBI.LT.NI_MIN) NSUBI = NI_MIN+1.0D-3
+c
+      TCFLAG = 0
+c
+      cflag = 0
+c
+      NEWFLG = 1
+c
+c                    Start Newton-Raphson iteration here
+c
+c
+      DO 30 I=1,MAXIT,1
+c
+        IT_NUM = I
+c                       Set the "Negative" flag
+        NGFLAG = 0
+c
+c
+c
+        NNOUT = MQ*F_1_2(ETA_NO)/(2.0*PI**2)
+        NPOUT = MQ*F_1_2(ETA_PO)/(2.0*PI**2)
+c
+        NOUT = NPOUT+NNOUT
+c
+c20        VNOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD)
+        VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c
+c20        VPOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NNOUT+
+c20     1    CC*(1.0+DD)*NOUT**DD+DELTAM)
+        VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+        F32_NO = F_3_2(ETA_NO)
+c
+        F32_PO = F_3_2(ETA_PO)
+c
+c20        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*(
+c20     1    AA*(NOUT**2)+4.0*BB*NPOUT*NNOUT+DD*CC*(NOUT**(1.0+DD)) )
+        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*PV_PR(NPOUT,NNOUT)
+c
+        MUN_O = T*ETA_NO+VNOUT
+c
+        MUP_O = T*ETA_PO+VPOUT
+c
+        MUALFA = 2.0*MUN_O+2.0*MUP_O+BALPHA-BPROUT*V_ALFA
+c
+        IF(ABS(MUALFA/T).LT.30.0) THEN
+          ALFDNS = 8.0*NQ*DEXP(MUALFA/T)
+        ELSEIF((MUALFA/T).LT.-30.0) THEN
+          ALFDNS = 0.0
+        ELSE
+          ALFDNS = 8.0*NQ*DEXP(3.0D1)
+        ENDIF
+c
+c
+c                   These statements take out the alfas if the
+c                   alpha particle enable flag is not set
+        IF(ALFLAG.NE.1) THEN
+          ALFDNS = 0.0
+          MUALFA = -300.0
+        ENDIF
+c
+c
+c
+        EXALFA = 1.0-ALFDNS*V_ALFA
+c
+c
+        BPRALF = ALFDNS*T
+c
+c---------------------------------------------------
+c
+c
+c             Calculate fraction of space occupied by nuclei
+        U_NUC = (BRYDNS-EXALFA*NOUT-4.0*ALFDNS)/
+     1        (NSUBI-EXALFA*NOUT-4.0*ALFDNS)
+c
+c
+c            Is volume occupied by nuclei within acceptable limits?
+cc        IF((U_NUC.LT.0.0).OR.((U_NUC-1.0).GT.-1.0E-20)) THEN
+cc        IF((U_NUC.LT.0.0).OR.(U_NUC.GT.0.996)) THEN
+        IF((U_NUC.LT.1.0d-17).OR.(U_NUC.GT.0.996)) THEN
+          NGFLAG = 1
+          GOTO 29
+        ENDIF
+c
+c
+c            Volume exclusion factor due to nuclei
+        EXCLU = 1.0-U_NUC
+c
+c
+c            If calculated nucleon and alfa densities are larger
+c            than the baryon density then reduce the eta's
+        IF((EXCLU*EXALFA*NOUT+EXCLU*4.0*ALFDNS).GT.BRYDNS) THEN
+          NGFLAG = 1
+          GOTO 29
+        ENDIF
+c
+c
+c            Calculate the internal (inside nuclei) proton fraction
+c
+        X = (BRYDNS*YE-(1.0-U_NUC)*(EXALFA*NPOUT+2.0*ALFDNS))/
+     1    (U_NUC*NSUBI)
+        COMPX = 1.0-X
+c
+c
+c            Is X within reasonable (but not necessarily correct)
+c            limits? (YE may not be the lower bound on X !!!)
+cccc        X_MIN = DMAX1(1.0D-2,(YE-0.05))
+        X_MIN = DMAX1(1.0D-2,(0.8*YE))
+cc        x_min = 0.95*ye
+        IF((X.LT.X_MIN).OR.(X.GT.0.6)) THEN
+          NGFLAG = 1
+          GOTO 29
+        ENDIF
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c                     Calculate critical temperature & its X derivative
+        TSC_12 = 87.76*((COMP/375.0)**0.5)*((0.155/NSUBS)**OVR3)
+c
+cccdebug      tsc_12 = 1.0d8
+c
+        TSUBC = TSC_12*X*COMPX
+        DTCDX = TSC_12*(1.0-2.0*X)
+        DTCDXX = -2.0*TSC_12
+        H = 1.0-2.0*(T/TSUBC)**2+(T/TSUBC)**4
+c
+cc        tsubc = tsc_12*0.25
+cc        dtcdx = 0.0
+cc        dtcdxx = 0.0
+c
+c
+cC        TSUBC = 80.0*X*COMPX
+cC        DTCDX = 80.0*(1.0-2.0*X)
+cC        DTCDXX = -160.0
+c
+c                     If the X is such that T is greater than the
+c                     critical temperature then fix NSUBI so that
+c                     it lies in the bounds of acceptable parameter
+c                     space
+        ftflag = 0
+        IF(((T.GT.TSUBC).OR.(H.LE.0.0)).AND.(SCHFLG.EQ.0)) THEN
+c                       If this is an initial guess, then lower
+c                       NSUBI untill we get a good X
+          IF(NEWFLG.EQ.1) THEN
+cc        write(*,*) ' nuc exceeded Tc'
+cc        write(*,1205) i,nsubi,eta_no,eta_po,x,u_nuc
+            ZNG = 2.0*(PI**2)*BRYDNS*(1.0-0.1*YE)/(1.5*MQ)
+            ZPG = 2.0*(PI**2)*BRYDNS*0.1*YE/(1.5*MQ)
+            IF(TCFLAG.NE.1) THEN
+              TCFLAG = 1
+              ETA_PO = FINV12(ZPG)-0.0
+              ETA_NO = FINV12(ZNG)-0.0
+            ELSE
+              ETA_PO = ETA_PO-2.0/T
+              ETA_NO = ETA_NO-2.0/T
+              NSUBI = DMAX1(0.9*NSUBI,5.1D-2)
+            ENDIF
+            IF(DBFLAG.EQ.1) THEN
+              WRITE(*,2000) '1',i,NSUBI,ETA_PO,ETA_NO,DNSUBI
+            ENDIF
+            GOTO 30
+          ELSE
+c                       Otherwise go back and cut the stepsize in
+c                       half since it was obviously too big
+            NGFLAG = 1
+            GOTO 29
+          ENDIF
+        ELSEIF(((T.GT.TSUBC).OR.(H.LE.0.0)).AND.(SCHFLG.EQ.1)) THEN
+          ftflag = 1
+          tsubc = 80.0*(0.25+0.5*ye)*(0.75-0.25*ye)
+c
+        ENDIF
+c
+c
+        R_0 = (0.75/(PI*NSUBS))**OVR3
+        Q = (384.0*PI*(R_0**2)*SIG_S/SYM_S)-16.0
+c
+c                        Calculate surface functions of the internal
+c                        (nuclear) proton fraction, X
+        SIGMA = 1.0/(Q+1.0/(X**3)+1.0/(COMPX**3))
+        OVRX4 = (1.0/X**4)-(1.0/COMPX**4)
+        DSIGDX = 3.0*(SIGMA**2)*OVRX4
+        SIGSGP = DSIGDX/SIGMA
+        SIGSG2 = 18.0*(SIGMA**2)*OVRX4**2-12.0*SIGMA*((1.0/X**5)+
+     1  (1.0/COMPX**5))
+c
+c                        If T is less than critical temp then
+        IF(T.LT.TSUBC) THEN
+c                        Calculate the surface energy temperature factor
+c                        and its X and T derivatives
+          H = 1.0-2.0*(T/TSUBC)**2+(T/TSUBC)**4
+          HPRIM = -4.0*T/(TSUBC**2)+4.0*((T/TSUBC)**3)/TSUBC
+          HPPRIM = -4.0/(TSUBC**2)+12.0*(T**2)/(TSUBC**4)
+          DHDX = 4.0*(T**2/TSUBC**3-T**4/TSUBC**5)*DTCDX
+          DHDXX = 4.0*(T**2/TSUBC**3-T**4/TSUBC**5)*DTCDXX+
+     1    4.0*(-3.0*T**2/TSUBC**4+5.0*T**4/TSUBC**6)*(DTCDX**2)
+          HX = DHDX/H
+          DHDTDX = 8.0*(T/TSUBC**3-2.0*(T**3)/TSUBC**5)*DTCDX
+c
+c
+c                        X independent version of TZERO
+c          TZERO = 0.25*TSC_12
+c          DTZDX = 0.0
+c          DTZDXX = 0.0
+c                        X dependent version of TZERO
+c          TZERO = TSUBC
+c          DTZDX = DTCDX
+c          DTZDXX = DTCDXX
+c
+c
+c
+c                        Coulomb liquid correction factors and their
+c                        derivatives
+c          W = 1-(T/TZERO)**2
+c          DWDX = 2.0*(T**2)*DTZDX/(TZERO**3)
+c          DWDT = -2.0*T/(TZERO**2)
+c          DWDTDX = 4.0*T*DTZDX/(TZERO**3)
+c          DWDXDX = 2.0*(T**2)*
+c     1    (DTZDXX/(TZERO**3)-3.0*(DTZDX**2)/(TZERO**4))
+c          DWDTDT = -2.0/(TZERO**2)
+c
+          w = 1.0
+          dwdt = 0.0
+          dwdx = 0.0
+          dwdtdx = 0.0
+          dwdxdx = 0.0
+          dwdtdt = 0.0
+c
+c
+c
+c                        Calc lattice factor & derivatives & products
+c
+          EXCLU = 1.0-U_NUC
+          COMPU = 1.0-U_NUC
+c
+          DU = DMAX1(1.0D-15, (1.0-1.5*W*U_NUC**OVR3+0.5*U_NUC))
+          DMU = DMAX1(1.0D-15,(1.0-1.5*W*(1.0-U_NUC+1.0E-20)**OVR3+
+     1    0.5*(1.0-U_NUC)))
+c
+          DUP = -0.5*W*U_NUC**M2OVR3+0.5
+          DMUP =-0.5*W*(1.0-U_NUC+1.0E-20)**M2OVR3+0.5
+          DUPP = OVR3*W*((U_NUC+1.0D-20)**M5OVR3)
+          DMUPP = OVR3*W*((1.0-U_NUC)+1.0E-20)**M5OVR3
+c
+c                Derivatives w.r.t. T
+c
+          DUT = -1.5*DWDT*U_NUC**OVR3
+          DMUT = -1.5*DWDT*(1.0-U_NUC+1.0E-20)**OVR3
+          DUPT = -0.5*DWDT*U_NUC**M2OVR3
+          DMUPT = -0.5*DWDT*(1.0-U_NUC+1.0E-20)**M2OVR3
+c
+c                Derivatives w.r.t. X
+c
+          DUX = -1.5*DWDX*U_NUC**OVR3
+          DMUX = -1.5*DWDX*(1.0-U_NUC+1.0E-20)**OVR3
+          DUPX = -0.5*DWDX*U_NUC**M2OVR3
+          DMUPX = -0.5*DWDX*(1.0-U_NUC+1.0E-20)**M2OVR3
+c
+c                Second derivatives w.r.t. X
+c
+          DUXX = -1.5*DWDXDX*U_NUC**OVR3
+          DMUXX = -1.5*DWDXDX*(1.0-U_NUC+1.0E-20)**OVR3
+c
+c                Second derivatives w.r.t. T
+c
+          DUTT = -1.5*DWDTDT*U_NUC**OVR3
+          DMUTT = -1.5*DWDTDT*(1.0-U_NUC+1.0E-20)**OVR3
+c
+c                Second derivatives w.r.t. X & T
+c
+          DUXT = -1.5*DWDTDX*U_NUC**OVR3
+          DMUXT = -1.5*DWDTDX*(1.0-U_NUC+1.0E-20)**OVR3
+c
+c
+          TMP1 = (U_NUC**2)+(COMPU**2)+0.6*(U_NUC*COMPU)**2
+          TMP1P = 4.0*U_NUC-2.0+
+     1    2.0*0.6*(U_NUC*COMPU**2-COMPU*U_NUC**2)
+          TMP1PP = 4.0+2.0*0.6*(COMPU**2-4.0*U_NUC*COMPU+U_NUC**2)
+c
+          TMP2 = COMPU*(DU**OVR3)
+          TMP2P = -1.0*DU**OVR3+OVR3*COMPU*(DU**M2OVR3)*DUP
+          TMP2PP = -OVR23*(DU**M2OVR3)*DUP-OVR29*COMPU*
+     1    (DU**M5OVR3)*DUP**2+OVR3*COMPU*(DU**M2OVR3)*DUPP
+c
+          TMP2T = OVR3*COMPU*(DU**M2OVR3)*DUT
+          TMP2X = OVR3*COMPU*(DU**M2OVR3)*DUX
+          TMP2XX = OVR3*COMPU*(DU**M2OVR3)*DUXX+
+     1        M2OVR3*OVR3*COMPU*(DU**M5OVR3)*(DUX**2)
+          TMP2TT = OVR3*COMPU*(DU**M2OVR3)*DUTT+
+     1        M2OVR3*OVR3*COMPU*(DU**M5OVR3)*(DUT**2)
+          TMP2XT = OVR3*COMPU*(DU**M2OVR3)*DUXT+
+     1        M2OVR3*OVR3*COMPU*(DU**M5OVR3)*DUX*DUT
+          TMP2PT = -OVR3*(DU**M2OVR3)*DUT+
+     1        M2OVR3*OVR3*COMPU*(DU**M5OVR3)*DUP*DUT+
+     2        OVR3*COMPU*(DU**M2OVR3)*DUPT
+          TMP2PX = -OVR3*(DU**M2OVR3)*DUX+
+     1        M2OVR3*OVR3*COMPU*(DU**M5OVR3)*DUP*DUX+
+     2        OVR3*COMPU*(DU**M2OVR3)*DUPX
+c
+c
+c
+          TMP3 = U_NUC*(DMU**OVR3)
+          TMP3P = (DMU**OVR3)-OVR3*U_NUC*(DMU**M2OVR3)*DMUP
+          TMP3PP = -OVR23*(DMU**M2OVR3)*DMUP-OVR29*U_NUC*
+     1    (DMU**M5OVR3)*(DMUP**2)+OVR3*U_NUC*(DMU**M2OVR3)*DMUPP
+c
+          TMP3T = OVR3*U_NUC*(DMU**M2OVR3)*DMUT
+          TMP3X = OVR3*U_NUC*(DMU**M2OVR3)*DMUX
+          TMP3XX = OVR3*U_NUC*(DMU**M2OVR3)*DMUXX+
+     1        M2OVR3*OVR3*U_NUC*(DMU**M5OVR3)*(DMUX**2)
+          TMP3TT = OVR3*U_NUC*(DMU**M2OVR3)*DMUTT+
+     1        M2OVR3*OVR3*U_NUC*(DMU**M5OVR3)*(DMUT**2)
+          TMP3XT = OVR3*U_NUC*(DMU**M2OVR3)*DMUXT+
+     1        M2OVR3*OVR3*U_NUC*(DMU**M5OVR3)*DMUX*DMUT
+          TMP3PT = OVR3*(DMU**M2OVR3)*DMUT-OVR3*M2OVR3*U_NUC*
+     1      (DMU**M5OVR3)*DMUP*DMUT-OVR3*U_NUC*(DMU**M2OVR3)*DMUPT
+          TMP3PX = OVR3*(DMU**M2OVR3)*DMUX-OVR3*M2OVR3*U_NUC*
+     1      (DMU**M5OVR3)*DMUP*DMUX-OVR3*U_NUC*(DMU**M2OVR3)*DMUPX
+c
+c
+c                 Combination D function
+c
+          SCRDU = U_NUC*COMPU*(TMP2+TMP3)/TMP1
+          SCRDUT = U_NUC*COMPU*(TMP2T+TMP3T)/TMP1
+          SCRDUX = U_NUC*COMPU*(TMP2X+TMP3X)/TMP1
+          SCRDXX = U_NUC*COMPU*(TMP2XX+TMP3XX)/TMP1
+          SCRDTT = U_NUC*COMPU*(TMP2TT+TMP3TT)/TMP1
+          SCRDXT = U_NUC*COMPU*(TMP2XT+TMP3XT)/TMP1
+c
+          SCRD = SCRDU/U_NUC
+          SCRDT = SCRDUT/U_NUC
+          SCRDX = SCRDUX/U_NUC
+c
+          SCRD2 = SCRDU/COMPU
+          SCRD2T = SCRDUT/COMPU
+          SCRD2X = SCRDUX/COMPU
+c
+          SCRDUP = SCRD-SCRD2+U_NUC*COMPU*
+     1    ((TMP2P+TMP3P)/TMP1-(TMP2+TMP3)*TMP1P/TMP1**2)
+c
+          SCRDPT = SCRDT-SCRD2T+U_NUC*COMPU*
+     1    ((TMP2PT+TMP3PT)/TMP1-(TMP2T+TMP3T)*TMP1P/TMP1**2)
+c
+          SCRDPX = SCRDX-SCRD2X+U_NUC*COMPU*
+     1    ((TMP2PX+TMP3PX)/TMP1-(TMP2X+TMP3X)*TMP1P/TMP1**2)
+c
+          SCRDPP = (SCRDUP-SCRD)/U_NUC-(SCRD2+SCRDUP)/COMPU+
+     1    (1.0-2.0*U_NUC)*
+     2    ((TMP2P+TMP3P)/TMP1-(TMP2+TMP3)*TMP1P/TMP1**2)+U_NUC*COMPU*
+     3    ((TMP2PP+TMP3PP)/TMP1-2.0*(TMP2P+TMP3P)*TMP1P/TMP1**2-
+     4    (TMP2+TMP3)*TMP1PP/TMP1**2+
+     5    2.0*(TMP2+TMP3)*(TMP1P**2)/TMP1**3)
+c
+c
+c
+c           bubble D function
+cbub          scrdu = (1.0-u_nuc)*dmu**ovr3
+cbub          scrd = scrdu/u_nuc
+cbub          scrd2 = dmu**ovr3
+cbub          scrdup = -1.0*dmu**ovr3-
+cbub     1    ovr3*(1.0-u_nuc)*dmup*dmu**m2ovr3
+cbub          scrdpp = ovr23*dmup*dmu**m2ovr3-ovr29*(1.0-u_nuc)*
+cbub     1    dmu**m5ovr3*dmup**2+ovr3*(1.0-u_nuc)*dmu**m2ovr3*dmupp
+c
+c
+c           nuclei D function
+cnuc          scrdu = u_nuc*du**ovr3
+cnuc          scrd = du**ovr3
+cnuc          scrd2 = scrdu/(1.0-u_nuc)
+cnuc          scrdup = du**ovr3+ovr3*u_nuc*dup*du**m2ovr3
+cnuc          scrdpp = ovr23*dup*du**m2ovr3-ovr29*u_nuc*
+cnuc     1    (du**m5ovr3)*(dup**2)+ovr3*u_nuc*(du**m2ovr3)*dupp
+c
+c
+c
+          ZETA_0 = CSSCAL*6.035204*(SIG_S*(16.0+Q))**OVR23
+c
+c                        Surface energy coefficent
+          ZETA = ZETA_0*(H*SIGMA*X*NSUBI)**OVR23
+c
+c                        Derivative of Zeta w.r.t. X
+          DZDT = OVR23*ZETA*HPRIM/H
+c
+c                        Derivative of Zeta w.r.t. X
+          DZDX = OVR23*ZETA*(DHDX/H+SIGSGP+1.0/X)
+c
+c                        Derivative of Zeta w.r.t. NSUBI
+          DZDNI = OVR23*ZETA/NSUBI
+c
+c
+c
+c                        Nuclear radius
+          RSUBN = 9.0*H*SIGMA*SIG_0*U_NUC*(1.0-U_NUC)/
+     1    (2.0*ZETA*SCRDU)
+c
+c                        Nuclear volume
+          VSUBN = 4.0*PI*(RSUBN**3)/3.0
+c
+c                        Atomic number
+          A = NSUBI*VSUBN
+c
+c                        Now calc surface, Coulomb free energies
+c
+          FSUBSC = ZETA*SCRDU/BRYDNS
+          FSUBS = OVR23*ZETA*SCRDU/BRYDNS
+          FSUBC = OVR3*ZETA*SCRDU/BRYDNS
+c
+c
+c
+c                   Translational chemical potential
+          MUSUBT = TRSCAL*
+     1        T*DLOG((1.0-U_NUC)*(U_NUC*NSUBI)/(NQ*AZERO**2.5))
+c
+c                   Derivative of trans. chem. potential w.r.t. T
+          DMUTDT = TRSCAL*(MUSUBT/T-1.5)
+c
+c                   Translational free energy per baryon
+          FTRANS = TRSCAL*H*(MUSUBT-T)/AZERO
+c
+c                            if T is above the critical temperature
+        ELSE
+          A = 0.0
+          RSUBN = 0.0
+          VSUBN = 0.0
+          FSUBS = 0.0
+          FSUBC = 0.0
+          FTRANS = 0.0
+        ENDIF
+c                            Calc ratio of NSUBI to NSUBS
+        NRATIO = NSUBI/NSUBS
+c
+c
+c20        VNI = 2.0*AA*NSUBI+4.0*BB*X*NSUBI+CC*(1.0+DD)*NSUBI**DD
+        VNI = PVN(X*NSUBI,(1.0-X)*NSUBI)
+c
+c20        VPI = 2.0*AA*NSUBI+4.0*BB*(1.0-X)*NSUBI+
+c20     1    CC*(1.0+DD)*NSUBI**DD+DELTAM
+        VPI = PVP(X*NSUBI,(1.0-X)*NSUBI)
+c
+c---------------------------------------------------
+c
+        ZNI = 2.0*(PI**2)*NSUBI*(1.0-X)/MQ
+c
+        ZPI = 2.0*(PI**2)*NSUBI*X/MQ
+c
+        ETA_NI = FINV12(ZNI)
+c
+        ETA_PI = FINV12(ZPI)
+c
+        MUN_I = T*ETA_NI+VNI
+c
+        MUP_I = T*ETA_PI+VPI
+c
+        F32_NI = F_3_2(ETA_NI)
+c
+        F32_PI = F_3_2(ETA_PI)
+c
+c20        PSUBI = LQ*(F32_NI+F32_PI)+
+c20     1    (NSUBI**2)*(AA+4.0*BB*X*(1.0-X))+DD*CC*NSUBI**(1.0+DD)
+        PSUBI = LQ*(F32_NI+F32_PI)+PV_PR(X*NSUBI,(1.0-X)*NSUBI)
+c
+c
+        BN = OVR23*ZETA*SCRD*(SIGSGP+HX+1.5*SCRDUX/SCRDU)*X/NSUBI-
+     1  TRSCAL*(1.0-U_NUC)*(MUSUBT*(H-X*DHDX)/AZERO+X*DHDX*T/AZERO)
+c
+        BP = -OVR23*ZETA*SCRD*
+     1 ((SIGSGP+HX+1.5*SCRDUX/SCRDU)*COMPX+1.0/X)/NSUBI-
+     1 TRSCAL*(1.0-U_NUC)*
+     2 (MUSUBT*(H+DHDX*COMPX)/AZERO-DHDX*T*COMPX/AZERO)
+c
+        BSUBP = ZETA*SCRDUP-OVR23*ZETA*SCRD-
+     1        TRSCAL*U_NUC*NSUBI*H*MUSUBT/AZERO
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+cc        GPI = 2.0*FHALFI(ETA_PI)
+cc        GPI = 2.0*FHALFI(2.0*(pi**2)*x*nsubi/mq)
+cc        GNI = 2.0*FHALFI(ETA_NI)
+cc        GNI = 2.0*FHALFI(2.0*(pi**2)*(1.0-x)*nsubi/mq)
+c
+cc        GPO = 2.0*FHALFO(ETA_PO)
+cc        GNO = 2.0*FHALFO(ETA_NO)
+c
+c
+        GPO = 2.0*FHALF(ETA_PO)
+        GNO = 2.0*FHALF(ETA_NO)
+        GPI = 2.0*FHALF(ETA_PI)
+        GNI = 2.0*FHALF(ETA_NI)
+c
+c                  Derivatives of inside potentials
+c
+c20        DVPIDP = 2.0*AA+DD*(1.0+DD)*CC*(NSUBI**(DD-1.0))
+        DVPIDP = DPVPDP(X*NSUBI,(1.0-X)*NSUBI)
+c20        DVPIDN = 2.0*AA+4.0*BB+DD*(1.0+DD)*CC*(NSUBI**(DD-1.0))
+        DVPIDN = DPVPDN(X*NSUBI,(1.0-X)*NSUBI)
+c20        DVNIDP = DVPIDN
+        DVNIDP = DPVNDP(X*NSUBI,(1.0-X)*NSUBI)
+c20        DVNIDN = DVPIDP
+        DVNIDN = DPVNDN(X*NSUBI,(1.0-X)*NSUBI)
+c
+c                  Derivatives of outside potentials
+c
+c20        DVPODP = EIFLAG*(2.0*AA+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)) )
+        DVPODP = EIFLAG*DPVPDP(NPOUT,NNOUT)
+c20        DVPODN = EIFLAG*(2.0*AA+4.0*BB+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)))
+        DVPODN = EIFLAG*DPVPDN(NPOUT,NNOUT)
+c20        DVNODP = DVPODN
+        DVNODP = EIFLAG*DPVNDP(NPOUT,NNOUT)
+c20        DVNODN = DVPODP
+        DVNODN = EIFLAG*DPVNDN(NPOUT,NNOUT)
+c
+c                  Derivatives of inside K.E. densities
+c
+        MSSCON = 3.0*MASSN/((HBAR*C)**2)
+        DTPIDP = MSSCON*T*GPI
+        DTPIDN = 0.0
+        DTNIDP = 0.0
+        DTNIDN = MSSCON*T*GNI
+c
+c                  Derivatives of outside K.E. densities
+c
+        DTPODP = MSSCON*T*GPO
+        DTPODN = 0.0
+        DTNODP = 0.0
+        DTNODN = MSSCON*T*GNO
+c
+c
+c                  Derivatives of inside chem. potentials
+c
+        DMPIDP = T*GPI/(X*NSUBI)+DVPIDP
+        DMPIDN = DVPIDN
+        DMNIDP = DVNIDP
+        DMNIDN = T*GNI/((1.0-X)*NSUBI)+DVNIDN
+c
+c                  Derivatives of outside chem. potentials
+c
+        DMPODP = T+DVPODP*NPOUT/GPO
+        DMPODN = DVPODN*NNOUT/GNO
+        DMNODP = DVNODP*NPOUT/GPO
+        DMNODN = T+DVNODN*NNOUT/GNO
+c
+c                  Derivatives of inside pressure
+c
+        DPIDP = X*NSUBI*DMPIDP+(1.0-X)*NSUBI*DMNIDP
+        DPIDN = X*NSUBI*DMPIDN+(1.0-X)*NSUBI*DMNIDN
+c
+c                  Derivatives of outside pressure
+c
+        DPODP = NPOUT*DMPODP+NNOUT*DMNODP
+        DPODN = NPOUT*DMPODN+NNOUT*DMNODN
+c
+c                  Derivatives of alpha pressure
+c
+        DPADP = ALFDNS*
+     1  ( (2.0-NPOUT*V_ALFA)*DMPODP+(2.0-NNOUT*V_ALFA)*DMNODP )
+        DPADN = ALFDNS*
+     1  ( (2.0-NPOUT*V_ALFA)*DMPODN+(2.0-NNOUT*V_ALFA)*DMNODN )
+c
+c
+        N1 = NSUBI-EXALFA*(NNOUT+NPOUT)-4.0*ALFDNS
+        N2 = NSUBI*X-EXALFA*NPOUT-2.0*ALFDNS
+c
+c                  Derivatives of U
+c
+        DUDPO = -EXCLU*(EXALFA*NPOUT/GPO+
+     1           (4.0-NOUT*V_ALFA)*DPADP/T)/N1
+        DUDNO = -EXCLU*(EXALFA*NNOUT/GNO+
+     1           (4.0-NOUT*V_ALFA)*DPADN/T)/N1
+        DUDNI = -U_NUC/N1
+c
+c                  Derivatives of X
+c
+        DXDPO = -(N2*DUDPO+EXCLU*(EXALFA*NPOUT/GPO+
+     1           (2.0-NPOUT*V_ALFA)*DPADP/T))/(U_NUC*NSUBI)
+        DXDNO = -(N2*DUDNO+EXCLU*(2.0-NPOUT*V_ALFA)*DPADN/T)/
+     1           (U_NUC*NSUBI)
+        DXDNI = (N2-X*N1)/(NSUBI*N1)
+c
+c                  Derivatives of B's w.r.t. NSUBI
+c
+        DB1DNI = TRSCAL*( -U_NUC*H*(MUSUBT+T)/AZERO )+
+     1      OVR23*ZETA*(SCRDUP-OVR23*SCRD)/NSUBI
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*(X-1.0)-1.0/X
+c
+        DB2DNI = -2.0*ZETA*SCRD*TMP4/(9.0*NSUBI**2)-
+     1  TRSCAL*( (COMPU*T/(AZERO*NSUBI))*(H+COMPX*DHDX) )
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)
+        DB3DNI = -2.0*ZETA*SCRD*X*TMP4/(9.0*NSUBI**2)-
+     1          TRSCAL*( ((COMPU*T)/(AZERO*NSUBI))*(H-X*DHDX) )
+c
+c
+c
+c                  Derivatives of B's w.r.t. X
+c
+        DB1DX = OVR23*ZETA*(SCRDUP-OVR23*SCRD)*(SIGSGP+DHDX/H+1.0/X)+
+     1  OVR23*ZETA*(SCRDPX-OVR23*SCRDX)-
+     2  TRSCAL*( U_NUC*NSUBI*DHDX*MUSUBT/AZERO )
+c
+c
+c
+c
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*(X-1.0)-1.0/X
+c
+        TMP5 = SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU+(X**(-2))+(X-1.0)*
+     1  (SIGSG2-(SIGSGP**2)-(DHDX/H)**2+DHDXX/H+1.5*SCRDXX/SCRDU-
+     2  1.5*(SCRDUX/SCRDU)**2)
+c
+c
+        DB2DX = OVR23*(ZETA*SCRDUX+SCRDU*DZDX)*TMP4/(U_NUC*NSUBI)+
+     1      OVR23*ZETA*SCRD*TMP5/NSUBI-TRSCAL*(
+     2      COMPU*(DHDX*MUSUBT+(DHDXX*(1.0-X)-DHDX)*(MUSUBT-T))/AZERO)
+c
+c
+c
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*X
+c
+        TMP5 = SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU+X*
+     1         (SIGSG2-(SIGSGP**2)-(DHDX/H)**2+DHDXX/H+
+     2       1.5*SCRDXX/SCRDU-1.5*(SCRDUX/SCRDU)**2)
+c
+        DB3DX = OVR23*(ZETA*SCRDUX+SCRDU*DZDX)*TMP4/(U_NUC*NSUBI)+
+     1      OVR23*ZETA*SCRD*TMP5/NSUBI-
+     2      TRSCAL*( COMPU*(DHDX*T-X*DHDXX*(MUSUBT-T))/AZERO )
+c
+c
+c
+c                  Derivatives of B's w.r.t. U_NUC
+c
+        DB1DU = ZETA*(SCRDPP-OVR23*SCRDUP/U_NUC+OVR23*SCRD/U_NUC)-
+     1  TRSCAL*( NSUBI*H*(MUSUBT+T*(1.0-2.0*U_NUC)/(1.0-U_NUC))/AZERO )
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*(X-1.0)-1.0/X
+        TMP5 = (X-1.0)*1.5*(SCRDPX/SCRDU-SCRDUX*SCRDUP/SCRDU**2)
+        DB2DU = (OVR23*ZETA*SCRD/NSUBI)*TMP4*(SCRDUP/SCRDU-1.0/U_NUC)+
+     1    OVR23*ZETA*SCRDU*TMP5/(U_NUC*NSUBI)+
+     1    TRSCAL*( (H*MUSUBT+DHDX*COMPX*(MUSUBT-T))/AZERO-
+     2    (T*(1.0-2.0*U_NUC)/U_NUC)*(H+DHDX*COMPX)/AZERO )
+c
+        TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*X
+        TMP5 = X*1.5*(SCRDPX/SCRDU-SCRDUP*SCRDUX/SCRDU**2)
+        DB3DU = OVR23*ZETA*SCRD*TMP4*(U_NUC*SCRDUP/SCRDU-1.0)/
+     1 (U_NUC*NSUBI)+OVR23*ZETA*SCRDU*TMP5/(U_NUC*NSUBI)+
+     2  TRSCAL*( (H*MUSUBT-X*DHDX*(MUSUBT-T))/AZERO-
+     3 T*(1.0-2.0*U_NUC)*(H-X*DHDX)/(AZERO*U_NUC) )
+c
+c
+c                      A1 derivatives
+c
+        DA1ID1 = X*DPIDP+(1.0-X)*DPIDN+NSUBI*(DPIDP-DPIDN)*DXDNI
+        DA1ID2 = NSUBI*(DPIDP-DPIDN)*DXDPO
+        DA1ID3 = NSUBI*(DPIDP-DPIDN)*DXDNO
+c
+        DA1OD1 = 0.0
+        DA1OD2 = DPODP+DPADP
+        DA1OD3 = DPODN+DPADN
+c
+        DB1D1 = DB1DNI+DB1DX*DXDNI+DB1DU*DUDNI
+        DB1D2 = DB1DX*DXDPO+DB1DU*DUDPO
+        DB1D3 = DB1DX*DXDNO+DB1DU*DUDNO
+c
+        DA1D1 = DA1ID1-DB1D1-DA1OD1
+        DA1D2 = DA1ID2-DB1D2-DA1OD2
+        DA1D3 = DA1ID3-DB1D3-DA1OD3
+c
+c                      A3 derivatives
+c
+        DA3ID1 = X*DMNIDP+(1.0-X)*DMNIDN+NSUBI*(DMNIDP-DMNIDN)*DXDNI
+        DA3ID2 = NSUBI*(DMNIDP-DMNIDN)*DXDPO
+        DA3ID3 = NSUBI*(DMNIDP-DMNIDN)*DXDNO
+c
+        DA3OD1 = 0.0
+        DA3OD2 = DMNODP
+        DA3OD3 = DMNODN
+c
+        DB3D1 = DB3DNI+DB3DX*DXDNI+DB3DU*DUDNI
+        DB3D2 = DB3DX*DXDPO+DB3DU*DUDPO
+        DB3D3 = DB3DX*DXDNO+DB3DU*DUDNO
+c
+        DA3D1 = DA3ID1-DB3D1-DA3OD1
+        DA3D2 = DA3ID2-DB3D2-DA3OD2
+        DA3D3 = DA3ID3-DB3D3-DA3OD3
+c
+c                      A2 derivatives
+c
+        DA2ID1 = X*DMPIDP+(1.0-X)*DMPIDN+NSUBI*(DMPIDP-DMPIDN)*DXDNI
+        DA2ID2 = NSUBI*(DMPIDP-DMPIDN)*DXDPO
+        DA2ID3 = NSUBI*(DMPIDP-DMPIDN)*DXDNO
+c
+        DA2OD1 = 0.0
+        DA2OD2 = DMPODP
+        DA2OD3 = DMPODN
+c
+        DB2D1 = DB2DNI+DB2DX*DXDNI+DB2DU*DUDNI
+        DB2D2 = DB2DX*DXDPO+DB2DU*DUDPO
+        DB2D3 = DB2DX*DXDNO+DB2DU*DUDNO
+c
+        DA2D1 = DA2ID1-DB2D1-DA2OD1
+        DA2D2 = DA2ID2-DB2D2-DA2OD2
+        DA2D3 = DA2ID3-DB2D3-DA2OD3
+c
+c
+c                      Eta derivatives
+c
+        DNDETN = NNOUT/GNO
+        DPDETP = NPOUT/GPO
+c
+        DA1DN = DA1D1
+        DA1ETP = DA1D2
+        DA1ETN = DA1D3
+c
+        DA2DN = DA2D1
+        DA2ETP = DA2D2
+        DA2ETN = DA2D3
+c
+        DA3DN = DA3D1
+        DA3ETP = DA3D2
+        DA3ETN = DA3D3
+c
+c
+c
+c
+        A1 = PSUBI-BSUBP-BPROUT-BPRALF
+        A2 = MUP_I-BP-MUP_O
+        A3 = MUN_I-BN-MUN_O
+c
+c
+c                          Unset the "new" flag
+        NEWFLG = 0
+c
+        DETERM = DA1DN*(DA2ETP*DA3ETN-DA2ETN*DA3ETP)-
+     1           DA1ETP*(DA2DN*DA3ETN-DA2ETN*DA3DN)+
+     2           DA1ETN*(DA2DN*DA3ETP-DA2ETP*DA3DN)
+c
+        DNSUBI = -1.0*(A1*(DA2ETP*DA3ETN-DA2ETN*DA3ETP)+
+     1           A2*(DA3ETP*DA1ETN-DA1ETP*DA3ETN)+
+     2           A3*(DA1ETP*DA2ETN-DA1ETN*DA2ETP))/DETERM
+c
+c
+        DETAP = -1.0*(A1*(DA2ETN*DA3DN-DA2DN*DA3ETN)+
+     1          A2*(DA1DN*DA3ETN-DA1ETN*DA3DN)+
+     2          A3*(DA1ETN*DA2DN-DA1DN*DA2ETN))/DETERM
+c
+c
+        DETAN = -1.0*(A1*(DA2DN*DA3ETP-DA2ETP*DA3DN)+
+     1          A2*(DA1ETP*DA3DN-DA1DN*DA3ETP)+
+     2          A3*(DA1DN*DA2ETP-DA1ETP*DA2DN))/DETERM
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c
+c                        Check the step size in NSUBI
+        IF(ABS(DNSUBI/NSUBI).GT.0.04) THEN
+          DNSUBI = 0.04*DNSUBI*NSUBI/ABS(DNSUBI)
+        ENDIF
+ 26     CONTINUE
+        NSUBIN = NSUBI+DNSUBI
+        IF((NSUBIN.LT.DMAX1(4.5D-2,BRYDNS)).OR.(NSUBIN.GT.0.25)) THEN
+          DNSUBI = 0.5*DNSUBI
+          GOTO 26
+        ENDIF
+c
+c                        Check the step size in ETA_PO
+        IF(ABS(DETAP).GT.4.0) THEN
+          DETAP = 4.0*DETAP/ABS(DETAP)
+        ENDIF
+ 27     CONTINUE
+        NETAP = ETA_PO+DETAP
+        IF((NETAP.LT.-5000.0).OR.(NETAP.GT.ETAMAX)) THEN
+          DETAP = 0.5*DETAP
+          GOTO 27
+        ENDIF
+c
+c                        Check the step size in ETA_NO
+        IF(ABS(DETAN).GT.4.0) THEN
+          DETAN = 4.0*DETAN/ABS(DETAN)
+        ENDIF
+ 28     CONTINUE
+        NETAN = ETA_NO+DETAN
+        IF((NETAN.LT.-5000.0).OR.(NETAN.GT.ETAMAX)) THEN
+          DETAN = 0.5*DETAN
+          GOTO 28
+        ENDIF
+c
+c
+c                        Update the variables
+ccc        if(i.lt.30) write(*,1205) i,nsubi,eta_no,eta_po,x,u_nuc
+ 1205   format(i3,1p9e21.14)
+c
+        NSUBI = NSUBI+DNSUBI
+        ETA_PO = ETA_PO+DETAP
+        ETA_NO = ETA_NO+DETAN
+c
+c
+c
+c                        If the required tolarences have been met
+c                        break out of the loop
+        IF((ABS(DNSUBI).LT.NSIACC).AND.(ABS(DETAP).LT.PRTACC)
+     1    .AND.(ABS(DETAN).LT.NUTACC) ) THEN
+          GOTO 40
+        ELSE
+      IF(DBFLAG.EQ.1) THEN
+        WRITE(*,2000) '2',i,NSUBI,ETA_PO,ETA_NO,DNSUBI
+      ENDIF
+          GOTO 30
+        ENDIF
+c
+c
+ 29     CONTINUE
+        IF(NEWFLG.NE.1) THEN
+          cflag = cflag+1
+          DNSUBI = 0.5*DNSUBI
+          NSUBI = NSUBI-DNSUBI
+          DETAP = 0.5*DETAP
+          ETA_PO = ETA_PO-DETAP
+          DETAN = 0.5*DETAN
+          ETA_NO = ETA_NO-DETAN
+          IF(DBFLAG.EQ.1) THEN
+            WRITE(*,2000) '3',i,NSUBI,ETA_PO,ETA_NO,DNSUBI
+          ENDIF
+          GOTO 30
+        ELSE
+          NSUBI = NSUBS
+cc          ETA_PO = ETA_PO-0.5/T
+cc          ETA_NO = ETA_NO-0.5/T
+          ETA_PO = ETA_PO-2.0/T
+          ETA_NO = ETA_NO-2.0/T
+        ENDIF
+c
+c
+      IF(DBFLAG.EQ.1) THEN
+        WRITE(*,2000) '4',i,NSUBI,ETA_PO,ETA_NO,DNSUBI
+      ENDIF
+ 2000   FORMAT(t2,a,1x,i3,1x,f8.5,3(1X,G13.5))
+c
+c
+ 30   CONTINUE
+c
+c            If scheme 1 has failed try scheme 2
+      if(schflg.eq.0) then
+        schflg = 1
+        goto 5
+      endif
+c
+c
+      SSFLAG = 0
+      GOTO 999
+c
+c                    Branch label to break out of DO 30 iteration
+ 40   CONTINUE
+c
+c
+c                    The following logic determines whether this was
+c                    the correct scheme to use, and if not then which
+c                    one should be used
+c
+      if(ftflag.ne.0) then
+        ssflag = 4
+        goto 999
+      endif
+c
+c                    If calculated critical temperature is less than T,
+c                    then switch to the scheme with no nuclei
+      IF(T.GE.TSUBC) THEN
+c                    Set flag to indicate FAILURE
+        SSFLAG = 0
+        GOTO 999
+      ENDIF
+c
+c
+c                    If fraction of nuclei present is zero and no switch
+c                    has been made then switch to the no nuclei scheme
+      IF(U_NUC.LE.0.0) THEN
+c                    Set flag to indicate FAILURE
+        SSFLAG = 0
+        GOTO 999
+      ELSEIF(U_NUC.GT.1.0) THEN
+c                    Set flag to indicate FAILURE
+        SSFLAG = 0
+        GOTO 999
+      ELSE
+c                    Set flag to indicate success
+        SSFLAG = 1
+      ENDIF
+c
+c
+c
+c                    If eqns aren't really zeroed then fail
+c
+c
+      IF( (ABS(A1).GT.1.0D-5).OR.(ABS(A2).GT.1.0D-5).OR.
+     1    (ABS(A3).GT.1.0D-5) ) THEN
+        SSFLAG = 0
+cc        WRITE(*,*) ' NUCEOS: False convg; A = ',A1,A2,A3
+        GOTO 999
+      ENDIF
+c
+c
+c
+c
+      IF(NSUBI.LT.0.05) THEN
+        WRITE(*,*) 'NUCEOS:: <<WARNING>> NSUBI GETTING CLOSE TO LB'
+      ENDIF
+c
+c
+c
+      ZNI = 2.0*(PI**2)*NSUBI*(1.0-X)/MQ
+c
+      ZPI = 2.0*(PI**2)*NSUBI*X/MQ
+c
+      ETA_NI = FINV12(ZNI)
+c
+      ETA_PI = FINV12(ZPI)
+c
+      MUN_I = T*ETA_NI+VNI
+c
+      MUP_I = T*ETA_PI+VPI
+c
+      F32_NI = F_3_2(ETA_NI)
+c
+      F32_PI = F_3_2(ETA_PI)
+c
+      EXCLU = 1.0-U_NUC
+      EXALFA = 1.0-ALFDNS*V_ALFA
+c
+c
+c
+c                    Calculate particle fractions
+c
+      XALFA = 4.0*EXCLU*ALFDNS/BRYDNS
+      XNUT = NNOUT*EXCLU*EXALFA/BRYDNS
+      XPROT = NPOUT*EXCLU*EXALFA/BRYDNS
+      XH = 1.0-XPROT-XNUT-XALFA
+      XHCHK = U_NUC*NSUBI/BRYDNS
+c
+      IF((XH.LT.HEAVCT).OR.(XHCHK.LT.HEAVCT)) THEN
+c                    Set flag to indicate switch is being made
+        SSFLAG = 0
+cc        write(*,*) ' xh,xhchk = ',xh,xhchk
+        GOTO 999
+      ENDIF
+c
+      IF((XALFA.LT.0.0).OR.(XH.LT.0.0).OR.
+     1   (XNUT.LT.0.0).OR.(XPROT.LT.0.0)) THEN
+        SSFLAG = 0
+        write(*,*) ' Xs hnpa = ',xh,xnut,xprot,xalfa
+        GOTO 999
+      ENDIF
+c
+c
+c
+c
+c                    Baryons
+c
+c
+      MUPROT = MUP_O
+      MUN = MUN_O
+      MUHAT = MUN-MUPROT
+c
+c
+      IF(ABS((XH-XHCHK)/XHCHK).GT.1.0D-4) THEN
+        SSFLAG = 0
+        GOTO 999
+cCC        WRITE(*,*) ' INCONSISTENCEY IN XH AT',T,BRYDNS,YE,XH,XHCHK
+      ENDIF
+c
+      NUCDNS = BRYDNS*XH
+c
+      TAU_PO = KQ*F32_PO
+      TAU_PI = KQ*F32_PI
+c
+      TAU_NO = KQ*F32_NO
+      TAU_NI = KQ*F32_NI
+c
+      IF(NOUT.GT.0.0) XOUT = NPOUT/NOUT
+c
+c
+c                    Calculate internal energy of outside nucleons,
+c                    alpha particles, and nuclei (per baryon)
+c
+c20      BUOUT = (EXCLU*EXALFA/BRYDNS)*( UQ*(TAU_PO+TAU_NO)+EIFLAG*
+c20     1    ( (NOUT**2)*AA+4.0*BB*NPOUT*NNOUT+
+c20     2    CC*NOUT**(1.0+DD)+NPOUT*DELTAM) )
+      BUOUT = (EXCLU*EXALFA/BRYDNS)*(
+     1    UQ*(TAU_PO+TAU_NO)+EIFLAG*PV_E(NPOUT,NNOUT) )
+c
+c20      BUNUC = XH*( ( UQ*(TAU_PI+TAU_NI)+(NSUBI**2)*
+c20     1 (AA+4.0*BB*X*(1.0-X))+CC*NSUBI**(1.0+DD)+X*NSUBI*DELTAM )/
+c20     2 NSUBI)+FSUBSC*(1.0-T*(SCRDUT/SCRDU+OVR23*HPRIM/H))+
+c20     3 TRSCAL*
+c20     4 (1.0-U_NUC)*XH*(FTRANS*(1.0-T*HPRIM/H)-H*(MUSUBT-2.5*T)/AZERO)
+      BUNUC = XH*( (UQ*(TAU_PI+TAU_NI)+PV_E(X*NSUBI,(1.0-X)*NSUBI))/
+     2 NSUBI)+FSUBSC*(1.0-T*(SCRDUT/SCRDU+OVR23*HPRIM/H))+
+     3 TRSCAL*
+     4 (1.0-U_NUC)*XH*(FTRANS*(1.0-T*HPRIM/H)-H*(MUSUBT-2.5*T)/AZERO)
+c
+c
+      BUALFA = 0.25*XALFA*(1.5*T-BALPHA)
+c
+      BU = BUOUT+BUALFA+BUNUC
+c
+c
+      BSOUT = (EXCLU*EXALFA/BRYDNS)*( (5.0*UQ/(3.0*T))*(TAU_NO+TAU_PO)-
+     1 NNOUT*ETA_NO-NPOUT*ETA_PO )
+c
+c
+c                    Calculate entropy of alpha particles (per baryon)
+      BSALFA = -0.25*XALFA*(MUALFA/T-2.5)
+c
+c
+      BSNUC = XH*( (5.0*UQ/(3.0*T))*(TAU_NI+TAU_PI)-
+     1 NSUBI*(1.0-X)*ETA_NI-NSUBI*X*ETA_PI )/NSUBI-
+     2 FSUBSC*(SCRDUT/SCRDU+OVR23*HPRIM/H)-
+     3 XH*TRSCAL*(1.0-U_NUC)*
+     4 ((FTRANS*HPRIM/H)+H*(MUSUBT/T-2.5)/AZERO)
+c
+c                    Calculate total baryon entropy (per baryon)
+      BS = BSOUT+BSNUC+BSALFA
+c
+c                    Calculate free energy of outside nucleons (per baryon)
+      BFOUT = BUOUT-T*BSOUT
+c
+c                    Calculate free energy of alpha particles (per baryon)
+      BFALFA = BUALFA-T*BSALFA
+c
+c                    Calculate free energy of nuclei (per baryon)
+      BFNUC = BUNUC-T*BSNUC
+c
+c                    Calculate total baryon free energy (per baryon)
+      BFTOT = BFOUT+BFNUC+BFALFA
+c
+c                    Calculate pressure due to nuclei
+      BPRNUC = -ZETA*(SCRDU-U_NUC*SCRDUP)+
+     1 TRSCAL*U_NUC*NSUBI*H*((1.0-U_NUC)*T-U_NUC*MUSUBT)/AZERO
+c
+c
+c                    Calculate total baryon pressure
+      BPRESS = BPROUT+BPRALF+BPRNUC
+c
+c
+c                    Leptons & Photons
+c
+        CALL EL_EOS(T,YE,BRYDNS)    !!!!!!!!!
+c
+c
+c
+c                    Total pressure and eng/ent per baryon
+c
+      FBARY = BFTOT+FSUBE
+      PBARY = BPRESS+EPRESS
+      MUBARY = YE*MUPROT+(1.0-YE)*MUN
+      MU_MAT = YE*(MUPROT+MUSUBE)+(1.0-YE)*MUN
+c
+      FTOT = BFTOT+FSUBE+PF
+      UTOT = BU+EU+PU
+      STOT = BS+ES+PS
+      PTOT = BPRESS+EPRESS+PPRESS
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c-----------------------------------------------------------------------
+c                Derivatives of thermodynamic variables
+c-----------------------------------------------------------------------
+c
+c                 ------------------------------------
+c                 !      Derivatives of exterior     !
+c                 !      quantities                  !
+c                 !      (w.r.t. Temp. and ETA's)    !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c                  Derivatives of exterior potentials
+c                  w.r.t. particle densities
+c20      DVPODP = EIFLAG*(2.0*AA+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)) )
+      DVPODP = EIFLAG*DPVPDP(NPOUT,NNOUT)
+c20      DVPODN = EIFLAG*(2.0*AA+4.0*BB+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)))
+      DVPODN = EIFLAG*DPVPDN(NPOUT,NNOUT)
+c20      DVNODP = DVPODN
+      DVNODP = EIFLAG*DPVNDP(NPOUT,NNOUT)
+c20      DVNODN = DVPODP
+      DVNODN = EIFLAG*DPVNDN(NPOUT,NNOUT)
+c
+c
+c                  Derviatives of exterior chem. pot. w.r.t. ETA's
+c                  (at fixed T)
+      DMPDEP = T+DVPODP*NPOUT/GPO
+      DMPDEN = DVPODN*NNOUT/GNO
+      DMNDEP = DVNODP*NPOUT/GPO
+      DMNDEN = T+DVNODN*NNOUT/GNO
+c
+c                  Derivatives of pressure potential w.r.t.
+c                  particle densities
+c20      DV_DPO = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NNOUT+CC*DD*(1.0+DD)*(NOUT**DD) )
+      DV_DPO = EIFLAG*DPVRDP(NPOUT,NNOUT)
+c20      DV_DNO = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NPOUT+CC*DD*(1.0+DD)*(NOUT**DD) )
+      DV_DNO = EIFLAG*DPVRDN(NPOUT,NNOUT)
+c
+c                  Derivatives of pressure potential w.r.t. ETA's
+c                  (at fixed T)
+      DV_DEP = DV_DPO*NPOUT/GPO
+      DV_DEN = DV_DNO*NNOUT/GNO
+c
+c                  Derivatives of outside pressure w.r.t. ETA's
+c                  (at fixed T)
+      DPODEP = NPOUT*T+DV_DEP
+      DPODEN = NNOUT*T+DV_DEN
+c
+c                  Derivatives of alpha density w.r.t. ETA's
+c                  (at fixed T)
+      DNADEP = ALFDNS*(2.0*DMPDEP+2.0*DMNDEP-V_ALFA*DPODEP)/T
+      DNADEN = ALFDNS*(2.0*DMPDEN+2.0*DMNDEN-V_ALFA*DPODEN)/T
+c
+c                  Derivatives of alpha pressure w.r.t. ETA's
+c                  (at fixed T)
+      DPADEP = T*DNADEP
+      DPADEN = T*DNADEN
+c
+c                  Derivatives of particle densities w.r.t. T
+c                  (at fixed ETA's)
+      DNPODT = 1.5*NPOUT/T
+      DNNODT = 1.5*NNOUT/T
+c
+c                  Derivatives of exterior chem. pot. w.r.t. T
+c                  (at fixed ETA's)
+      DMPODT = ETA_PO+DVPODP*DNPODT+DVPODN*DNNODT
+      DMNODT = ETA_NO+DVNODP*DNPODT+DVNODN*DNNODT
+c
+c                  Derivative of pressure potential w.r.t. T
+c                  (at fixed ETA's)
+      DV_DT = DV_DPO*DNPODT+DV_DNO*DNNODT
+c
+c                  Derivative of outside pressure w.r.t. T
+c                  (at fixed ETA's)
+      DPODT = OVR23*UQ*2.5*(TAU_PO+TAU_NO)/T+DV_DT
+c
+c                  Derivative of alpha chem. pot. w.r.t. T
+c                  (at fixed ETA's)
+      DMUADT = 2.0*DMPODT+2.0*DMNODT-V_ALFA*DPODT
+c
+c                  Derivative of alpha particle density w.r.t. T
+c                  (at fixed ETA's)
+      DNADT = 1.5*ALFDNS/T-ALFDNS*MUALFA/(T**2)+ALFDNS*DMUADT/T
+c
+c                  Derivative of alpha particle pressure w.r.t. T
+c                  (at fixed ETA's)
+      DPADT = ALFDNS+T*DNADT
+c
+c
+c                 ------------------------------------
+c                 !      Derivatives of interior     !
+c                 !      quantities                  !
+c                 !      (w.r.t. Temp. and density)  !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c                   Derivatives of kinetic energy densities w.r.t. T
+c                   (holding the number densities (X & NSUBI) fixed)
+      DTPIDT =2.5*TAU_PI/T-2.25*X*NSUBI*GPI/UQ
+      DTNIDT =2.5*TAU_NI/T-2.25*(1.0-X)*NSUBI*GNI/UQ
+c
+c                   Derivatives of pressures w.r.t. T
+c                   (holding the number densities (X & NSUBI) fixed)
+      DPIDT = OVR23*UQ*(DTPIDT+DTNIDT)
+c
+c                   Derivatives of interior chem. pot. w.r.t. T
+c                   (holding the number densities (X & NSUBI) fixed)
+      DMPIDT = ETA_PI-1.5*GPI
+      DMNIDT = ETA_NI-1.5*GNI
+c
+c
+c                  Derivatives of inside potentials w.r.t.
+c                  interior proton and neutron densities
+c                  (at fixed T)
+c20      DVPIDP = 2.0*AA+DD*(1.0+DD)*CC*(NSUBI**(DD-1.0))
+      DVPIDP = DPVPDP(X*NSUBI,(1.0-X)*NSUBI)
+c20      DVPIDN = 2.0*AA+4.0*BB+DD*(1.0+DD)*CC*(NSUBI**(DD-1.0))
+      DVPIDN = DPVPDN(X*NSUBI,(1.0-X)*NSUBI)
+c20      DVNIDP = DVPIDN
+      DVNIDP = DPVNDP(X*NSUBI,(1.0-X)*NSUBI)
+c20      DVNIDN = DVPIDP
+      DVNIDN = DPVNDN(X*NSUBI,(1.0-X)*NSUBI)
+c
+c
+c                   Derivatives of interior chemical potentials
+c                   w.r.t. interior neutron and proton densities
+c                  (at fixed T)
+      DMPIDP = T*GPI/(X*NSUBI)+DVPIDP
+      DMPIDN = DVPIDN
+      DMNIDP = DVNIDP
+      DMNIDN = T*GNI/((1.0-X)*NSUBI)+DVNIDN
+c
+c                   Derivatives of interior pressure
+c                   w.r.t. interior neutron and proton densities
+c                  (at fixed T)
+      DPIDP = X*NSUBI*DMPIDP+(1.0-X)*NSUBI*DMNIDP
+      DPIDN = X*NSUBI*DMPIDN+(1.0-X)*NSUBI*DMNIDN
+c
+c
+c
+c
+c                 ------------------------------------
+c                 !      Derivatives of "B" terms    !
+c                 !      from the chemical and       !
+c                 !      pressure equilibrium        !
+c                 !      equations                   !
+c                 !                                  !
+c                 !      (w.r.t. Temperature )       !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c             Derivative of term from pressure equilibrium eqn.
+c
+      DB1DT = OVR23*ZETA*(SCRDUP-OVR23*SCRD)*HPRIM/H+
+     1    ZETA*(SCRDPT-OVR23*SCRDT)-
+     2    TRSCAL*U_NUC*NSUBI*(HPRIM*MUSUBT+H*DMUTDT)/AZERO
+c
+c
+c             Derivative of term from proton equilibrium eqn.
+c
+      TMP4 = (SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU)*(X-1.0)-1.0/X
+      TMP5 = DHDTDX/H-DHDX*HPRIM/H**2+
+     1 1.5*SCRDXT/SCRDU-1.5*SCRDUX*SCRDUT/SCRDU**2
+c
+      DB2DT = OVR49*(ZETA*SCRD*HPRIM/(H*NSUBI))*TMP4+
+     1    OVR23*ZETA*SCRDT*TMP4/NSUBI+
+     2    OVR23*(ZETA*SCRD/NSUBI)*(X-1.0)*TMP5-
+     3    TRSCAL*EXCLU*(DMUTDT*(H+DHDX*(1.0-X))+MUSUBT*
+     4    (HPRIM+DHDTDX*(1.0-X))-DHDX*(1.0-X)-T*DHDX*(1.0-X))/AZERO
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c             Derivative of term from neutron equilibrium eqn.
+c
+      TMP4 = SIGSGP+DHDX/H+1.5*SCRDUX/SCRDU
+      TMP5 = DHDTDX/H-DHDX*HPRIM/H**2+
+     1 1.5*SCRDXT/SCRDU-1.5*SCRDUX*SCRDUT/SCRDU**2
+      DB3DT = OVR49*(ZETA*SCRD*HPRIM/(H*NSUBI))*X*TMP4+
+     1        OVR23*(ZETA*SCRDT/NSUBI)*X*TMP4+
+     2        OVR23*(ZETA*SCRD/NSUBI)*X*TMP5-
+     3        TRSCAL*EXCLU*(HPRIM*MUSUBT+H*DMUTDT-X*DHDTDX*(MUSUBT-T)-
+     4        X*DHDX*(DMUTDT-1.0))/AZERO
+c
+c
+c
+c++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+c
+c
+c
+c                 ------------------------------------
+c                 !      Derivatives of constraint   !
+c                 !      and equilibrium equations   !
+c                 !      with respect to the five    !
+c                 !      compositional variables     !
+c                 !      (U,x,n_i,eta_po,eta_no)     !
+c                 !      and the three independent   !
+c                 !      variables                   !
+c                 !      (Baryon density, T, and Ye) !
+c                 !                                  !
+c                 ------------------------------------
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 1 (Baryon conservation)
+c
+      DFDOM(1,1) = NOUT*EXALFA+4.0*ALFDNS-NSUBI
+c
+      DFDOM(1,2) = 0.0
+c
+      DFDOM(1,3) = -U_NUC
+c
+      DFDOM(1,4) = -EXCLU*EXALFA*NPOUT/GPO+
+     1             V_ALFA*DNADEP*EXCLU*NOUT-4.0*EXCLU*DNADEP
+c
+      DFDOM(1,5) = -EXCLU*EXALFA*NNOUT/GNO+
+     1             V_ALFA*DNADEN*EXCLU*NOUT-4.0*EXCLU*DNADEN
+c
+c
+c
+      DFDL_1(1) = -1.0
+c
+      DFDL_2(1) = EXCLU*EXALFA*(DNPODT+DNNODT)-EXCLU*V_ALFA*NOUT*DNADT+
+     1     4.0*EXCLU*DNADT
+c
+      DFDL_3(1) = 0.0
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 2 (Charge conservation)
+c
+      DFDOM(2,1) = EXALFA*NPOUT+2.0*ALFDNS-X*NSUBI
+c
+      DFDOM(2,2) = -U_NUC*NSUBI
+c
+      DFDOM(2,3) = -X*U_NUC
+c
+      DFDOM(2,4) = -EXCLU*EXALFA*NPOUT/GPO+
+     1     V_ALFA*EXCLU*NPOUT*DNADEP-2.0*EXCLU*DNADEP
+c
+      DFDOM(2,5) = V_ALFA*EXCLU*NPOUT*DNADEN-2.0*EXCLU*DNADEN
+c
+c
+c
+      DFDL_1(2) = -1.0*YE
+c
+      DFDL_2(2) = EXCLU*EXALFA*DNPODT-V_ALFA*EXCLU*NPOUT*DNADT+
+     1     2.0*EXCLU*DNADT
+c
+      DFDL_3(2) = -1.0*BRYDNS
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 3 (Proton chemical equilibrium)
+c
+      DFDOM(3,1) = -DB2DU
+c
+      DFDOM(3,2) = NSUBI*(DMPIDP-DMPIDN)-DB2DX
+c
+      DFDOM(3,3) = (1.0-X)*DMPIDN+X*DMPIDP-DB2DNI
+c
+      DFDOM(3,4) = -DMPDEP
+c
+      DFDOM(3,5) = -DMPDEN
+c
+      DFDL_1(3) = 0.0
+      DFDL_2(3) = -1.0*(DMPIDT-DMPODT-DB2DT)
+      DFDL_3(3) = 0.0
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 4 (Neutron chemical equilibrium)
+c
+      DFDOM(4,1) = -DB3DU
+c
+      DFDOM(4,2) = NSUBI*(DMNIDP-DMNIDN)-DB3DX
+c
+      DFDOM(4,3) = (1.0-X)*DMNIDN+X*DMNIDP-DB3DNI
+c
+      DFDOM(4,4) = -DMNDEP
+c
+      DFDOM(4,5) = -DMNDEN
+c
+      DFDL_1(4) = 0.0
+      DFDL_2(4) = -1.0*(DMNIDT-DMNODT-DB3DT)
+      DFDL_3(4) = 0.0
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 5 (Pressure equilibrium)
+c
+      DFDOM(5,1) = -DB1DU
+c
+      DFDOM(5,2) = NSUBI*(DPIDP-DPIDN)-DB1DX
+c
+      DFDOM(5,3) = (1.0-X)*DPIDN+X*DPIDP-DB1DNI
+      ncomp = dfdom(5,3)
+c
+      DFDOM(5,4) = -DPODEP-DPADEP
+c
+      DFDOM(5,5) = -DPODEN-DPADEN
+c
+      DFDL_1(5) = 0.0
+      DFDL_2(5) = -1.0*(DPIDT-DPODT-DPADT-DB1DT)
+      DFDL_3(5) = 0.0
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c      write(*,*) ' '
+cc      write(*,*) ' '
+cc      write(*,7010) db1dx,db2dx,db3dx
+cc      write(*,7010) db1du,db2du,db3du
+cc      write(*,7010) db1dni,db2dni,db3dni
+cc      write(*,7010) db1dt,db2dt,db3dt
+ 7010 format(3(1x,g13.6))
+c      write(*,7000) x,u_nuc,nsubi,eta_po,eta_no
+c      write(*,*) 'eta_i ',eta_pi,eta_ni
+c      write(*,*) ' as ',a1,a2,a3
+c      write(*,*) ' '
+c      write(*,7000) (dfdom(1,i),i=1,5,1)
+c      write(*,7000) (dfdom(2,i),i=1,5,1)
+c      write(*,7000) (dfdom(3,i),i=1,5,1)
+c      write(*,7000) (dfdom(4,i),i=1,5,1)
+c      write(*,7000) (dfdom(5,i),i=1,5,1)
+c      write(*,*) ' '
+cc      write(*,*) ' dna: ',dnadpo,dnadno
+cc      write(*,*) ' dt: ',dmpidt,dmpodt
+c      write(*,7000) (dfdl_1(i),i=1,5,1)
+ 7000 format(5(1x,g13.6))
+c
+c      pause
+c                    Invert the DFDOM matrix
+c
+      CALL MATINV(DFDOM,DFDOMI,5)
+c  IMSL subroutine call to invert the matrix
+cCC      CALL DLINRG(5,DFDOM,5,DFDOMI,5)
+c
+cc      call matmul(dfdom,dfdomi,a_tmp,5,5,5)
+c
+cc      write(*,*) ' '
+cc      write(*,7000) (a_tmp(1,i),i=1,5,1)
+cc      write(*,7000) (a_tmp(2,i),i=1,5,1)
+cc      write(*,7000) (a_tmp(3,i),i=1,5,1)
+cc      write(*,7000) (a_tmp(4,i),i=1,5,1)
+cc      write(*,7000) (a_tmp(5,i),i=1,5,1)
+c
+cc      write(*,7000) (dfdomi(1,i),i=1,5,1)
+cc      write(*,7000) (dfdomi(2,i),i=1,5,1)
+cc      write(*,7000) (dfdomi(3,i),i=1,5,1)
+cc      write(*,7000) (dfdomi(4,i),i=1,5,1)
+cc      write(*,7000) (dfdomi(5,i),i=1,5,1)
+cc      write(*,*) ' >>>>>>>>>>>>>>>    dfdl_2 <<<<<<<<<<<<<<<<< '
+cc      write(*,7000) (dfdl_2(i),i=1,5,1)
+cc      write(*,*) ' >>>>>>>>>>>>>>>    dfdl_2 <<<<<<<<<<<<<<<<< '
+c
+c      DO 800 LLI=1,5,1
+c        R_CHECK(LLI) = 0.0
+c        DO 801 KKI=1,5,1
+c          R_CHECK(LLI) = R_CHECK(LLI)+DFDOM(LLI,KKI)*RESULT(KKI)
+c 801    CONTINUE
+c        r_check(lli) = r_check(lli)-dfdl_1(lli)
+c 800  CONTINUE
+c      write(*,*) ' >>>>>>>>>>>>>>>    R check <<<<<<<<<<<<<<<<< '
+c      write(*,7000) (r_check(i),i=1,5,1)
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                    Multiply the DFDL_1 vector by the DFDOMI matrix
+c                    to get the density derivatives
+c
+      CALL MV_MUL(DFDOMI,DFDL_1,RESULT,5)
+c
+      DU_DN = RESULT(1)
+      DX_DN = RESULT(2)
+      DNI_DN = RESULT(3)
+      DEP_DN = RESULT(4)
+      DEN_DN = RESULT(5)
+c
+c
+c                    Multiply the DFDL_2 vector by the DFDOMI matrix
+c                    to get the Temperature derivatives
+c
+      CALL MV_MUL(DFDOMI,DFDL_2,RESULT,5)
+c
+      DU_DT = RESULT(1)
+      DX_DT = RESULT(2)
+      DNI_DT = RESULT(3)
+      DEP_DT = RESULT(4)
+      DEN_DT = RESULT(5)
+c
+c                    Multiply the DFDL_3 vector by the DFDOMI matrix
+c                    to get the Ye derivatives
+c
+      CALL MV_MUL(DFDOMI,DFDL_3,RESULT,5)
+c
+      DU_DY = RESULT(1)
+      DX_DY = RESULT(2)
+      DNI_DY = RESULT(3)
+      DEP_DY = RESULT(4)
+      DEN_DY = RESULT(5)
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 ------------------------------------
+c                 !      Derivatives of finite size  !
+c                 !      terms in the internal       !
+c                 !      energy and entropy          !
+c                 !      densities w.r.t. to U,X,n_i !
+c                 !      and T.  These are used in   !
+c                 !      calculating the derivatives !
+c                 !      w.r.t. the independant vars !
+c                 !      (Baryon density, T, and Ye) !
+c                 !                                  !
+c                 ------------------------------------
+c
+c                        Free energy Surface & Coulomb terms
+c                                  (Densities)
+c
+      F_SC = ZETA*SCRDU
+c
+      DFSCDU = ZETA*SCRDUP
+c
+      DFSCDX = ZETA*SCRDUX+SCRDU*DZDX
+c
+      DFSCDN = SCRDU*DZDNI
+c
+      DFSCDT = ZETA*SCRDUT+SCRDU*DZDT
+c
+c
+c                        Free energy translational terms
+c                                  (Densities)
+      FTR = U_NUC*EXCLU*NSUBI*FTRANS
+c
+      DFTRDT = FTR*(HPRIM/H+1.0/T)-
+     1    1.5*TRSCAL*U_NUC*EXCLU*NSUBI*H/AZERO
+c
+      DFTRDX = FTR*DHDX/H
+c
+      DFTRDU = FTR/U_NUC-FTR/EXCLU+
+     1    TRSCAL*NSUBI*H*(1.0-2.0*U_NUC)/AZERO
+c
+      DFTRDN = FTR/NSUBI+TRSCAL*U_NUC*EXCLU*H*T/AZERO
+c
+c\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+c
+c                        Internal energy Surface & Coulomb terms
+c                                  (Densities)
+c
+      TMP4 = 1.0-T*SCRDUT/SCRDU-OVR23*T*HPRIM/H
+c
+      E_SC = F_SC*TMP4
+c
+      DESCDU = DFSCDU*TMP4+
+     1    F_SC*(T*SCRDUT*SCRDUP/SCRDU**2-T*SCRDPT/SCRDU)
+c
+      DESCDX = DFSCDX*TMP4+
+     1    F_SC*(T*SCRDUT*SCRDUX/SCRDU**2-T*SCRDXT/SCRDU+
+     2    OVR23*T*HPRIM*DHDX/H**2-OVR23*T*DHDTDX/H)
+c
+      DESCDN = DFSCDN*TMP4
+c
+      DESCDT = DFSCDT*TMP4+F_SC*
+     1   (T*(SCRDUT**2)/SCRDU**2-SCRDUT/SCRDU-T*SCRDTT/SCRDU+
+     2    OVR23*T*(HPRIM**2)/H**2-OVR23*HPRIM/H-OVR23*T*HPPRIM/H)
+c
+c                        Internal energy translational terms
+c                                  (Densities)
+c
+      TMP4 = 1.5*H*T/AZERO-T*HPRIM*(MUSUBT-T)/AZERO
+c
+      E_TR = TRSCAL*EXCLU*BRYDNS*XH*TMP4
+c
+      DETRDU = TRSCAL*(NSUBI*(1.0-2.0*U_NUC)*TMP4-
+     1    NSUBI*(T**2)*HPRIM*(1.0-2.0*U_NUC)/AZERO)
+c
+      DETRDX = TRSCAL*BRYDNS*XH*EXCLU*
+     1    (1.5*T*DHDX/AZERO-T*(MUSUBT-T)*DHDTDX/AZERO)
+c
+      DETRDN = TRSCAL*(U_NUC*EXCLU*TMP4-
+     1    BRYDNS*XH*EXCLU*(T**2)*HPRIM/(NSUBI*AZERO))
+c
+      DETRDT = TRSCAL*BRYDNS*XH*EXCLU*
+     1    (1.5*(H+T*HPRIM)/AZERO-(HPRIM+T*HPPRIM)*(MUSUBT-T)/AZERO-
+     2    T*HPRIM*(MUSUBT/T-2.5)/AZERO )
+c
+c\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+c
+c                        Entropy Surface & Coulomb terms
+c                                  (Densities)
+c
+      S_SC = (E_SC-F_SC)/T
+c
+      DSSCDU = (DESCDU-DFSCDU)/T
+c
+      DSSCDX = (DESCDX-DFSCDX)/T
+c
+      DSSCDN = (DESCDN-DFSCDN)/T
+c
+      DSSCDT = (DESCDT-DFSCDT)/T-(E_SC-F_SC)/T**2
+c
+c                        Entropy translational terms
+c                                  (Densities)
+c
+      TMP4 = MUSUBT*(HPRIM+H/T)/AZERO-(T*HPRIM+2.5*H)/AZERO
+c
+      S_TR = -TRSCAL*BRYDNS*XH*EXCLU*TMP4
+c
+      DSTRDU = -TRSCAL*(NSUBI*(1.0-2.0*U_NUC)*TMP4+
+     1    NSUBI*T*(1.0-2.0*U_NUC)*(HPRIM+H/T)/AZERO)
+c
+      DSTRDX = -TRSCAL*BRYDNS*XH*EXCLU*
+     1    (MUSUBT*(DHDTDX+DHDX/T)/AZERO-
+     2    (T*DHDTDX+2.5*DHDX)/AZERO)
+c
+      DSTRDN = -TRSCAL*
+     1    (U_NUC*EXCLU*TMP4+U_NUC*EXCLU*T*(HPRIM+H/T)/AZERO)
+c
+      DSTRDT = -(BRYDNS*XH*EXCLU*((MUSUBT/T-1.5)*(HPRIM+H/T)/AZERO+
+     1    MUSUBT*(HPPRIM+HPRIM/T-H/T**2)/AZERO-
+     2    (3.5*HPRIM+T*HPPRIM)/AZERO ))*TRSCAL
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 -------------------------------------
+c                 !      Derivatives of interior bulk !
+c                 !      terms in the internal        !
+c                 !      energy and entropy           !
+c                 !      densities w.r.t. to U,X,n_i  !
+c                 !      and T.  These are used in    !
+c                 !      calculating the derivatives  !
+c                 !      w.r.t. the independant vars  !
+c                 !      (Baryon density, T, and Ye)  !
+c                 !                                   !
+c                 -------------------------------------
+c
+c
+c
+      S_NUC =(OVR53*UQ/T)*(TAU_NI+TAU_PI)-
+     1    NSUBI*((1.0-X)*ETA_NI+X*ETA_PI)
+c
+c20      E_NUC = UQ*(TAU_PI+TAU_NI)+(NSUBI**2)*(AA+4.0*BB*X*(1.0-X))+
+c20     1    CC*NSUBI**(1.0+DD)+X*NSUBI*DELTAM
+      E_NUC = UQ*(TAU_PI+TAU_NI)+PV_E(X*NSUBI,(1.0-X)*NSUBI)
+c
+c
+c                    Interior particle densties
+      NPI = X*NSUBI
+      NNI = (1.0-X)*NSUBI
+c
+      DTPIDT = 2.5*TAU_PI/T-2.25*NPI*GPI/UQ
+      DTNIDT = 2.5*TAU_NI/T-2.25*NNI*GNI/UQ
+c
+c               Derivative of interior entropy density w.r.t. T
+      DSIDT = UQ*(DTPIDT+DTNIDT)/T
+c
+c               Derivative of interior internal energy density w.r.t. T
+      DEIDT = T*DSIDT
+c
+c
+c
+c
+c                    Derivatives of eta's w.r.t. X and NSUBI
+      DETPDX = GPI/X
+      DETNDX = -GNI/(1.0-X)
+      DETPDN = GPI/NSUBI
+      DETNDN = GNI/NSUBI
+c
+c                    Derivatives of Tau's w.r.t. X and NSUBI
+      DTPIDX = 1.5*T*NPI*DETPDX/UQ
+      DTNIDX = 1.5*T*NNI*DETNDX/UQ
+      DTPDNI = 1.5*T*NPI*DETPDN/UQ
+      DTNDNI = 1.5*T*NNI*DETNDN/UQ
+c
+c
+c
+c           Derivative of interior entropy density w.r.t. X
+      DSIDX = OVR53*UQ*(DTPIDX+DTNIDX)/T-NSUBI*(ETA_PI-ETA_NI)-
+     1    NSUBI*((1.0-X)*DETNDX+X*DETPDX)
+c
+c           Derivative of interior internal energy density w.r.t. X
+c20      DEIDX = UQ*(DTPIDX+DTNIDX)+
+c20     1    (NSUBI**2)*4.0*BB*(1.0-2.0*X)+NSUBI*DELTAM
+      DEIDX = UQ*(DTPIDX+DTNIDX)+DPVEDX(NSUBI,X)
+c
+c
+c           Derivative of interior entropy density w.r.t. NSUBI
+      DSIDN = OVR53*UQ*(DTPDNI+DTNDNI)/T-((1.0-X)*ETA_NI+X*ETA_PI)-
+     1    NSUBI*((1.0-X)*DETNDN+X*DETPDN)
+c
+c
+c           Derivative of interior internal energy density w.r.t. NSUBI
+c20      DEIDN = UQ*(DTPDNI+DTNDNI)+2.0*NSUBI*(AA+4.0*BB*X*(1.0-X))+
+c20     1    CC*(1.0+DD)*(NSUBI**DD)+X*DELTAM
+      DEIDN = UQ*(DTPDNI+DTNDNI)+DPVEDN(NSUBI,X)
+c
+c
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 -------------------------------------
+c                 !      Derivatives of exterior bulk !
+c                 !      nucleon internal energy &    !
+c                 !      entropy densities and the    !
+c                 !      chem. pot.  w.r.t. to eta_p, !
+c                 !      ate_n & T. These are used in !
+c                 !      calculating the derivatives  !
+c                 !      w.r.t. the independant vars  !
+c                 !      (Baryon density, T, and Ye)  !
+c                 !                                   !
+c                 -------------------------------------
+c
+c
+      S_OUT =(OVR53*UQ/T)*(TAU_NO+TAU_PO)-NNOUT*ETA_NO-NPOUT*ETA_PO
+c
+c20      E_OUT = UQ*(TAU_PO+TAU_NO)+EIFLAG*
+c20     1((NOUT**2)*AA+4.0*BB*NPOUT*NNOUT+CC*NOUT**(1.0+DD)+NPOUT*DELTAM)
+      E_OUT = UQ*(TAU_PO+TAU_NO)+EIFLAG*PV_E(NPOUT,NNOUT)
+c
+c                   Derivative of exterior entropy density w.r.t. T
+      DSODT =  OVR53*UQ*(1.5*(TAU_PO+TAU_NO)/(T**2))-
+     1     1.5*(NPOUT*ETA_PO+NNOUT*ETA_NO)/T
+c
+      DEODT = T*DSODT
+c
+c                    Derivatives of exterior particle densities w.r.t.
+c                    Temperature (ETA's fixed)
+      DNPODT = 1.5*NPOUT/T
+      DNNODT = 1.5*NNOUT/T
+c
+      DMPODT = ETA_PO+DVPODP*DNPODT+DVPODN*DNNODT
+      DMNODT = ETA_NO+DVNODP*DNPODT+DVNODN*DNNODT
+c
+c
+      DNPDEP = NPOUT/GPO
+      DNNDEN = NNOUT/GNO
+c
+      DTPDEP = 1.5*T*NPOUT/UQ
+      DTNDEN = 1.5*T*NNOUT/UQ
+c
+      DSODEP = (OVR53*UQ/T)*DTPDEP-NPOUT-ETA_PO*DNPDEP
+      DSODEN = (OVR53*UQ/T)*DTNDEN-NNOUT-ETA_NO*DNNDEN
+c
+c
+c                    Exterior particle potentials
+c20      VNOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD )
+      VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c20      VPOUT = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NNOUT+CC*(1.0+DD)*NOUT**DD+DELTAM)
+      VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+c
+      DEODEP = UQ*DTPDEP+VPOUT*DNPDEP
+      DEODEN = UQ*DTNDEN+VNOUT*DNNDEN
+c
+      DMPDEP = T+DVPODP*NPOUT/GPO
+      DMPDEN = DVPODN*NNOUT/GNO
+      DMNDEP = DVNODP*NPOUT/GPO
+      DMNDEN = T+DVNODN*NNOUT/GNO
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 -------------------------------------
+c                 !      Derivatives of alpha         !
+c                 !      particle internal energy &   !
+c                 !      entropy densities and the    !
+c                 !      chem. pot.  w.r.t. to eta_p, !
+c                 !      ate_n & T. These are used in !
+c                 !      calculating the derivatives  !
+c                 !      w.r.t. the independant vars  !
+c                 !      (Baryon density, T, and Ye)  !
+c                 !                                   !
+c                 -------------------------------------
+c
+c
+c
+c
+      S_ALFA = ALFDNS*(2.5-MUALFA/T)
+c
+c
+      E_ALFA = ALFDNS*(1.5*T-BALPHA)
+c
+c                  Derivative of pressure potential w.r.t. T
+      DV_DT = DV_DPO*DNPODT+DV_DNO*DNNODT
+c
+c                  Derivative of outside pressure w.r.t. T
+      DPODT = OVR23*UQ*2.5*(TAU_PO+TAU_NO)/T+DV_DT
+c
+c
+      DMUADT = 2.0*DMPODT+2.0*DMNODT-V_ALFA*DPODT
+c
+c                  Derivative of alpha particle density w.r.t. T
+      DNADT = 1.5*ALFDNS/T-ALFDNS*MUALFA/(T**2)+ALFDNS*DMUADT/T
+c
+c
+      DSADT = DNADT*(2.5-MUALFA/T)-ALFDNS*DMUADT/T+ALFDNS*MUALFA/T**2
+c
+      DEADT = DNADT*(1.5*T-BALPHA)+1.5*ALFDNS
+c
+c
+      DV_DEP = DV_DPO*NPOUT/GPO
+      DV_DEN = DV_DNO*NNOUT/GNO
+c
+      DPODEP = OVR23*UQ*DTPDEP+DV_DEP
+      DPODEN = OVR23*UQ*DTNDEN+DV_DEN
+c
+      DMADEP = 2.0*DMPDEP+2.0*DMNDEP-V_ALFA*DPODEP
+      DMADEN = 2.0*DMPDEN+2.0*DMNDEN-V_ALFA*DPODEN
+c
+      DNADEP = ALFDNS*DMADEP/T
+      DNADEN = ALFDNS*DMADEN/T
+c
+      DSADEP = DNADEP*(2.5-MUALFA/T)-ALFDNS*DMADEP/T
+      DSADEN = DNADEN*(2.5-MUALFA/T)-ALFDNS*DMADEN/T
+c
+      DEADEP = DNADEP*(1.5*T-BALPHA)
+      DEADEN = DNADEN*(1.5*T-BALPHA)
+c
+c\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+      S_DENS = U_NUC*S_NUC+EXCLU*EXALFA*S_OUT+EXCLU*S_ALFA+S_SC+S_TR
+c
+      E_DENS = U_NUC*E_NUC+EXCLU*EXALFA*E_OUT+EXCLU*E_ALFA+E_SC+E_TR
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !      Temperature Derivatives     !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+      DNA_DT = DNADT+DNADEP*DEP_DT+DNADEN*DEN_DT
+c
+c
+      DBSDT = (DU_DT*S_NUC-
+     1    DU_DT*EXALFA*S_OUT-EXCLU*V_ALFA*DNA_DT*S_OUT
+     2    -DU_DT*S_ALFA+
+     3    U_NUC*(DSIDT+DSIDX*DX_DT+DSIDN*DNI_DT)+
+     4    EXCLU*EXALFA*(DSODT+DSODEP*DEP_DT+DSODEN*DEN_DT)+
+     5    EXCLU*(DSADT+DSADEP*DEP_DT+DSADEN*DEN_DT)+
+     6    DSSCDT+DSSCDU*DU_DT+DSSCDX*DX_DT+DSSCDN*DNI_DT+
+     7    DSTRDT+DSTRDU*DU_DT+DSTRDX*DX_DT+DSTRDN*DNI_DT)/BRYDNS
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBUDT = T*DBSDT
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDT = DBUDT-S_DENS/BRYDNS-T*DBSDT
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDT = YE*(DMPODT+DMPDEP*DEP_DT+DMPDEN*DEN_DT)+
+     1    (1.0-YE)*(DMNODT+DMNDEP*DEP_DT+DMNDEN*DEN_DT)
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDT = BRYDNS*(DBMUDT-DBFDT)
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !       Density Derivatives        !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+      DNA_DN = DNADEP*DEP_DN+DNADEN*DEN_DN
+c
+c
+      DBSDN = (DU_DN*S_NUC-
+     1    DU_DN*EXALFA*S_OUT-EXCLU*V_ALFA*DNA_DN*S_OUT-DU_DN*S_ALFA+
+     2    U_NUC*(DSIDX*DX_DN+DSIDN*DNI_DN)+
+     3    EXCLU*EXALFA*(DSODEP*DEP_DN+DSODEN*DEN_DN)+
+     4    EXCLU*(DSADEP*DEP_DN+DSADEN*DEN_DN)+
+     5    DSSCDU*DU_DN+DSSCDX*DX_DN+DSSCDN*DNI_DN+
+     6    DSTRDU*DU_DN+DSTRDX*DX_DN+DSTRDN*DNI_DN)/BRYDNS-
+     7    S_DENS/BRYDNS**2
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBUDN = (DU_DN*E_NUC-
+     1    DU_DN*EXALFA*E_OUT-EXCLU*V_ALFA*DNA_DN*E_OUT-DU_DN*E_ALFA+
+     2    U_NUC*(DEIDX*DX_DN+DEIDN*DNI_DN)+
+     3    EXCLU*EXALFA*(DEODEP*DEP_DN+DEODEN*DEN_DN)+
+     4    EXCLU*(DEADEP*DEP_DN+DEADEN*DEN_DN)+
+     5    DESCDU*DU_DN+DESCDX*DX_DN+DESCDN*DNI_DN+
+     6    DETRDU*DU_DN+DETRDX*DX_DN+DETRDN*DNI_DN)/BRYDNS-
+     7    E_DENS/BRYDNS**2
+c
+c
+c
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDN = DBUDN-T*DBSDN
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDN = YE*(DMPDEP*DEP_DN+DMPDEN*DEN_DN)+
+     1    (1.0-YE)*(DMNDEP*DEP_DN+DMNDEN*DEN_DN)
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDN = BRYDNS*(DBMUDN-DBFDN)+MUBARY-BFTOT
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !         Ye Derivatives           !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c
+c
+      DNA_DY = DNADEP*DEP_DY+DNADEN*DEN_DY
+c
+c
+      DBSDY = (DU_DY*S_NUC-
+     1    DU_DY*EXALFA*S_OUT-EXCLU*V_ALFA*DNA_DY*S_OUT-DU_DY*S_ALFA+
+     2    U_NUC*(DSIDX*DX_DY+DSIDN*DNI_DY)+
+     3    EXCLU*EXALFA*(DSODEP*DEP_DY+DSODEN*DEN_DY)+
+     4    EXCLU*(DSADEP*DEP_DY+DSADEN*DEN_DY)+
+     5    DSSCDU*DU_DY+DSSCDX*DX_DY+DSSCDN*DNI_DY+
+     6    DSTRDU*DU_DY+DSTRDX*DX_DY+DSTRDN*DNI_DY)/BRYDNS
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBUDY = (DU_DY*E_NUC-
+     1    DU_DY*EXALFA*E_OUT-EXCLU*V_ALFA*DNA_DY*E_OUT-DU_DY*E_ALFA+
+     2    U_NUC*(DEIDX*DX_DY+DEIDN*DNI_DY)+
+     3    EXCLU*EXALFA*(DEODEP*DEP_DY+DEODEN*DEN_DY)+
+     4    EXCLU*(DEADEP*DEP_DY+DEADEN*DEN_DY)+
+     5    DESCDU*DU_DY+DESCDX*DX_DY+DESCDN*DNI_DY+
+     6    DETRDU*DU_DY+DETRDX*DX_DY+DETRDN*DNI_DY)/BRYDNS
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDY = DBUDY-T*DBSDY
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDY = YE*(DMPDEP*DEP_DY+DMPDEN*DEN_DY)+MUPROT+
+     1    (1.0-YE)*(DMNDEP*DEP_DY+DMNDEN*DEN_DY)-MUN
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDY = BRYDNS*(DBMUDY-DBFDY)
+c
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c-----------------------------------------------------------------------
+c                End of derivatives of thermodynamic variables
+c-----------------------------------------------------------------------
+c
+c                  Total derivatives
+c                  (Baryons+Electrons+Photons)
+c
+      DUDT = DBUDT+DEUDT+DPUDT
+      DUDN = DBUDN+DEUDN+DPUDN
+      DUDY = DBUDY+DEUDY+DPUDY
+c
+c
+      DSDT = DBSDT+DESDT+DPSDT
+      DSDN = DBSDN+DESDN+DPSDN
+      DSDY = DBSDY+DESDY+DPSDY
+c
+c
+      DPDT = DBPDT+DEPDT+DPPDT
+      DPDN = DBPDN+DEPDN+DPPDN
+      DPDY = DBPDY+DEPDY+DPPDY
+c
+c
+      DMUDT = DBMUDT+YE*DEMUDT
+      DMUDN = DBMUDN+YE*DEMUDN
+      DMUDY = DBMUDY+YE*DEMUDY
+c
+c                Calculate the adiabatic index
+      GAM_S = BRYDNS*DPDN/PTOT+T*(DPDT**2)/(BRYDNS*PTOT*DUDT)
+c
+c
+c                Set the value of XPREV to X for use the next
+c                time through
+c
+      XPREV = X
+c
+c                Save the value of the proton density to be used
+c                by the "no nuclei" scheme on the next call
+      P_PREV = NPOUT
+c
+c
+c                Return the three internal compositional variables
+      INPVAR(2) = NSUBI
+      INPVAR(3) = ETA_PO
+      INPVAR(4) = ETA_NO
+c
+c
+c
+c                Rejoice for this routine is finished!!!!!!!
+ 999  RETURN
+c
+c
+      END
+cnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnucnu
+calfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalf
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         ALFEOS.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       ALFEOS
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         8/30/90 Modified from model 4-A
+c
+c                  Please report any problems to me at:
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU
+c                            FSWESTY@SBAST3.SUNYSB.EDU
+c
+c
+c    CALL LINE:    CALL ALFEOS(INPVAR,YE,BRYDNS)
+c
+c    INPUTS:       INPVAR = TEMP, INTERNAL ENG, OR ENTROPY
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c    OUTPUTS:
+c
+c
+c    INCLUDE FILES:  EOS_M4C.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE ALFEOS(INPVAR,YE,BRYDNS,P_PREV,SSFLAG)
+c
+      IMPLICIT NONE
+c
+c
+      INCLUDE 'eos_m4c.inc'
+      INCLUDE 'el_eos.inc'
+c
+c                       "ZERO" flag
+      INTEGER ZFLAG
+c
+c                       "Negative" flag
+      INTEGER NFLAG
+c
+c                       Function type declarations
+c
+      DOUBLE PRECISION F_1_2, F_3_2, FINV12, FHALFO, FHALF
+c
+c                       Include the nucleon-nucleon interaction
+c                       statement function definitions
+      INCLUDE 'force.inc'
+c...........................................................
+c      on real underflow ignore
+c...........................................................
+c
+c
+c
+c
+c
+c                         Unset the zero flag
+      ZFLAG = 0
+c
+c                         Ratio of baryon density to saturation density
+      Y = BRYDNS/NSUBS
+c
+c
+c                         Set T equal to the input variable (the entropy
+c                         and internal energy options are not implemented
+c                         in this version)
+      T = INPVAR(1)
+c
+c
+c                         Calc the quantum concentration of nucleons
+      NQ = 2.36D-4*T**1.5
+c
+c                         Calc the Fermi integral coefficent
+      UQ = 20.721
+c
+      MQ = (T/UQ)**1.5
+c
+      KQ = ((T/UQ)**2.5)/(2.0*PI**2)
+c
+      LQ = UQ*(MQ**OVR53)/(3.0*(PI**2))
+c
+      ETAMAX = 0.95*FINV12(2.0*(PI**2)*BRYDNS/MQ)
+c
+c
+c
+c                              Set the proton density to its old value
+      NPOUT = P_PREV
+c
+      IF(BRYDNS.GT.(0.98*2.0/(YE*V_ALFA))) THEN
+        NPOUT = YE*BRYDNS
+        NNOUT = (1.0-YE)*BRYDNS
+        NOUT = BRYDNS
+c
+c
+c20        VNOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD)
+        VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c
+c20        VPOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NNOUT+
+c20     1    CC*(1.0+DD)*NOUT**DD+DELTAM)
+        VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+c
+        ZNO = 2.0*(PI**2)*NNOUT/MQ
+c
+        ZPO = 2.0*(PI**2)*NPOUT/MQ
+c
+        ETA_NO = FINV12(ZNO)
+c
+        ETA_PO = FINV12(ZPO)
+c
+        F32_NO = F_3_2(ETA_NO)
+        F32_PO = F_3_2(ETA_PO)
+c
+        TAU_NO = KQ*F32_NO
+        TAU_PO = KQ*F32_PO
+c
+c
+c20        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*(
+c20     1    AA*(NOUT**2)+4.0*BB*NPOUT*NNOUT+DD*CC*(NOUT**(1.0+DD)) )
+        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*PV_PR(NPOUT,NNOUT)
+c
+c
+        MUN_O = T*ETA_NO+VNOUT
+        MUN = MUN_O
+c
+        MUP_O = T*ETA_PO+VPOUT
+        MUPROT = MUP_O
+c
+c                              Calculate diff. of chem. potentials
+        MUHAT = MUN-MUPROT
+c
+c
+c                              Calculate the alpha particle
+c                              chemical potential
+        MUALFA = 2.0*MUN+2.0*MUPROT+BALPHA-BPROUT*V_ALFA
+c
+        ALFDNS = 0.0
+c
+        EXALFA = 1.0-ALFDNS*V_ALFA
+c
+      ELSE
+c
+c                              Calculate the neutron density
+        NNOUT = 2.0*BRYDNS*(1.0-2.0*YE)/(2.0-BRYDNS*YE*V_ALFA)+
+     1            NPOUT*(2.0-(1.0-YE)*BRYDNS*V_ALFA)/
+     2            (2.0-BRYDNS*YE*V_ALFA)
+c
+c                              Calculate density of outside nucleons
+        NOUT = NPOUT+NNOUT
+c
+c20        VNOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD)
+        VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c
+c20        VPOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NNOUT+
+c20     1    CC*(1.0+DD)*NOUT**DD+DELTAM)
+        VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+c
+        ZNO = 2.0*(PI**2)*NNOUT/MQ
+c
+        ZPO = 2.0*(PI**2)*NPOUT/MQ
+c
+        ETA_NO = FINV12(ZNO)
+c
+        ETA_PO = FINV12(ZPO)
+c
+        F32_NO = F_3_2(ETA_NO)
+        F32_PO = F_3_2(ETA_PO)
+c
+        TAU_NO = KQ*F32_NO
+        TAU_PO = KQ*F32_PO
+c
+c
+c20        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*(
+c20     1    AA*(NOUT**2)+4.0*BB*NPOUT*NNOUT+DD*CC*(NOUT**(1.0+DD)) )
+        BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*PV_PR(NPOUT,NNOUT)
+c
+c
+        MUN_O = T*ETA_NO+VNOUT
+        MUN = MUN_O
+c
+        MUP_O = T*ETA_PO+VPOUT
+        MUPROT = MUP_O
+c
+c                              Calculate diff. of chem. potentials
+        MUHAT = MUN-MUPROT
+c
+c
+c                              Calculate the alpha particle
+c                              chemical potential
+        MUALFA = 2.0*MUN+2.0*MUPROT+BALPHA-BPROUT*V_ALFA
+c
+c                              Calculate density of alpha particles
+c
+        IF(ABS(MUALFA/T).LT.30.0) THEN
+          ALFDNS = 8.0*NQ*DEXP(MUALFA/T)
+        ELSEIF((MUALFA/T).LT.-30.0) THEN
+          ALFDNS = 0.0
+        ELSE
+          ALFDNS = 8.0*NQ*DEXP(3.0D1)
+        ENDIF
+c
+c
+        EXALFA = 1.0-ALFDNS*V_ALFA
+c
+c                              Calculate "non-zeroness" of baryon
+c                              conservation equation and save the
+c                              value to be used in the finite
+c                              difference approximation of DGDPRT
+        GOLD = BRYDNS-EXALFA*(NNOUT+NPOUT)-4.0*ALFDNS
+        PRTOLD = NPOUT
+c
+c                              Take a small step to get derivative
+        NPOUT = NPOUT+0.001*BRYDNS
+c
+        DO 11 I=1,30,1
+c
+c                              Unset the negative flag
+          NFLAG = 0
+c
+ 14       CONTINUE
+c                              Calculate the neutron density
+          NNOUT = 2.0*BRYDNS*(1.0-2.0*YE)/(2.0-BRYDNS*YE*V_ALFA)+
+     1            NPOUT*(2.0-(1.0-YE)*BRYDNS*V_ALFA)/
+     2            (2.0-BRYDNS*YE*V_ALFA)
+c
+          IF((NNOUT.LT.0.0).AND.(I.EQ.1)) THEN
+            NPOUT = PRTOLD-0.5*DPRT
+          ELSEIF((NNOUT.LT.0.0).AND.(I.EQ.1).AND.(NFLAG.NE.1)) THEN
+            NPOUT = 0.99*P_PREV
+            NFLAG = 1
+          ELSEIF((NNOUT.LT.0.0).AND.(I.EQ.1).AND.(NFLAG.EQ.1)) THEN
+            SSFLAG = 0
+            GOTO 999
+          ENDIF
+c                              Calculate density of outside nucleons
+          NOUT = NPOUT+NNOUT
+c
+c20          VNOUT = EIFLAG*
+c20     1      (2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD)
+          VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c
+c20          VPOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NNOUT+
+c20     1      CC*(1.0+DD)*NOUT**DD+DELTAM)
+          VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+c
+          ZNO = 2.0*(PI**2)*NNOUT/MQ
+c
+          ZPO = 2.0*(PI**2)*NPOUT/MQ
+c
+          ETA_NO = FINV12(ZNO)
+c
+          ETA_PO = FINV12(ZPO)
+c
+          F32_NO = F_3_2(ETA_NO)
+c
+          F32_PO = F_3_2(ETA_PO)
+c
+          TAU_NO = KQ*F32_NO
+          TAU_PO = KQ*F32_PO
+c
+c20          BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*
+c20     1      (AA*(NOUT**2)+4.0*BB*NPOUT*NNOUT+DD*CC*(NOUT**(1.0+DD)) )
+          BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*PV_PR(NPOUT,NNOUT)
+c
+          MUN_O = T*ETA_NO+VNOUT
+          MUN = MUN_O
+c
+          MUP_O = T*ETA_PO+VPOUT
+          MUPROT = MUP_O
+c
+c                              Calc difference of potentials
+          MUHAT = MUN-MUPROT
+c
+c                              Calc alpha particle chemical potentials
+          MUALFA = 2.0*MUN+2.0*MUPROT+BALPHA-BPROUT*V_ALFA
+c
+c                              Calc alpha particle density
+c
+          IF(ABS(MUALFA/T).LT.30.0) THEN
+            ALFDNS = 8.0*NQ*DEXP(MUALFA/T)
+          ELSEIF((MUALFA/T).LT.-30.0) THEN
+            ALFDNS = 0.0
+          ELSE
+            ALFDNS = 8.0*NQ*DEXP(3.0D1)
+          ENDIF
+c
+c
+          EXALFA = 1.0-ALFDNS*V_ALFA
+c
+c                              Calc "non-zeroness" of baryon cons. eqn.
+          G = BRYDNS-EXALFA*(NNOUT+NPOUT)-4.0*ALFDNS
+c
+c                              Calculate derivative of baryon conservation
+c                              equation w.r.t. proton density by finite
+c                              diference approximation
+          DGDPRT = (G-GOLD)/(NPOUT-PRTOLD)
+c
+c                              If rate of change is near zero
+c                              and zero flag is not set
+          IF((ABS(DGDPRT).LT.1.0D-25).AND.(ZFLAG.EQ.0)) THEN
+c                              Tweak the step size
+            NPOUT = PRTOLD-0.5*DPRT
+c                              and set the zero flag
+            ZFLAG = 1
+c                              and go back and try again
+            GOTO 14
+c                              If failure occurs again
+          ELSEIF((ABS(DGDPRT).LT.1.0D-25).AND.(ZFLAG.EQ.1)) THEN
+c                              declare an EOS failure
+            SSFLAG = 0
+c                              and return
+            GOTO 999
+          ENDIF
+c
+c                              Calculate new Newton-Raphson step
+          DPRT = G/DGDPRT
+c
+c                              Save old value of proton density & G
+          PRTOLD = NPOUT
+          GOLD = G
+c
+c
+ 13       CONTINUE
+c
+c                              Potential "new" value of proton density
+          PRTNEW = NPOUT-DPRT
+c
+c                              If new proton density is less than the
+c                              baryon density and greater than zero
+c                              then update the proton density
+          IF(PRTNEW*(BRYDNS-PRTNEW).GT.0.0) THEN
+            NPOUT = NPOUT-DPRT
+c                              Else cut the step size in half and try again
+          ELSE
+            DPRT = DPRT*0.5
+            GOTO 13
+          ENDIF
+c
+c                              If step size is small enough break out of
+c                              the DO 11 loop, otherwise continue
+          IF(ABS(DPRT/NPOUT).LT.10E-11) GOTO 12
+ 11     CONTINUE
+c
+c      write(*,*) 'A failed to converge; switching to F' ! take out later
+        SSFLAG = 0
+        GOTO 999
+c
+c
+ 12     CONTINUE
+c
+      ENDIF
+c                              Set the success flag
+      SSFLAG = 1
+c
+c
+c                              Calc outside nucleon density
+      NOUT = NNOUT+NPOUT
+c
+c                              Calc outside nucleon fraction
+      XOUT = NPOUT/NOUT
+c
+c                              Calculate particle fractions
+      XALFA = 4.0*ALFDNS/BRYDNS
+      XPROT = EXALFA*NPOUT/BRYDNS
+      XNUT = EXALFA*NNOUT/BRYDNS
+      XH = 0.0
+c
+c                              Baryons
+c
+      F32_NO = F_3_2(ETA_NO)
+c
+      F32_PO = F_3_2(ETA_PO)
+c
+      TAU_PO = KQ*F32_PO
+c
+      TAU_NO = KQ*F32_NO
+c
+c
+c
+c
+c
+c
+c                    Calculate internal energy of outside nucleons
+c20      BUOUT = (XNUT+XPROT)*( UQ*(TAU_PO+TAU_NO)+
+c20     1    EIFLAG*((NOUT**2)*AA+
+c20     2   4.0*BB*NPOUT*NNOUT+CC*NOUT**(1.0+DD)+NPOUT*DELTAM) )/NOUT
+      BUOUT = (XNUT+XPROT)*( UQ*(TAU_PO+TAU_NO)+
+     1    EIFLAG*PV_E(NPOUT,NNOUT) )/NOUT
+c
+c
+c                                Calc alfa particle internal energy
+      BUALFA = 0.25*XALFA*(1.5*T-BALPHA)
+c
+c                                Set nuclei internal energy to zero
+      BUNUC = 0.0
+c                                Calculate total baryon internal energy
+c                                (per baryon)
+      BU = BUOUT+BUALFA+BUNUC
+c
+c
+c                                Calc entropy of outside nucleons
+      BSOUT = (XNUT+XPROT)*( (5.0*UQ/(3.0*T))*(TAU_NO+TAU_PO)-
+     1   NNOUT*ETA_NO-NPOUT*ETA_PO )/NOUT
+c
+c                                Calc alpha particle entropy
+      BSALFA = 0.25*XALFA*(2.5-MUALFA/T)
+c
+c                                Set nuclei entropy to zero
+      BSNUC = 0.0
+c
+c                                Calc total baryon entropy (per baryon)
+      BS = BSOUT+BSALFA+BSNUC
+c
+c
+c
+c                                Calc outside free energy
+      BFOUT = BUOUT-T*BSOUT
+c                                Calc alpha particle free energy
+      BFALFA = BUALFA-T*BSALFA
+c                                Set nuclei free energy to zero
+      BFNUC = BUNUC-T*BSNUC
+c                                Calc total baryon free energy (per nucleon)
+      BFTOT = BFOUT+BFALFA+BFNUC
+c
+c
+c
+c
+c
+c                                Calc outside pressure
+c20      BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*(
+c20     1    AA*(NOUT**2)+4.0*BB*NPOUT*NNOUT+DD*CC*(NOUT**(1.0+DD)))
+      BPROUT = LQ*(F32_PO+F32_NO)+EIFLAG*PV_PR(NPOUT,NNOUT)
+c
+c                                Calc alfa particle pressure
+      BPRALF = ALFDNS*T
+c
+c                                Set nuclei pressure to zero
+      BPRNUC = 0.0
+c
+c                                Calc total baryon pressure
+      BPRESS = BPROUT+BPRALF+BPRNUC
+c
+c                           Leptons & Photons
+      CALL EL_EOS(T,YE,BRYDNS)                     !!!!!!!!!!!!!!!!!
+c
+c
+c                           Total pressure and eng/ent per baryon
+c
+      FBARY = BFTOT+FSUBE
+      PBARY = BPRESS+EPRESS
+      MUBARY = YE*MUPROT+(1.0-YE)*MUN
+      MU_MAT = YE*(MUPROT+MUSUBE)+(1.0-YE)*MUN
+c
+      FTOT = BFTOT+FSUBE+PF
+      UTOT = BU+EU+PU
+      STOT = BS+ES+PS
+      PTOT = BPRESS+EPRESS+PPRESS
+c
+c
+c
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c-----------------------------------------------------------------------
+c                Derivatives of thermodynamic variables
+c-----------------------------------------------------------------------
+c
+c
+c
+cc      GPO = 2.0*FHALFO(ETA_PO)
+cc      GNO = 2.0*FHALFO(ETA_NO)
+c
+c
+      GPO = 2.0*FHALF(ETA_PO)
+      GNO = 2.0*FHALF(ETA_NO)
+c
+c
+c                 ------------------------------------
+c                 !      Derivatives of exterior     !
+c                 !      quantities                  !
+c                 !      (w.r.t. Temp. and ETA's)    !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c                  Derivatives of exterior potentials
+c                  w.r.t. particle densities
+c20      DVPODP = EIFLAG*(2.0*AA+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)) )
+      DVPODP = EIFLAG*DPVPDP(NPOUT,NNOUT)
+c20      DVPODN = EIFLAG*(2.0*AA+4.0*BB+DD*(1.0+DD)*CC*(NOUT**(DD-1.0)) )
+      DVPODN = EIFLAG*DPVPDN(NPOUT,NNOUT)
+c20      DVNODP = DVPODN
+      DVNODP = EIFLAG*DPVNDP(NPOUT,NNOUT)
+c20      DVNODN = DVPODP
+      DVNODN = EIFLAG*DPVNDN(NPOUT,NNOUT)
+c
+c
+c                  Derviatives of exterior chem. pot. w.r.t. ETA's
+c                  (at fixed T)
+      DMPDEP = T+DVPODP*NPOUT/GPO
+      DMPDEN = DVPODN*NNOUT/GNO
+      DMNDEP = DVNODP*NPOUT/GPO
+      DMNDEN = T+DVNODN*NNOUT/GNO
+c
+c                  Derivatives of pressure potential w.r.t.
+c                  particle densities
+c20      DV_DPO = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NNOUT+CC*DD*(1.0+DD)*(NOUT**DD) )
+      DV_DPO = EIFLAG*DPVRDP(NPOUT,NNOUT)
+c20      DV_DNO = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NPOUT+CC*DD*(1.0+DD)*(NOUT**DD) )
+      DV_DNO = EIFLAG*DPVRDN(NPOUT,NNOUT)
+c
+c                  Derivatives of pressure potential w.r.t. ETA's
+c                  (at fixed T)
+      DV_DEP = DV_DPO*NPOUT/GPO
+      DV_DEN = DV_DNO*NNOUT/GNO
+c
+c                  Derivatives of outside pressure w.r.t. ETA's
+c                  (at fixed T)
+      DPODEP = NPOUT*T+DV_DEP
+      DPODEN = NNOUT*T+DV_DEN
+c
+c                  Derivatives of alpha density w.r.t. ETA's
+c                  (at fixed T)
+      DNADEP = ALFDNS*(2.0*DMPDEP+2.0*DMNDEP-V_ALFA*DPODEP)/T
+      DNADEN = ALFDNS*(2.0*DMPDEN+2.0*DMNDEN-V_ALFA*DPODEN)/T
+c
+c
+c                  Derivatives of particle densities w.r.t. T
+c                  (at fixed ETA's)
+      DNPODT = 1.5*NPOUT/T
+      DNNODT = 1.5*NNOUT/T
+c
+c                  Derivatives of exterior chem. pot. w.r.t. T
+c                  (at fixed ETA's)
+      DMPODT = ETA_PO+DVPODP*DNPODT+DVPODN*DNNODT
+      DMNODT = ETA_NO+DVNODP*DNPODT+DVNODN*DNNODT
+c
+c                  Derivative of pressure potential w.r.t. T
+c                  (at fixed ETA's)
+      DV_DT = DV_DPO*DNPODT+DV_DNO*DNNODT
+c
+c                  Derivative of outside pressure w.r.t. T
+c                  (at fixed ETA's)
+      DPODT = OVR23*UQ*2.5*(TAU_PO+TAU_NO)/T+DV_DT
+c
+c                  Derivative of alpha chem. pot. w.r.t. T
+c                  (at fixed ETA's)
+      DMUADT = 2.0*DMPODT+2.0*DMNODT-V_ALFA*DPODT
+c
+c                  Derivative of alpha particle density w.r.t. T
+c                  (at fixed ETA's)
+      DNADT = 1.5*ALFDNS/T-ALFDNS*MUALFA/(T**2)+ALFDNS*DMUADT/T
+c
+c                  Derivative of alpha particle pressure w.r.t. T
+c                  (at fixed ETA's)
+      DPADT = ALFDNS+T*DNADT
+c
+c
+c++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+c
+c
+c
+c                 ------------------------------------
+c                 !      Derivatives of constraint   !
+c                 !      and equilibrium equations   !
+c                 !      with respect to the five    !
+c                 !      compositional variables     !
+c                 !      (U,x,n_i,eta_po,eta_no)     !
+c                 !      and the three independent   !
+c                 !      variables                   !
+c                 !      (Baryon density, T, and Ye) !
+c                 !                                  !
+c                 ------------------------------------
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 1 (Baryon conservation)
+c
+c
+c
+      DG1DO1 = -EXALFA*NPOUT/GPO+(V_ALFA*NOUT-4.0)*DNADEP
+c
+      DG1DO2 = -EXALFA*NNOUT/GNO+(V_ALFA*NOUT-4.0)*DNADEN
+c
+c
+      DG1DL1 = 1.0
+c
+      DG1DL2 = -EXALFA*(DNNODT+DNPODT)+(V_ALFA*NOUT-4.0)*DNADT
+c
+      DG1DL3 = 0.0
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                Equation 2 (Charge conservation)
+c
+c
+      DG2DO1 = -EXALFA*NPOUT/GPO+(V_ALFA*NPOUT-2.0)*DNADEP
+c
+      DG2DO2 = (V_ALFA*NPOUT-2.0)*DNADEN
+c
+c
+      DG2DL1 = YE
+c
+      DG2DL2 = -EXALFA*DNPODT+(V_ALFA*NPOUT-2.0)*DNADT
+c
+      DG2DL3 = BRYDNS
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+      DET_GT = DG1DO1*DG2DO2-DG1DO2*DG2DO1
+c
+c
+      DEP_DN = (DG1DO2*DG2DL1-DG2DO2*DG1DL1)/DET_GT
+      DEN_DN = (DG2DO1*DG1DL1-DG1DO1*DG2DL1)/DET_GT
+c
+c
+      DEP_DT = (DG1DO2*DG2DL2-DG2DO2*DG1DL2)/DET_GT
+      DEN_DT = (DG2DO1*DG1DL2-DG1DO1*DG2DL2)/DET_GT
+c
+c
+      DEP_DY = (DG1DO2*DG2DL3-DG2DO2*DG1DL3)/DET_GT
+      DEN_DY = (DG2DO1*DG1DL3-DG1DO1*DG2DL3)/DET_GT
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 -------------------------------------
+c                 !      Derivatives of exterior bulk !
+c                 !      nucleon internal energy &    !
+c                 !      entropy densities and the    !
+c                 !      chem. pot.  w.r.t. to eta_p, !
+c                 !      ate_n & T. These are used in !
+c                 !      calculating the derivatives  !
+c                 !      w.r.t. the independant vars  !
+c                 !      (Baryon density, T, and Ye)  !
+c                 !                                   !
+c                 -------------------------------------
+c
+c
+      S_OUT =(OVR53*UQ/T)*(TAU_NO+TAU_PO)-NNOUT*ETA_NO-NPOUT*ETA_PO
+c
+c20      E_OUT = UQ*(TAU_PO+TAU_NO)+EIFLAG*
+c20     1((NOUT**2)*AA+4.0*BB*NPOUT*NNOUT+CC*NOUT**(1.0+DD)+NPOUT*DELTAM)
+      E_OUT = UQ*(TAU_PO+TAU_NO)+EIFLAG*PV_E(NPOUT,NNOUT)
+c
+c                   Derivative of exterior entropy density w.r.t. T
+      DSODT =  OVR53*UQ*(1.5*(TAU_PO+TAU_NO)/(T**2))-
+     1     1.5*(NPOUT*ETA_PO+NNOUT*ETA_NO)/T
+c
+      DEODT = T*DSODT
+c
+c                    Derivatives of exterior particle densities w.r.t.
+c                    Temperature (ETA's fixed)
+      DNPODT = 1.5*NPOUT/T
+      DNNODT = 1.5*NNOUT/T
+c
+      DMPODT = ETA_PO+DVPODP*DNPODT+DVPODN*DNNODT
+      DMNODT = ETA_NO+DVNODP*DNPODT+DVNODN*DNNODT
+c
+c
+      DNPDEP = NPOUT/GPO
+      DNNDEN = NNOUT/GNO
+c
+      DTPDEP = 1.5*T*NPOUT/UQ
+      DTNDEN = 1.5*T*NNOUT/UQ
+c
+      DSODEP = (OVR53*UQ/T)*DTPDEP-NPOUT-ETA_PO*DNPDEP
+      DSODEN = (OVR53*UQ/T)*DTNDEN-NNOUT-ETA_NO*DNNDEN
+c
+c
+c                    Exterior particle potentials
+c20      VNOUT = EIFLAG*(2.0*AA*NOUT+4.0*BB*NPOUT+CC*(1.0+DD)*NOUT**DD )
+      VNOUT = EIFLAG*PVN(NPOUT,NNOUT)
+c20      VPOUT = EIFLAG*
+c20     1    (2.0*AA*NOUT+4.0*BB*NNOUT+CC*(1.0+DD)*NOUT**DD+DELTAM)
+      VPOUT = EIFLAG*PVP(NPOUT,NNOUT)
+c
+c
+      DEODEP = UQ*DTPDEP+VPOUT*DNPDEP
+      DEODEN = UQ*DTNDEN+VNOUT*DNNDEN
+c
+      DMPDEP = T+DVPODP*NPOUT/GPO
+      DMPDEN = DVPODN*NNOUT/GNO
+      DMNDEP = DVNODP*NPOUT/GPO
+      DMNDEN = T+DVNODN*NNOUT/GNO
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c                 -------------------------------------
+c                 !      Derivatives of alpha         !
+c                 !      particle internal energy &   !
+c                 !      entropy densities and the    !
+c                 !      chem. pot.  w.r.t. to eta_p, !
+c                 !      ate_n & T. These are used in !
+c                 !      calculating the derivatives  !
+c                 !      w.r.t. the independant vars  !
+c                 !      (Baryon density, T, and Ye)  !
+c                 !                                   !
+c                 -------------------------------------
+c
+c
+c
+c
+      S_ALFA = ALFDNS*(2.5-MUALFA/T)
+c
+c
+      E_ALFA = ALFDNS*(1.5*T-BALPHA)
+c
+c                  Derivative of pressure potential w.r.t. T
+      DV_DT = DV_DPO*DNPODT+DV_DNO*DNNODT
+c
+c                  Derivative of outside pressure w.r.t. T
+      DPODT = OVR23*UQ*2.5*(TAU_PO+TAU_NO)/T+DV_DT
+c
+c
+      DMUADT = 2.0*DMPODT+2.0*DMNODT-V_ALFA*DPODT
+c
+c                  Derivative of alpha particle density w.r.t. T
+      DNADT = 1.5*ALFDNS/T-ALFDNS*MUALFA/(T**2)+ALFDNS*DMUADT/T
+c
+c
+      DSADT = DNADT*(2.5-MUALFA/T)-ALFDNS*DMUADT/T+ALFDNS*MUALFA/T**2
+c
+      DEADT = DNADT*(1.5*T-BALPHA)+1.5*ALFDNS
+c
+c
+      DV_DEP = DV_DPO*NPOUT/GPO
+      DV_DEN = DV_DNO*NNOUT/GNO
+c
+      DPODEP = OVR23*UQ*DTPDEP+DV_DEP
+      DPODEN = OVR23*UQ*DTNDEN+DV_DEN
+c
+      DMADEP = 2.0*DMPDEP+2.0*DMNDEP-V_ALFA*DPODEP
+      DMADEN = 2.0*DMPDEN+2.0*DMNDEN-V_ALFA*DPODEN
+c
+      DNADEP = ALFDNS*DMADEP/T
+      DNADEN = ALFDNS*DMADEN/T
+c
+      DSADEP = DNADEP*(2.5-MUALFA/T)-ALFDNS*DMADEP/T
+      DSADEN = DNADEN*(2.5-MUALFA/T)-ALFDNS*DMADEN/T
+c
+      DEADEP = DNADEP*(1.5*T-BALPHA)
+      DEADEN = DNADEN*(1.5*T-BALPHA)
+c
+c\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+      S_DENS = EXALFA*S_OUT+S_ALFA
+c
+      E_DENS = EXALFA*E_OUT+E_ALFA
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !      Temperature Derivatives     !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+      DNA_DT = DNADT+DNADEP*DEP_DT+DNADEN*DEN_DT
+c
+c
+      DBSDT = (-V_ALFA*DNA_DT*S_OUT+
+     1    EXALFA*(DSODT+DSODEP*DEP_DT+DSODEN*DEN_DT)+
+     2    (DSADT+DSADEP*DEP_DT+DSADEN*DEN_DT) )/BRYDNS
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBUDT = T*DBSDT
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDT = DBUDT-S_DENS/BRYDNS-T*DBSDT
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDT = YE*(DMPODT+DMPDEP*DEP_DT+DMPDEN*DEN_DT)+
+     1    (1.0-YE)*(DMNODT+DMNDEP*DEP_DT+DMNDEN*DEN_DT)
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDT = BRYDNS*(DBMUDT-DBFDT)
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !       Density Derivatives        !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+      DNA_DN = DNADEP*DEP_DN+DNADEN*DEN_DN
+c
+c
+      DBSDN = (-V_ALFA*DNA_DN*S_OUT+
+     1    EXALFA*(DSODEP*DEP_DN+DSODEN*DEN_DN)+
+     2   (DSADEP*DEP_DN+DSADEN*DEN_DN) )/BRYDNS-S_DENS/BRYDNS**2
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBUDN = (-V_ALFA*DNA_DN*E_OUT+
+     1    EXALFA*(DEODEP*DEP_DN+DEODEN*DEN_DN)+
+     2   (DEADEP*DEP_DN+DEADEN*DEN_DN) )/BRYDNS-E_DENS/BRYDNS**2
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDN = DBUDN-T*DBSDN
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDN = YE*(DMPDEP*DEP_DN+DMPDEN*DEN_DN)+
+     1    (1.0-YE)*(DMNDEP*DEP_DN+DMNDEN*DEN_DN)
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDN = BRYDNS*(DBMUDN-DBFDN)+MUBARY-BFTOT
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c                 ------------------------------------
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 !         Ye Derivatives           !
+c                 !                                  !
+c                 !                                  !
+c                 !                                  !
+c                 ------------------------------------
+c
+c
+c
+c
+      DNA_DY = DNADEP*DEP_DY+DNADEN*DEN_DY
+c
+c
+      DBSDY = (-V_ALFA*DNA_DY*S_OUT+
+     1    EXALFA*(DSODEP*DEP_DY+DSODEN*DEN_DY)+
+     2   (DSADEP*DEP_DY+DSADEN*DEN_DY) )/BRYDNS
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBUDY = (-V_ALFA*DNA_DY*E_OUT+
+     1    EXALFA*(DEODEP*DEP_DY+DEODEN*DEN_DY)+
+     2   (DEADEP*DEP_DY+DEADEN*DEN_DY) )/BRYDNS
+c
+c
+c~~~~~~~~~~~~~~~~~~
+c
+c
+      DBFDY = DBUDY-T*DBSDY
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBMUDY = YE*(DMPDEP*DEP_DY+DMPDEN*DEN_DY)+MUPROT+
+     1    (1.0-YE)*(DMNDEP*DEP_DY+DMNDEN*DEN_DY)-MUN
+c
+c~~~~~~~~~~~~~~~~~~
+c
+      DBPDY = BRYDNS*(DBMUDY-DBFDY)
+c
+c
+c
+c
+c~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+c
+c-----------------------------------------------------------------------
+c                End of derivatives of thermodynamic variables
+c-----------------------------------------------------------------------
+c
+c                  Total derivatives
+c                  (Baryons+Electrons+Photons)
+c
+      DUDT = DBUDT+DEUDT+DPUDT
+      DUDN = DBUDN+DEUDN+DPUDN
+      DUDY = DBUDY+DEUDY+DPUDY
+c
+c
+      DSDT = DBSDT+DESDT+DPSDT
+      DSDN = DBSDN+DESDN+DPSDN
+      DSDY = DBSDY+DESDY+DPSDY
+c
+c
+      DPDT = DBPDT+DEPDT+DPPDT
+      DPDN = DBPDN+DEPDN+DPPDN
+      DPDY = DBPDY+DEPDY+DPPDY
+c
+c
+      DMUDT = DBMUDT+YE*DEMUDT
+      DMUDN = DBMUDN+YE*DEMUDN
+      DMUDY = DBMUDY+YE*DEMUDY
+c
+c
+c                  Adiabatic index
+      GAM_S = BRYDNS*DPDN/PTOT+T*(DPDT**2)/(BRYDNS*PTOT*DUDT)
+c
+c
+      INPVAR(2) = NSUBS
+      INPVAR(3) = ETA_PO
+      INPVAR(4) = ETA_NO
+c
+c
+c                           Approximate the nuclear density
+      NSUBI = NSUBS
+c
+c                           Use 0.45 as the nuclear proton fraction
+      X = 0.45
+c
+c                           Save the proton number density for use
+c                           as the initial guess on next call
+      P_PREV = NPOUT
+c
+c
+ 999  RETURN
+c
+      END
+calfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalfaalf
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         MAXWEL.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       MAXWEL
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         7/13/90
+c
+c                  Please report any problems to me at:
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU
+c
+c
+c    CALL LINE:    CALL MAXWEL(INPVAR,YE,BRYDNS)
+c
+c    INPUTS:       INPVAR = TEMP, INTERNAL ENG, OR ENTROPY
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c    OUTPUTS:
+c
+c
+c
+c
+c    INCLUDE FILES:  EOS_M4C.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE MAXWEL(INPVAR,YE,BRYDNS,XPREV,P_PREV,SSFLAG)
+c
+      IMPLICIT NONE
+c
+      DOUBLE PRECISION OUTVAR(4)
+      DOUBLE PRECISION DPN_DT, DPN_DN, DPN_DY
+      DOUBLE PRECISION DSN_DT, DSN_DN, DSN_DY
+      DOUBLE PRECISION DSB_DT, DSB_DN, DSB_DY
+      DOUBLE PRECISION DMU_DT, DMU_DN, DMU_DY
+      DOUBLE PRECISION DPHADT, DPHADY, DELDNS
+      DOUBLE PRECISION N_XH, N_XA, N_XN, N_XP, B_XA, B_XN, B_XP
+c
+c
+      INCLUDE 'eos_m4c.inc'
+      INCLUDE 'el_eos.inc'
+      INCLUDE 'maxwel.inc'
+c
+c
+c                   Set the temperature
+      T = INPVAR(1)
+c
+c
+c                   Calculate and save chem. pot. and thermodynamic
+c                   quantaties from low end of two phase region
+      CALL NUCEOS(INPVAR,YE,LOWDNS,XPREV,P_PREV,SSFLAG)
+c
+c
+c
+c                    If the nuclear EOS failed and the reset flag is set
+c                    then reset the initial guesses and try again
+      IF((SSFLAG.NE.1).AND.(RSFLAG.EQ.1)) THEN
+        CALL RESET(INPVAR,YE,LOWDNS,OUTVAR)
+        OUTVAR(1) = INPVAR(1)
+        CALL NUCEOS(OUTVAR,YE,LOWDNS,XPREV,P_PREV,SSFLAG)
+c
+c
+c                    Make a last ditch effort at convergence
+        IF(SSFLAG.NE.1) THEN
+          OUTVAR(2) = 0.155
+          OUTVAR(3) = -15.0
+          OUTVAR(4) = -20.0
+          CALL NUCEOS(OUTVAR,YE,LOWDNS,XPREV,P_PREV,SSFLAG)
+        ELSE
+          INPVAR(2) = OUTVAR(2)
+          INPVAR(3) = OUTVAR(3)
+          INPVAR(4) = OUTVAR(4)
+        ENDIF
+c
+      ENDIF
+c
+c
+c
+c
+      PRLOW = PTOT-PPRESS
+      S_LOW = STOT-PS
+      F_LOW = FTOT-PF
+      MUTLOW = (1.0-YE)*MUN+YE*(MUPROT+MUSUBE)
+      MUELOW = MUSUBE
+      MUHLOW = MUHAT
+c
+      DPN_DT = DPDT
+      DPN_DN = DPDN
+      DPN_DY = DPDY
+c
+      DMU_DT = DMUDT
+      DMU_DN = DMUDN
+      DMU_DY = DMUDY
+c
+      DSN_DT = DSDT-DPSDT
+      DSN_DN = DSDN
+      DSN_DY = DSDY
+c
+      N_XH = XH
+      N_XA = XALFA
+      N_XP = XPROT
+      N_XN = XNUT
+c
+c
+      IF(SSFLAG.NE.1) THEN
+        WRITE(*,*) 'MAXWEL:  Nuclear EOS failed at try:'
+        WRITE(*,*) T,LOWDNS,YE
+        WRITE(*,*) INPVAR
+        GOTO 999
+      ENDIF
+c                   Calculate and save chem. pot. and thermodynamic
+c                   quantaties from high end of two phase region
+      CALL ALFEOS(INPVAR,YE,HIDNS,P_PREV,SSFLAG)
+c
+      PRHI = PTOT-PPRESS
+      S_HI = STOT-PS
+      F_HI = FTOT-PF
+      MUTHI = (1.0-YE)*MUN+YE*(MUPROT+MUSUBE)
+      MUEHI = MUSUBE
+      MUHHI = MUHAT
+c
+c
+      DSB_DT = DSDT-DPSDT
+      DSB_DN = DSDN
+      DSB_DY = DSDY
+c
+c
+      B_XA = XALFA
+      B_XP = XPROT
+      B_XN = XNUT
+c
+c
+      IF(SSFLAG.NE.1) THEN
+        WRITE(*,*) 'MAXWEL:  Alfa EOS failed at try:'
+        WRITE(*,*) T,HIDNS,YE
+        WRITE(*,*) INPVAR
+        GOTO 999
+      ENDIF
+c
+c                   Calculate "average" chem. pot. and pressure
+c                   in order to avoid numerical problems
+      MUTILD = (MUTLOW+MUTHI)/2.0
+      PRTILD = (PRLOW+PRHI)/2.0
+c
+c                   Calculate phase fraction
+      PHASEF = (BRYDNS-LOWDNS)/(HIDNS-LOWDNS)
+c
+c
+c                   Electron number density
+      NSUBE = BRYDNS*YE
+c
+c                   Call electron EOS to determine the
+c                   electron chemical potential
+           CALL EL_EOS(T,YE,BRYDNS)                 !!!!!!!!!!!!!!!!!!!!
+c
+c
+      MUHAT = MUSUBE+(1.0-PHASEF)*(MUHLOW-MUELOW)+PHASEF*(MUHHI-MUEHI)
+c
+      MUN = MUTILD+YE*(MUHAT-MUSUBE)
+c
+      MUPROT = MUN-MUHAT
+c
+c                   Calculate thermodynamic quantities
+c
+      STOT = ((1.0-PHASEF)*S_LOW*LOWDNS+PHASEF*S_HI*HIDNS)/BRYDNS+PS
+c
+      FTOT = (LOWDNS*F_LOW+MUTILD*(BRYDNS-LOWDNS))/BRYDNS+PF
+c
+      UTOT = FTOT+T*STOT+PU
+c
+      PTOT = PRTILD+PPRESS
+c
+c
+      XH = (1.0-PHASEF)*N_XH
+      XALFA = (1.0-PHASEF)*N_XA
+      XNUT = (1.0-PHASEF)*N_XN
+      XPROT = (1.0-PHASEF)*N_XP
+      XALFA2 = PHASEF*B_XA
+      XNUT2 = PHASEF*B_XN
+      XPROT2 = PHASEF*B_XP
+c
+c
+c
+c
+      DELDNS = HIDNS-LOWDNS
+c
+c
+      DPHADT = ((BRYDNS-LOWDNS)/DELDNS**2-1.0/DELDNS)*DNL_DT-
+     1    ((BRYDNS-LOWDNS)/DELDNS**2)*DNH_DT
+c
+      DPDT = DPN_DT+DPN_DN*DNL_DT
+      DMUDT = DMU_DT+DMU_DN*DNL_DT
+      DSDT = (1.0-PHASEF)*LOWDNS*(DSN_DT+DSN_DN*DNL_DT)/BRYDNS+
+     2 (1.0-PHASEF)*S_LOW*DNL_DT/BRYDNS-LOWDNS*S_LOW*DPHADT/BRYDNS+
+     3    (DPHADT*S_HI*HIDNS+PHASEF*DNH_DT*S_HI+
+     4    PHASEF*HIDNS*(DSB_DT+DSB_DN*DNH_DT))/BRYDNS+DPSDT
+      DUDT = DMUDT-DPDT/BRYDNS+STOT+T*DSDT
+c
+c
+      DPDN = 0.0
+      DMUDN = 0.0
+      DSDN = -DPDT/BRYDNS**2
+      DUDN = (LOWDNS*(MUTILD-FTOT)/BRYDNS**2)+T*DSDN
+c
+c
+      DPHADY = ((BRYDNS-LOWDNS)/DELDNS**2-1.0/DELDNS)*DNL_DY-
+     1    ((BRYDNS-LOWDNS)/DELDNS**2)*DNH_DY
+c
+      DPDY = DPN_DY+DPN_DN*DNL_DY
+      DMUDY = DMU_DY+DMU_DN*DNL_DY
+      DSDY = (1.0-PHASEF)*LOWDNS*(DSN_DY+DSN_DN*DNL_DY)/BRYDNS+
+     2 (1.0-PHASEF)*S_LOW*DNL_DY/BRYDNS-LOWDNS*S_LOW*DPHADY/BRYDNS+
+     3    (DPHADY*S_HI*HIDNS+PHASEF*DNH_DY*S_HI+
+     4    PHASEF*HIDNS*(DSB_DY+DSB_DN*DNH_DY))/BRYDNS
+      DUDY = DMUDY-DPDY/BRYDNS+T*DSDY
+c
+c
+c
+c
+c             Adiabatic index
+c             (Note that the first term vanishes in this expression)
+      GAM_S = T*(DPDT**2)/(BRYDNS*PTOT*DUDT)
+c
+c
+ 999  RETURN
+c
+c
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         EOSLOG.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       EOSLOG
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         12/15/90
+c
+c                  Please report any problems to me at:
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU or
+c                            fswesty@sbast3.sunysb.edu
+c
+c
+c    CALL LINE:    CALL EOSLOG(INPVAR,YE,BRYDNS,EOSFLG)
+c
+c
+c    INPUTS:       INPVAR = TEMP, INTERNAL ENG, OR ENTROPY
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c
+c
+c    OUTPUTS:      EOSFLG = 1 --> Not implemented in model 4B
+c                           2 --> GENERAL EOS
+c                           3 --> BULK EOS (includes alpha's)
+c
+c
+c
+c
+c    INCLUDE FILES:  EOS_M4C.INC, MAXWEL.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE EOSLOG(INPVAR,YE,BRYDNS,EOSFLG)
+c
+c
+      IMPLICIT NONE
+c
+c                       This include file contains all variable
+c                       declarations.  NOTE:: no implicit typing
+c                       scheme is followed in this code; if you
+c                       have any doubt as to a variables type CHECK
+c                       IT!!!!.  Also note that ALL variables are
+c                       declared explicitly.
+c
+      INCLUDE 'eos_m4c.inc'
+      INCLUDE 'maxwel.inc'
+c
+      DOUBLE PRECISION NLOW, NHI, N_CUT, TEMP_1, TEMP_2, T_BNDY
+c
+      DOUBLE PRECISION LMM, LMP, LPM, LPP
+      DOUBLE PRECISION DNDY1, DNDY2
+c.......................................
+      save lnplus,lnmins
+c      on real underflow ignore
+c.......................................
+c
+c
+c
+ 10   CONTINUE
+c
+c
+c                         Set T equal to the input variable (any calls
+c                         with entropy or internal energy should go
+c                         the the EOS_M4B subroutine)
+c
+      T = INPVAR(1)
+c
+c-----------------------------------------------------------------------
+c         code to figure out the boundaries from the tables
+c-----------------------------------------------------------------------
+c
+c
+c
+c
+      IF(YE.GT.Y_HI) THEN
+c                         Ye is too large for EOS
+c
+        WRITE(*,*) ' EOSLOG:: Cant do Ye = ',YE, 'at this time'
+        WRITE(*,*) ' EOSLOG:: assuming YE =',Y_HI,' instead'
+        YE = Y_HI
+        GOTO 10
+c
+      ELSEIF(YE.GT.Y_LOW) THEN
+c                         Calculate high and low boundary densities
+c                         for the Maxwell construction
+c
+c----------------------------------------------------------
+c           Calc Ye index
+c----------------------------------------------------------
+c
+        YFRAC = (YE-Y_LOW)/(Y_HI-Y_LOW)
+        J_MXWL = INT(YFRAC*(NUMYE-1))+1
+        DELT_Y = (Y_HI-Y_LOW)/DBLE(NUMYE-1)
+c
+        YMINUS = Y_LOW+DBLE(J_MXWL-1)*DELT_Y
+        YPLUS = Y_LOW+DBLE(J_MXWL)*DELT_Y
+c
+c
+        IF((YE.GE.YMINUS).AND.(YE.LE.YPLUS)) THEN
+          J_BD = J_MXWL
+          J_BNDY = J_MXWL
+        ELSEIF(YE.GT.YPLUS) THEN
+          J_MXWL = J_MXWL+1
+          J_BD = J_MXWL
+          J_BNDY = J_MXWL
+          YMINUS = Y_LOW+DBLE(J_MXWL-1)*DELT_Y
+          YPLUS = Y_LOW+DBLE(J_MXWL)*DELT_Y
+        ELSE
+          J_MXWL = J_MXWL-1
+          J_BD = J_MXWL
+          J_BNDY = J_MXWL
+          YMINUS = Y_LOW+DBLE(J_MXWL-1)*DELT_Y
+          YPLUS = Y_LOW+DBLE(J_MXWL)*DELT_Y
+        ENDIF
+c
+c
+        IF(J_MXWL.GT.(NUMYE-1)) THEN
+          J_MXWL = NUMYE-1
+          J_BD = J_MXWL
+          J_BNDY = J_MXWL
+          YMINUS = Y_LOW+DBLE(J_MXWL-1)*DELT_Y
+          YPLUS = Y_LOW+DBLE(J_MXWL)*DELT_Y
+        ENDIF
+c
+c
+        YINTRP = (YE-YMINUS)/(YPLUS-YMINUS)
+c
+c----------------------------------------------------------
+c           Calc T index
+c----------------------------------------------------------
+c
+c
+        TFRAC = (T-T_LOW)/(T_HI-T_LOW)
+        I_MXWL = INT(TFRAC*(NUMTMP-1))+1
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c        I_MXWL=max(I_MXWL,1)
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        DELT_T = (T_HI-T_LOW)/DBLE(NUMTMP-1)
+c
+        TMINUS = T_LOW+DBLE(I_MXWL-1)*DELT_T
+        TPLUS = T_LOW+DBLE(I_MXWL)*DELT_T
+c
+c
+        IF((T.GT.TMINUS).AND.(T.LE.TPLUS)) THEN
+          TMINUS = T_LOW+DBLE(I_MXWL-1)*DELT_T
+          TPLUS = T_LOW+DBLE(I_MXWL)*DELT_T
+        ELSEIF(T.GT.TPLUS) THEN
+          I_MXWL = I_MXWL+1
+          TMINUS = T_LOW+DBLE(I_MXWL-1)*DELT_T
+          TPLUS = T_LOW+DBLE(I_MXWL)*DELT_T
+        ELSE
+          I_MXWL = I_MXWL-1
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c        I_MXWL=max(I_MXWL,1)
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          TMINUS = T_LOW+DBLE(I_MXWL-1)*DELT_T
+          TPLUS = T_LOW+DBLE(I_MXWL)*DELT_T
+        ENDIF
+c
+c
+        IF(I_MXWL.GT.(NUMTMP-1)) THEN
+          I_MXWL = NUMTMP-1
+          TMINUS = T_LOW+DBLE(I_MXWL-1)*DELT_T
+          TPLUS = T_LOW+DBLE(I_MXWL)*DELT_T
+        ENDIF
+c
+c
+        TINTRP = (T-TMINUS)/(TPLUS-TMINUS)
+c
+c
+c
+c
+c                Find the temperature and density at the top of the
+c                Maxwel construction
+c
+cC      T_MXWL = YINTRP*(T_H(J_MXWL+1)-T_H(J_MXWL))+T_H(J_MXWL)
+cC      D_MXWL = YINTRP*(D_H(J_MXWL+1)-D_H(J_MXWL))+D_H(J_MXWL)
+        T_MXWL = DMIN1(T_H(J_MXWL+1),T_H(J_MXWL))
+        IF(T_H(J_MXWL+1).GT.T_H(J_MXWL)) THEN
+          D_MXWL = D_H(J_MXWL)
+        ELSE
+          D_MXWL = D_H(J_MXWL+1)
+        ENDIF
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        if(I_MXWL.le.0 .or. I_MXWL.gt.numtmp)  then
+        print *,'I_MXWL=',I_MXWL
+        print *,'numtmp=',numtmp
+        print '(''TFRAC,T,T_LOW,T_HI='',1p5e12.4)',TFRAC,T,T_LOW,T_HI
+        stop 'I_MXWL'
+        endif
+        if(J_MXWL.le.0 .or. J_MXWL+1.gt.numye)  then
+        print *,'J_MXWL=',J_MXWL
+        stop 'J_MXWL'
+        endif
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c
+c
+c
+c--------------------------------------------------------------------
+c            Interpolate to get Maxwell construction densities
+c--------------------------------------------------------------------
+c
+c
+c
+        DNS_1 = YINTRP*(BRYLOW(I_MXWL,J_MXWL+1)-BRYLOW(I_MXWL,J_MXWL))+
+     1               BRYLOW(I_MXWL,J_MXWL)
+        DNS_2 = YINTRP*
+     1        (BRYLOW(I_MXWL+1,J_MXWL+1)-BRYLOW(I_MXWL+1,J_MXWL))+
+     2               BRYLOW(I_MXWL+1,J_MXWL)
+c
+        LOWDNS = TINTRP*(DNS_2-DNS_1)+DNS_1
+c
+c                Derivative of lower density w.r.t. T
+        DNL_DT = (DNS_2-DNS_1)/DELT_T
+c
+        DNDY1 = (BRYLOW(I_MXWL,J_MXWL+1)-BRYLOW(I_MXWL,J_MXWL))/DELT_Y
+        DNDY2 = (BRYLOW(I_MXWL+1,J_MXWL+1)-
+     1      BRYLOW(I_MXWL+1,J_MXWL))/DELT_Y
+        DNL_DY = TINTRP*(DNDY2-DNDY1)+DNDY1
+c
+c
+c
+c
+        IF(YE.GT.Y_CUT) THEN
+c
+          DNS_1 = YINTRP*
+     1        (BRYHI(I_MXWL,J_MXWL+1)-BRYHI(I_MXWL,J_MXWL))+
+     2        BRYHI(I_MXWL,J_MXWL)
+          DNS_2 = YINTRP*
+     1        (BRYHI(I_MXWL+1,J_MXWL+1)-BRYHI(I_MXWL+1,J_MXWL))+
+     2               BRYHI(I_MXWL+1,J_MXWL)
+c
+          HIDNS = TINTRP*(DNS_2-DNS_1)+DNS_1
+c
+c                Derivative of higher density w.r.t. T
+          DNH_DT = (DNS_2-DNS_1)/DELT_T
+c
+c
+        DNDY1 = (BRYHI(I_MXWL,J_MXWL+1)-
+     1      BRYHI(I_MXWL,J_MXWL))/DELT_Y
+        DNDY2 = (BRYHI(I_MXWL+1,J_MXWL+1)-
+     1      BRYHI(I_MXWL+1,J_MXWL))/DELT_Y
+        DNH_DY = TINTRP*(DNDY2-DNDY1)+DNDY1
+c
+c
+        ELSE
+          HIDNS = LOWDNS
+        ENDIF
+c
+c
+c--------------------------------------------------------------------
+c--------------------------------------------------------------------
+c
+c                       Ye is too low
+      ELSE
+        WRITE(*,*) ' EOSLOG:: Cant do Ye = ',YE, 'at this time'
+        WRITE(*,*) ' EOSLOG:: assuming YE =',Y_LOW,' instead'
+        YE = Y_LOW
+        GOTO 10
+      ENDIF
+c
+c
+c
+c
+c
+      DLTLN1 = (LNCUT-LNLOW)/DBLE(NUMLOW-1)
+      DLTLN2 = (LNHI-LNCUT)/DBLE(NUMHI-1)
+c
+c
+      NLOW = 10.0**LNLOW
+      NHI = 10.0**LNHI
+      N_CUT = 10.0**LNCUT
+      LOGBRY = DLOG10(BRYDNS)
+      LOGBCH = LOGBRY
+c
+c
+c
+c
+c----------------------------------------------------------
+c           Calc T index
+c----------------------------------------------------------
+c
+c
+      IF(LOGBRY.GE.LNHI) THEN
+        I_BD = NBPNTS
+        I_BNDY = NBPNTS
+        T_BNDY = YINTRP*
+     1           (LBOUND(I_BNDY,J_BNDY+1)-LBOUND(I_BNDY,J_BNDY))+
+     2            LBOUND(I_BNDY,J_BNDY)
+        GOTO 70
+      ELSEIF((LOGBRY.LT.LNHI).AND.(LOGBRY.GT.LNCUT)) THEN
+c
+        I_BD = INT((LOGBRY-LNCUT)/DLTLN2)+NUMLOW
+        LNMINS = LNCUT+DBLE(I_BD-NUMLOW)*DLTLN2
+        LNPLUS = LNCUT+DBLE(I_BD-NUMLOW+1)*DLTLN2
+        IF((LOGBCH.LE.LNPLUS).AND.(LOGBCH.GE.LNMINS)) THEN
+          I_BNDY = I_BD
+        ELSEIF(LOGBCH.GT.LNPLUS) THEN
+          I_BD = I_BD+1
+          I_BNDY = I_BD
+          LNMINS = LNCUT+DBLE(I_BNDY-NUMLOW)*DLTLN2
+          LNPLUS = LNCUT+DBLE(I_BNDY-NUMLOW+1)*DLTLN2
+        ELSE
+          I_BD = I_BD-1
+          I_BNDY = I_BD
+          LNMINS = LNCUT+DBLE(I_BNDY-NUMLOW)*DLTLN2
+          LNPLUS = LNCUT+DBLE(I_BNDY-NUMLOW+1)*DLTLN2
+        ENDIF
+c
+      ELSEIF((LOGBRY.LE.LNCUT).AND.(LOGBRY.GT.LNLOW)) THEN
+c
+        I_BD = INT((LOGBRY-LNLOW)/DLTLN1)+1
+        LNMINS = LNLOW+DBLE(I_BD-1)*DLTLN1
+        LNPLUS = LNLOW+DBLE(I_BD)*DLTLN1
+        IF((LOGBCH.LE.LNPLUS).AND.(LOGBCH.GE.LNMINS)) THEN
+          I_BNDY = I_BD
+        ELSEIF(LOGBCH.GT.LNPLUS) THEN
+          I_BD = I_BD+1
+          I_BNDY = I_BD
+          LNMINS = LNLOW+DBLE(I_BNDY-1)*DLTLN1
+          LNPLUS = LNLOW+DBLE(I_BNDY)*DLTLN1
+        ELSE
+          I_BD = I_BD-1
+          I_BNDY = I_BD
+          LNMINS = LNLOW+DBLE(I_BNDY-1)*DLTLN1
+          LNPLUS = LNLOW+DBLE(I_BNDY)*DLTLN1
+        ENDIF
+c
+      ENDIF
+c
+      IF(I_BNDY.GT.(NBPNTS-1)) THEN
+        I_BD = NBPNTS-1
+        I_BNDY = I_BD
+        LNMINS = LNCUT+DBLE(I_BNDY-NUMLOW)*DLTLN2
+        LNPLUS = LNCUT+DBLE(I_BNDY-NUMLOW+1)*DLTLN2
+      ENDIF
+c............................................
+      I_BNDY=max(I_BNDY,1)
+c............................................
+c
+c
+c
+      LMM = LBOUND(I_BNDY,J_BNDY)
+      LPM = LBOUND(I_BNDY+1,J_BNDY)
+      LMP = LBOUND(I_BNDY,J_BNDY+1)
+      LPP = LBOUND(I_BNDY+1,J_BNDY+1)
+c
+      LNFRAC = (LOGBCH-LNMINS)/(LNPLUS-LNMINS)
+c
+c                Interpolate in Ye first
+c
+      TEMP_1 = YINTRP*
+     1           (LBOUND(I_BNDY,J_BNDY+1)-LBOUND(I_BNDY,J_BNDY))+
+     2            LBOUND(I_BNDY,J_BNDY)
+      TEMP_2 = YINTRP*
+     1        (LBOUND(I_BNDY+1,J_BNDY+1)-LBOUND(I_BNDY+1,J_BNDY))+
+     2               LBOUND(I_BNDY+1,J_BNDY)
+c
+c                Interpolate in density between the two Ye
+c                interpolated values
+c
+      T_BNDY = LNFRAC*(TEMP_2-TEMP_1)+TEMP_1
+c
+c
+c----------------------------------------------------------
+c----------------------------------------------------------
+c
+ 70   CONTINUE
+c
+      TCHK_B = 1.01*T_BNDY
+      TCHK_N = 0.95*T_BNDY
+c
+      IF((LMM.GE.LPM).OR.(LMP.GT.LPP)) THEN
+        TCHK_N = DMAX1(0.0D0,DMIN1(0.95*TCHK_N,T_BNDY-3.0))
+      ENDIF
+c
+c-----------------------------------------------------------------------
+c               EOS Logic
+c-----------------------------------------------------------------------
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c                     If T is below the maximum for maxwel construction
+      IF(T.LT.T_MXWL) THEN
+c                       If rho is greater than the upper max. con.
+c                       density the use the bulk EOS
+        IF(BRYDNS.GT.HIDNS) THEN
+          EOSFLG = 3
+c                       Else if rho is greater than the lower max. con.
+c                       density then
+        ELSEIF(BRYDNS.GT.LOWDNS) THEN
+c                         If Ye is large enough to have a signifigant
+c                         max con then use the maxwell con. EOS
+          IF(YE.GT.Y_CUT) THEN
+            EOSFLG = 4
+c                         Otherwise use the bulk EOS
+          ELSE
+            EOSFLG = 3
+          ENDIF
+c
+c                       If density is greater than the minimum
+c                       Maxwell con. density, then we know that we are
+c                       in the Nuclear EOS density
+        ELSEIF(BRYDNS.GT.D_MXWL) THEN
+          EOSFLG = 2
+c
+c
+c                       Otherwise check the Boundary table
+        ELSE
+c
+c                         If T is well below the phase boundary curve
+c                         then use the nuclear EOS
+          IF(T.LT.TCHK_N) THEN
+            EOSFLG = 2
+c                         Otherwise if T is near the boundary, first
+c                         try the nuclear EOS and if not successfull
+c                         then use the bulk EOS
+          ELSEIF(T.LT.TCHK_B) THEN
+            EOSFLG = 1
+          ELSE
+c                         Otherwise T is well above the boundary so
+c                         use the bulk EOS
+            EOSFLG = 3
+          ENDIF
+        ENDIF
+c
+c                     Otherwise T is above the maximum for a maxwell
+c                     construction
+      ELSE
+c                       If density is greater than that at the top of
+c                       the maxwell construction then use the bulk EOS
+        IF(BRYDNS.GT.D_MXWL) THEN
+          EOSFLG = 3
+c
+c                       Otherwise density is below the maxwell con.
+        ELSE
+c
+c                         If T is well below the phase boundary curve
+c                         then use the nuclear EOS
+          IF(T.LT.TCHK_N) THEN
+            EOSFLG = 2
+c
+c                         Otherwise if T is near the phase boundary
+c                         curve then try the nuclear EOS and if not
+c                         successfull then use the bulk EOS
+          ELSEIF(T.LT.TCHK_B) THEN
+            EOSFLG = 1
+c
+c                         Otherwise T is well above the phase boundary
+c                         curve so use the bulk EOS
+          ELSE
+            EOSFLG = 3
+          ENDIF
+        ENDIF
+      ENDIF
+c
+c
+c-----------------------------------------------------------------------
+c                         Done with EOS logic so return EOSFLG
+c-----------------------------------------------------------------------
+c
+ 999  RETURN
+c
+c
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         RESET.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       RESET
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         12/21/90
+c
+c                  Please report any problems to me at:
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@ASTRO.SUNYSB.EDU or
+c                            fswesty@sbast3.sunysb.edu
+c
+c
+c    CALL LINE:    CALL RESET(INPVAR,YE,BRYDNS,OUTVAR)
+c
+c
+c    INPUTS:       INPVAR = TEMP, NSUBI, ETA_PO, ETA_NO
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c
+c
+c    OUTPUTS:      OUTVAR = ARRAY OF LENGTH 4 CONTAINING RESET VALUES
+c                  FOR THE INITIAL GUESSES
+c
+c
+c
+c
+c    INCLUDE FILES: NONE
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE RESET(INPVAR,YE,BRYDNS,OUTVAR)
+c
+c
+      IMPLICIT NONE
+c
+c
+c                      Subroutine parameters
+c
+      DOUBLE PRECISION INPVAR(4), OUTVAR(4), YE, BRYDNS
+c
+c
+c                      Local variables
+c
+      DOUBLE PRECISION ZPG, ZNG, ETA_PG, ETA_NG, PI, UQ, MQ, T, EFRAC
+c
+c                      Functions
+c
+      DOUBLE PRECISION FINV12
+c
+c-----------------------------------------------------------------------
+c
+      T = INPVAR(1)
+c
+c
+      PI = 3.1415927
+      UQ = 20.721
+c
+      MQ = (T/UQ)**1.5
+c
+c
+      EFRAC = 0.5*YE
+c
+      ZNG = 2.0*(PI**2)*BRYDNS*(1.0-EFRAC)/MQ
+c
+      ZPG = 2.0*(PI**2)*BRYDNS*EFRAC/MQ
+c
+      ETA_NG = FINV12(ZNG)
+c
+      ETA_PG = FINV12(ZPG)
+c
+      OUTVAR(1) = INPVAR(1)
+      OUTVAR(2) = INPVAR(2)
+      OUTVAR(3) = ETA_PG
+      OUTVAR(4) = ETA_NG
+c
+c
+c-----------------------------------------------------------------------
+c
+ 999  RETURN
+c
+c
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         ALOADMX.FOR
+c    MODULE:       LOADMX
+c    TYPE:         LOADMX
+c
+c    PURPOSE:      LOAD THE LOOK-UP TABLE FOR THE MAXWELL CONSTRUCTION
+c
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         7/16/90
+c
+c    CALL LINE:    CALL LOADMX
+c
+c    INPUTS:       N/A
+c
+c    OUTPUTS       N/A
+c
+c    SUBROUTINE CALLS: EOS_M4C
+c
+c    INCLUDE FILES:  EOS_M4C.INC, MAXWEL.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE LOADMX()
+c
+      IMPLICIT NONE
+c
+c
+      INCLUDE 'eos_m4c.inc'
+      INCLUDE 'maxwel.inc'
+c
+      INTEGER NTMP, NYE, NYE2, NUM_BP
+      INTEGER LUN1, LUN2, KK, KMIN
+      PARAMETER(LUN1=54,LUN2=55)
+c
+c
+      INTEGER FNML1, FNML2
+      CHARACTER*60 FNAME1, FNAME2
+c
+      DOUBLE PRECISION N_SM, SYMM_M, COMP_M, BINDEM, SYM_SM, SIG_SM
+      DOUBLE PRECISION N_SB, SYMM_B, COMP_B, BINDEB, SYM_SB, SIG_SB
+      DOUBLE PRECISION MSCDD3, BSCDD3
+c
+      INCLUDE 'force.inc'
+c
+c
+c
+c      CALL GETFNM(FNAME1,FNML1,'Enter ASCII Maxwell fname:',26)
+c
+c      CALL GETFNM(FNAME2,FNML2,'Enter ASCII boundary fname:',27)
+       fname1='max220.atb'
+       fname2='bd220.atb'
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c
+c
+c
+c-----------------------------------------------------------------------
+c        Read the file Maxwell construction data file
+c-----------------------------------------------------------------------
+c
+c
+c
+c      OPEN(UNIT=LUN1,FILE=FNAME1(1:FNML1),STATUS='OLD')
+       OPEN(UNIT=LUN1,FILE=FNAME1,STATUS='OLD')
+c
+c
+c
+c
+c
+c
+      READ(LUN1,*) N_SM, SYMM_M
+      READ(LUN1,*) COMP_M,BINDEM
+      READ(LUN1,*) SYM_SM, SIG_SM
+c
+c
+c
+c
+      READ(LUN1,*) NTMP,NYE
+      READ(LUN1,*) T_LOW,T_HI
+      READ(LUN1,*) Y_LOW,Y_HI
+c
+c
+c
+      IF((NTMP.NE.NUMTMP).OR.(NYE.NE.NUMYE)) THEN
+        WRITE(*,*) 'LOADMX:  MXWL TABLE IS INCOMPATIBLE WITH ARRAYS'
+        STOP
+      ENDIF
+c
+c
+      DO 101 J=1,NUMYE,1
+        DO 100 I=1,NUMTMP,3
+          KMIN = MIN0(I+2,NUMTMP)
+          READ(LUN1,*) (BRYLOW(KK,J),KK=I,KMIN,1)
+ 100    CONTINUE
+ 101  CONTINUE
+c
+c
+      DO 103 J=1,NUMYE,1
+        DO 102 I=1,NUMTMP,3
+          KMIN = MIN0(I+2,NUMTMP)
+          READ(LUN1,*) (BRYHI(KK,J),KK=I,KMIN,1)
+ 102    CONTINUE
+ 103  CONTINUE
+c
+c
+c
+      DO 104 I=1,NUMYE,3
+        KMIN = MIN0(I+2,NUMYE)
+        READ(LUN1,*) (T_H(KK),KK=I,KMIN,1)
+ 104  CONTINUE
+c
+c
+      DO 105 I=1,NUMYE,3
+        KMIN = MIN0(I+2,NUMYE)
+        READ(LUN1,*) (D_H(KK),KK=I,KMIN,1)
+ 105  CONTINUE
+c
+      READ(LUN1,*) YCUT
+      READ(LUN1,*) MSCDD3
+c
+c
+      CLOSE(UNIT=LUN1,STATUS='KEEP')
+c
+c
+      WRITE(*,*)
+      WRITE(*,*) '<<LOADMX:  MAXWELL CON. TABLE IS INITIALIZED>>'
+      WRITE(*,*)
+c
+c
+c
+c-----------------------------------------------------------------------
+c        Read the file Boundary data file
+c-----------------------------------------------------------------------
+c
+c
+c
+c      OPEN(UNIT=LUN2,FILE=FNAME2(1:FNML2),STATUS='OLD')
+       OPEN(UNIT=LUN2,FILE=FNAME2,STATUS='OLD')
+c
+c
+c
+c
+      READ(LUN2,*) N_SB,SYMM_B
+      READ(LUN2,*) COMP_B,BINDEB
+      READ(LUN2,*) SYM_SB,SIG_SB
+c
+c
+c
+c
+c
+c
+      READ(LUN2,*) NUM_BP,NYE2
+      READ(LUN2,*) LNL,LNH,LNC
+      READ(LUN2,*) Y_LOW2,Y_HI2
+c
+c
+      IF((NBPNTS.NE.NUM_BP).OR.(NYE2.NE.NUMYE)) THEN
+        WRITE(*,*) 'LOADMX:  BNDY TABLE IS INCOMPATIBLE WITH ARRAYS'
+        STOP
+      ENDIF
+c
+      IF(ABS(LNL-LNLOW).GT.1.0D-10) THEN
+        write (*,*) ' lnl=',lnl,'  lnlow=',lnlow
+        WRITE(*,*) 'LOADMX:  LOWER END OF PHASE BNDY IS INCONSIST.'
+        STOP
+      ENDIF
+c
+c
+      IF(ABS(LNH-LNHI).GT.1.0D-10) THEN
+        WRITE(*,*) 'LOADMX:  UPPER END OF PHASE BNDY IS INCONSIST.'
+        STOP
+      ENDIF
+c
+c
+      IF(ABS(LNC-LNCUT).GT.1.0D-10) THEN
+        WRITE(*,*) 'LOADMX:  MID CUT OF PHASE BNDY IS INCONSIST.'
+        STOP
+      ENDIF
+c
+      IF(ABS(Y_LOW-Y_LOW2).GT.1.0D-10) THEN
+        WRITE(*,*) 'LOADMX:  LOWER YE LIMITS ARE INCONSIST.'
+        STOP
+      ENDIF
+c
+      IF(ABS(Y_HI-Y_HI2).GT.1.0D-10) THEN
+        WRITE(*,*) 'LOADMX:  UPPER YE LIMITS ARE INCONSIST.'
+        STOP
+      ENDIF
+c
+c
+      DO 201 J=1,NUMYE,1
+        DO 200 I=1,NBPNTS,3
+          KMIN = MIN0(I+2,NBPNTS)
+          READ(LUN2,*) (LBOUND(KK,J),KK=I,KMIN,1)
+ 200    CONTINUE
+ 201  CONTINUE
+c
+c
+      DO 203 J=1,NUMYE,1
+        DO 202 I=1,NBPNTS,3
+          KMIN = MIN0(I+2,NBPNTS)
+          READ(LUN2,*) (UBOUND(KK,J),KK=I,KMIN,1)
+ 202    CONTINUE
+ 203  CONTINUE
+c
+      READ(LUN2,*) BSCDD3
+c
+      IF(ABS(MSCDD3-BSCDD3).GT.1.0D-10) THEN
+        WRITE(*,*) 'LOADMX:  SCRDD3 VALUES ARE INCONSIST.'
+        STOP
+      ENDIF
+c
+c
+c
+      CLOSE(UNIT=LUN2,STATUS='KEEP')
+c
+c
+      WRITE(*,*)
+      WRITE(*,*) '<<LOADMX:  BOUNDARY TABLE IS INITIALIZED>>'
+      WRITE(*,*)
+c
+c
+c
+c-----------------------------------------------------------------------
+c                  All arrays are now loaded so return
+c-----------------------------------------------------------------------
+c
+      SCRDD3 = BSCDD3
+      N_S = N_SM
+      NSUBS = N_SM
+      SYMM = SYMM_M
+      COMP = COMP_M
+      BIND_E = BINDEM
+      SYM_S = SYM_SM
+      SIG_S = SIG_SM
+c
+c20      SKYRMC=(.3*((HBAR*C)**2)/MASSN)*(1.5*N_S*(PI**2))**OVR23
+c20      DD = (COMP+2.0*SKYRMC)/(3.0*SKYRMC+9.0*BIND_E)
+c20      BB = (SKYRMC*(2.0**OVR23-1.0)-SYMM)/N_S
+c20      AA = (OVR23*SKYRMC-DD*(SKYRMC+BIND_E))/(N_S*(DD-1.0))-BB
+c20      CC = (COMP+2.0*SKYRMC)/(9.0*DD*(DD-1.0)*N_S**DD)
+      SKYRMC=(.3*((HBAR*C)**2)/MASSN)*(1.5*N_S*(PI**2))**OVR23
+      DD = (COMP+2.0*SKYRMC+SCRDD3*(COMP-4.0*SKYRMC-18.0*BIND_E))/
+     1    ((1.0-SCRDD3)*(3.0*SKYRMC+9.0*BIND_E))
+      BB = (SKYRMC*(2.0**OVR23-1.0)-SYMM)/N_S
+      CC = ((OVR3*SKYRMC+BIND_E)*(1.0+SCRDD3)**2)/((N_S**DD)*(DD-1.0))
+      AA = ((OVR23*SKYRMC-DD*(SKYRMC+BIND_E)-SCRDD3*(OVR3*SKYRMC+BIND_E)
+     1    )/(N_S*(DD-1.0)) )-BB
+      DD3 = SCRDD3/(N_S**(DD-1.0))
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+      WRITE(*,*)
+      WRITE(*,*) '<<LOADMX:  SKYRME PARAMETERS FOR THIS RUN ARE:>>'
+      WRITE(*,*) 'ABCD: ',AA,BB,CC,DD,SCRDD3
+      WRITE(*,*) ' Satur. density, symmetry engy, & compression mod.:'
+      WRITE(*,*) N_SM, SYMM_M, COMP_M
+      WRITE(*,*) N_SB, SYMM_B, COMP_B
+      WRITE(*,*) ' Binding engy, surf. symm. engy, & surface tension:'
+      WRITE(*,*) BINDEM,SYM_SM,SIG_SM
+      WRITE(*,*) BINDEB,SYM_SB,SIG_SB
+c
+      WRITE(*,*)
+c
+c
+      CALL INITFERM()
+c
+      WRITE(*,*)
+      WRITE(*,*) '<<LOADMX: FERMI INTEGRAL TABLES ARE INITIALIZED>>'
+      WRITE(*,*)
+c
+c
+ 999  RETURN
+c
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       GETFNM.FOR
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         8/5/89
+c
+c    PURPOSE:      OBTAINS A FILE NAME FROM USER
+c
+c    CALL LINE:    CALL GETFNM(FNAME,FNML,PROMPT,PROMTL)
+c
+c    INPUTS:       PROMPT = STRING TO POMPT USER WITH (C*60)
+c                  PROMTL = LENGTH OF PROMPT STRING (I)
+c
+c    OUTPUTS:      FNAME = FILE NAME (C*60)
+c                  FNML = FILE NAME LENGTH (I)
+c*************************************************************************
+c
+      SUBROUTINE GETFNM(FNAME,FNML,PROMPT,PROMTL)
+c
+      IMPLICIT NONE
+c
+      INTEGER FNML, PROMTL
+      CHARACTER*60 FNAME, PROMPT
+c
+c                       Local variables
+c
+      INTEGER STDOUT, STDIN, I
+      DATA STDOUT/6/, STDIN/5/
+c
+c                       Prompt user for file name
+c
+      WRITE(STDOUT,'(T2,A,$)') PROMPT(1:PROMTL)
+      READ(STDIN,'(A)') FNAME
+c
+c                        Figure out input file name length
+      DO 10 I=1,20,1
+        IF(FNAME(I:I).EQ.' ') GOTO 20
+ 10   CONTINUE
+c
+ 20   CONTINUE
+      FNML = I-1
+c
+c
+ 999  RETURN
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         DMATRIX.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       MATINV
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Inverts a N by N Matrix
+c
+c    CALL LINE:    CALL MATINV(A,AINV,N)
+c
+c    INPUTS:       A = Array to be inverted  (D)
+c                  N = dimesion of arrays (I)
+c
+c    OUTPUTS:      AINV = Inverse of A (D)
+c
+c    CALLS :       Numerical recipes routines LUDCMP, LUBKSB
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MATINV(A,AINV,N)
+c
+      IMPLICIT NONE
+c
+      INTEGER N
+      DOUBLE PRECISION A(N,N), AINV(N,N)
+c
+c
+c                 Local variables
+c
+      INTEGER NPHYS, I, J
+      PARAMETER(NPHYS=10)
+      DOUBLE PRECISION TEMP(NPHYS,NPHYS), Y(NPHYS,NPHYS), D
+      INTEGER INDEX(NPHYS)
+c
+c                 Make a copy of the array, and initialize
+c                 the indentity matrix
+      DO 20 J=1,N,1
+        DO 10 I=1,N,1
+          Y(I,J) = 0.0
+          TEMP(I,J) = A(I,J)
+ 10     CONTINUE
+        Y(J,J) = 1.0
+ 20   CONTINUE
+c
+c
+c                 LU decompose the matrix
+      CALL LUDCMP(TEMP,N,NPHYS,INDEX,D)
+c
+c
+c                 Back substitute to get inverse
+      DO 30 J=1,N,1
+        CALL LUBKSB(TEMP,N,NPHYS,INDEX,Y(1,J))
+ 30   CONTINUE
+c
+c
+c                 Copy temporary array into the inverse array
+      DO 50 J=1,N,1
+        DO 40 I=1,N,1
+          AINV(I,J) = Y(I,J)
+ 40     CONTINUE
+ 50   CONTINUE
+c
+c
+ 999  RETURN
+      END
+c***********************************************************************
+c
+c    MODULE:       MATADD
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Adds two N by M Matrices
+c
+c    CALL LINE:    CALL MATINV(A,B,C,N,M)
+c
+c    INPUTS:       A,B= Arrays to be added  (D)
+c                  N = Number of rows in arrays (I)
+c                  M = Number of columns in arrays (I)
+c
+c    OUTPUTS:      C = Array containing A+B (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MATADD(A,B,C,N,M)
+c
+      IMPLICIT NONE
+c
+      INTEGER N,M
+      DOUBLE PRECISION A(N,M), B(N,M), C(N,M)
+c
+c
+c                 Local variables
+c
+      INTEGER I, J
+c
+      DO 20 J=1,M,1
+        DO 10 I=1,N,1
+          C(I,J) = A(I,J)+B(I,J)
+ 10     CONTINUE
+ 20   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c
+c***********************************************************************
+c
+c    MODULE:       MATMUL
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Multiplies two Matrices (LxM)x(MxN)
+c
+c    CALL LINE:    CALL MATMUL(A,B,C,L,M,N)
+c
+c    INPUTS:       A,B= Arrays to be added  (D)
+c                  L,M,N = Dimensions of arrays (I)
+c
+c    OUTPUTS:      C = Array containing A x B (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MATMUL(A,B,C,L,M,N)
+c
+      IMPLICIT NONE
+c
+      INTEGER L, M, N
+      DOUBLE PRECISION A(L,M), B(M,N), C(L,N)
+c
+c
+c                 Local variables
+c
+      INTEGER I, J, K
+      DOUBLE PRECISION SUM
+c
+c                 Loop over all elements of the array
+      DO 30 I=1,L,1
+        DO 20 J=1,N,1
+c
+c                 Initialize SUM for a new element
+          SUM = 0.0
+c                 Calculate (i,j)th element
+          DO 10 K=1,M,1
+            SUM = SUM+A(I,K)*B(K,J)
+ 10       CONTINUE
+          C(I,J) = SUM
+c
+ 20     CONTINUE
+ 30   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c***********************************************************************
+c
+c    MODULE:       MV_MUL
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Multiplies a Matrix times a vector (NxN)x(N)
+c
+c    CALL LINE:    CALL MV_MUL(A,V,RV,N)
+c
+c    INPUTS:       A = Array to be multiplied  (D)
+c                  V = Vector to be multiplied (D)
+c                  N = Dimensions of arrays & vector (I)
+c
+c    OUTPUTS:      RV = resultant vector (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MV_MUL(A,V,RV,N)
+c
+      IMPLICIT NONE
+c
+      INTEGER N
+      DOUBLE PRECISION A(N,N), V(N), RV(N)
+c
+c
+c                 Local variables
+c
+      INTEGER I, J
+      DOUBLE PRECISION SUM
+c
+c                 Loop over all elements of the array
+      DO 20 I=1,N,1
+c
+c                 Initialize SUM for a new element
+        SUM = 0.0
+c                 Calculate (i)th element
+        DO 10 J=1,N,1
+          SUM = SUM+A(I,J)*V(J)
+ 10     CONTINUE
+        RV(I) = SUM
+c
+ 20   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c
+c***********************************************************************
+c
+c    MODULE:       MATSCL
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Multiply a N by M Matrix by a scalar
+c
+c    CALL LINE:    CALL MATSCL(A,SCALAR,B,N,M)
+c
+c    INPUTS:       A = Array to be scaled  (D)
+c                  SCALAR = Constant to multiply matrix by (D)
+c                  N = Number of rows in arrays (I)
+c                  M = Number of columns in arrays (I)
+c
+c    OUTPUTS:      B = Array containing SCALAR x A (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MATSCL(A,SCALAR,B,N,M)
+c
+      IMPLICIT NONE
+c
+      INTEGER N, M
+      DOUBLE PRECISION A(N,M), B(N,M), SCALAR
+c
+c
+c                 Local variables
+c
+      INTEGER I, J
+c
+c                 Loop over all elements of the array
+      DO 20 J=1,M,1
+        DO 10 I=1,N,1
+c
+          B(I,J) = SCALAR*A(I,J)
+c
+ 10     CONTINUE
+ 20   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c
+c***********************************************************************
+c
+c    MODULE:       MATCOP
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/3/90
+c
+c    PURPOSE:      Copy one N by M Matrix into another
+c
+c    CALL LINE:    CALL MATCOP(A,B,N,M)
+c
+c    INPUTS:       A = Array to be copied  (D)
+c                  N = Number of rows in arrays (I)
+c                  M = Number of columns in arrays (I)
+c
+c    OUTPUTS:      C = Array to be copied into (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE MATCOP(A,B,N,M)
+c
+      IMPLICIT NONE
+c
+      INTEGER N,M
+      DOUBLE PRECISION A(N,M), B(N,M)
+c
+c
+c                 Local variables
+c
+      INTEGER I, J
+c
+      DO 20 J=1,M,1
+        DO 10 I=1,N,1
+          B(I,J) = A(I,J)
+ 10     CONTINUE
+ 20   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c
+c
+c***********************************************************************
+c
+c    MODULE:       VECCOP
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY
+c    DATE:         4/10/90
+c
+c    PURPOSE:      Copy one vector on length N into another
+c
+c    CALL LINE:    CALL VECCOP(A,B,N)
+c
+c    INPUTS:       A = Array to be copied  (D)
+c                  N = Number of rows in arrays (I)
+c
+c    OUTPUTS:      B = Array to be copied into (D)
+c
+c    CALLS :       None
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+      SUBROUTINE VECCOP(A,B,N)
+c
+      IMPLICIT NONE
+c
+      INTEGER N
+      DOUBLE PRECISION A(N), B(N)
+c
+c
+c                 Local variables
+c
+      INTEGER I
+c
+      DO 10 I=1,N,1
+        B(I) = A(I)
+ 10   CONTINUE
+c
+ 999  RETURN
+c
+      END
+c
+c
+c
+c***********************************************************************
+c
+c    MODULE:       LUDCMP
+c    TYPE:         SUBROUTINE
+c
+c***********************************************************************
+c
+      SUBROUTINE LUDCMP(A,N,NP,INDX,D)
+c
+c               Make the default double precision
+      implicit double precision(a-h,o-z)
+c
+c
+      PARAMETER (NMAX=100,TINY=1.0E-20)
+      DIMENSION A(NP,NP),INDX(N),VV(NMAX)
+      D=1.
+      DO 12 I=1,N
+        AAMAX=0.
+        DO 11 J=1,N
+          IF (ABS(A(I,J)).GT.AAMAX) AAMAX=ABS(A(I,J))
+11      CONTINUE
+        IF (AAMAX.EQ.0.) PAUSE 'Singular matrix.'
+        VV(I)=1./AAMAX
+12    CONTINUE
+      DO 19 J=1,N
+        IF (J.GT.1) THEN
+          DO 14 I=1,J-1
+            SUM=A(I,J)
+            IF (I.GT.1)THEN
+              DO 13 K=1,I-1
+                SUM=SUM-A(I,K)*A(K,J)
+13            CONTINUE
+              A(I,J)=SUM
+            ENDIF
+14        CONTINUE
+        ENDIF
+        AAMAX=0.
+        DO 16 I=J,N
+          SUM=A(I,J)
+          IF (J.GT.1)THEN
+            DO 15 K=1,J-1
+              SUM=SUM-A(I,K)*A(K,J)
+15          CONTINUE
+            A(I,J)=SUM
+          ENDIF
+          DUM=VV(I)*ABS(SUM)
+          IF (DUM.GE.AAMAX) THEN
+            IMAX=I
+            AAMAX=DUM
+          ENDIF
+16      CONTINUE
+        IF (J.NE.IMAX)THEN
+          DO 17 K=1,N
+            DUM=A(IMAX,K)
+            A(IMAX,K)=A(J,K)
+            A(J,K)=DUM
+17        CONTINUE
+          D=-D
+          VV(IMAX)=VV(J)
+        ENDIF
+        INDX(J)=IMAX
+        IF(J.NE.N)THEN
+          IF(A(J,J).EQ.0.)A(J,J)=TINY
+          DUM=1./A(J,J)
+          DO 18 I=J+1,N
+            A(I,J)=A(I,J)*DUM
+18        CONTINUE
+        ENDIF
+19    CONTINUE
+      IF(A(N,N).EQ.0.)A(N,N)=TINY
+      RETURN
+      END
+c
+c***********************************************************************
+c
+c    MODULE:       LUBKSB
+c    TYPE:         SUBROUTINE
+c
+c***********************************************************************
+c
+c
+      SUBROUTINE LUBKSB(A,N,NP,INDX,B)
+c
+c               Make the default double precision
+      implicit double precision(a-h,o-z)
+c
+c
+      DIMENSION A(NP,NP),INDX(N),B(N)
+      II=0
+      DO 12 I=1,N
+        LL=INDX(I)
+        SUM=B(LL)
+        B(LL)=B(I)
+        IF (II.NE.0)THEN
+          DO 11 J=II,I-1
+            SUM=SUM-A(I,J)*B(J)
+11        CONTINUE
+        ELSE IF (SUM.NE.0.) THEN
+          II=I
+        ENDIF
+        B(I)=SUM
+12    CONTINUE
+      DO 14 I=N,1,-1
+        SUM=B(I)
+        IF(I.LT.N)THEN
+          DO 13 J=I+1,N
+            SUM=SUM-A(I,J)*B(J)
+13        CONTINUE
+        ENDIF
+        B(I)=SUM/A(I,I)
+14    CONTINUE
+      RETURN
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    FILE:         EL_EOS.FOR
+c
+c***********************************************************************
+c
+c    MODULE:       EL_EOS
+c    TYPE:         SUBROUTINE
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c
+c    DATE:         2/12/91
+c
+c                  BITNET:  SWESTY@SUNYSBNP or
+c                  INTERNET: FSWESTY@SBAST1.SUNYSB.EDU or
+c                            fswesty@sbast3.sunysb.edu
+c
+c    PURPOSE:      The elctron and photon equation of state
+c
+c
+c    CALL LINE:    CALL EL_EOS(T,YE,BRYDNS)
+c
+c    INPUTS:       T = TEMPERATURE
+c                  YE = ELECTRON FRACTION
+c                  BRYDNS = BARYON NUMBER DENSITY
+c
+c    OUTPUTS:      NONE
+c
+c
+c
+c    INCLUDE FILES:  EL_EOS.INC
+c
+c
+c***********************************************************************
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+      SUBROUTINE EL_EOS(T,YE,BRYDNS)
+c
+c        IMPLICIT NONE
+c
+      DOUBLE PRECISION T, YE, BRYDNS
+c
+      INCLUDE 'el_eos.inc'
+c
+c
+c
+c                           Plancks constant & speed of light
+      DOUBLE PRECISION HBAR, C
+      PARAMETER (HBAR=6.58217317D-22,C=2.997924581D23)
+c
+c                           Pi and 1/3
+      DOUBLE PRECISION PI, PI2, OVR3, MOVR3, OVR23
+      PARAMETER(PI=3.1415927, PI2=9.8696044)
+      PARAMETER(OVR3=0.33333333, MOVR3=-0.33333333, OVR23=0.66666667)
+c
+c -------------------------------------------------------------------
+        data  keylept  /0/
+        if(keylept.eq.0) then
+        nsube=0.d0
+        neplus=0.d0
+        musube=0.d0
+c
+        epress=0.d0
+        eu=0.d0
+        fsube=0.d0
+        es=0.d0
+        ppress=0.d0
+        ps=0.d0
+        pu=0.d0
+        pf=0.d0
+c
+        demudt=0.d0
+        demudn=0.d0
+        demudy=0.d0
+        depdt=0.d0
+        depdn=0.d0
+        depdy=0.d0
+c
+        desdt=0.d0
+        desdn=0.d0
+        desdy=0.d0
+        deudt=0.d0
+        deudn=0.d0
+        deudy=0.d0
+c
+        dppdt=0.d0
+        dppdn=0.d0
+        dppdy=0.d0
+        dpsdn=0.d0
+        dpsdt=0.d0
+        dpsdy=0.d0
+c
+        dpudt=0.d0
+        dpudn=0.d0
+        dpudy=0.d0
+        return
+        endif
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c                    Leptons
+c
+c                    Electron number density
+      NSUBE = BRYDNS*YE
+c
+c                    Coefficants for chemical potential
+c                    and thermodynamics quantities
+      QSUBE = 1.0/( 3.0*(PI**2)*((HBAR*C)**3) )
+c
+      ACOEF = 0.5*NSUBE/QSUBE
+c
+      BCOEF = (ACOEF**2+((PI**6)*T**6)/27.0)**0.5
+c
+      DBDT = (PI**6)*(T**5)/(9.0*BCOEF)
+c
+      CCOEF = (ACOEF+BCOEF)**OVR3
+c
+c
+c                    Electron chemical potential
+      MUSUBE = CCOEF-OVR3*((PI*T)**2)/CCOEF
+c
+c
+c
+c                    Electron pressure for rel. case
+      EPRESS = 0.25*QSUBE*(MUSUBE**4+2.0*(PI*T*MUSUBE)**2+
+     1 7.0*((PI*T)**4)/15.0)
+c
+c
+c                    Electron internal energy per baryon
+      EU = 0.75*QSUBE*(MUSUBE**4+2.0*(PI*MUSUBE*T)**2+
+     1 7.0*((PI*T)**4)/15.0)/BRYDNS
+c
+c
+c                    Electron free energy per baryon
+      FSUBE = ((MUSUBE*NSUBE)-EPRESS)/BRYDNS
+c
+c                    Electron entropy per baryon
+      ES = QSUBE*(((PI*MUSUBE)**2)*T+7.0*(PI**4)*(T**3)/
+     1 15.0)/BRYDNS
+c
+c                    Photons
+c
+c                    Photon pressure
+      PPRESS = (PI**2)*(T**4)/(45.0*((HBAR*C)**3))
+c                    Photon entropy per baryon
+      PS = 4.0*PPRESS/(T*BRYDNS)
+c
+c                    Photon internal energy per baryon
+      PU = 3.0*PPRESS/BRYDNS
+c
+c                    Photon free energy per baryon
+      PF = PU-T*PS
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c                    Derivatives of chem. potential w.r.t. T,
+c                    BRYDNS, YE
+c
+      DEMUDT = DBDT/(3.0*CCOEF**2)-OVR23*(PI**2)*T/CCOEF+
+     1         DBDT*((PI*T)**2)/(9.0*CCOEF**4)
+c
+      DEMUDN = (YE*PI2*(HBAR*C)**3)/(MUSUBE**2+OVR3*PI2*T**2)
+c
+      DEMUDY = BRYDNS*DEMUDN/YE
+c
+c
+c                    Derivatives of pressure w.r.t. BRYDNS,YE,T
+c
+      DEPDN = BRYDNS*YE*DEMUDN
+c
+      DEPDY = BRYDNS*DEPDN/YE
+c
+      DEPDT = BRYDNS*(ES+YE*DEMUDT)
+c
+c
+c                    Derivatives of entropy w.r.t. T,BRYDNS,YE
+c
+      DESDT = ES/T+OVR23*(7.0*PI2*(T**2)/15.0+MUSUBE*T*DEMUDT)/
+     1        (BRYDNS*(HBAR*C)**3)
+c
+      DESDN = -1.0*DEPDT/(BRYDNS**2)
+c
+      DESDY = 2.0*T*QSUBE*PI2*MUSUBE*DEMUDY/BRYDNS
+c
+c
+c                    Derivatives of internal energy w.r.t.
+c                    T,BRYDNS,YE
+      DEUDT = T*DESDT
+c
+      DEUDN = (YE*(MUSUBE-T*DEMUDT)-EU)/BRYDNS
+c
+      DEUDY = 3.0*QSUBE*((MUSUBE**3)+PI2*(T**2)*MUSUBE)*
+     1        DEMUDY/BRYDNS
+c
+c
+c                               Photons
+c
+c                    Derivatives of photon pressure
+      DPPDN = 0.0
+      DPPDT = BRYDNS*PS
+      DPPDY = 0.0
+c
+c                    Derivatives of photon entropy
+      DPSDN = -PS/BRYDNS
+      DPSDT = 3.0*PS/T
+      DPSDY = 0.0
+c
+c                    Derivatives of internal energy
+      DPUDN = -0.75*T*PS/BRYDNS
+      DPUDT = 3.0*PS
+      DPUDY = 0.0
+c
+c
+c
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c
+c
+ 999  RETURN
+c
+c
+      END
+c      Program to compute spline fits to fermi integrals
+cc  Must provide data file 94
+      subroutine initferm
+      implicit double precision(a-h,o-z)
+      parameter (n=201)
+      dimension f32(n),f12(n),fm12(n),eta(n),fr(n)
+      dimension f32a(n),f12a(n),fra(n),fia(n)
+      common /spl/eta,f32,f12,fr,f32a,f12a,fra,fia
+c
+c      open(94,file='/photon/eli/Aeos/fermi.atb',status='old')
+      open(94,file='fermi.atb',status='old')
+c
+      do 10 i=1,n
+       read(94,*)eta(i),f32(i),f12(i),fm12(i)
+ 10    fr(i)=f12(i)/fm12(i)
+c
+      close(94,status='keep')
+c
+       call spline(eta,f12,n,f12a)
+c       write(*,1)f12a
+       call spline(eta,f32,n,f32a)
+c       write(*,1)f32a
+       call spline(eta,fr,n,fra)
+c       write(*,1)fra
+       call spline(f12,eta,n,fia)
+c       write(*,1)fia
+ 1     format(1p8e10.3)
+       return
+       end
+	SUBROUTINE SPLINE(X,Y,N,Y2)
+c  Computes spline coefficients; Y(X) is input data; Y2 is output.
+	implicit double precision(a-h,o-z)
+        DIMENSION X(N),Y(N),Y2(N),U(500)
+	Y2(1)=0.
+	U(1)=0.
+	DO 11 I=2,N-1
+	SIG=(X(I)-X(I-1))/(X(I+1)-X(I-1))
+	P=SIG*Y2(I-1)+2.
+	Y2(I)=(SIG-1.)/P
+ 11	U(I)=(6.*((Y(I+1)-Y(I))/(X(I+1)-X(I))-(Y(I)-Y(I-1))
+     1 /(X(I)-X(I-1)))/(X(I+1)-X(I-1))-SIG*U(I-1))/P
+	Y2(N)=0.
+	DO 12 K=N-1,1,-1
+ 12	Y2(K)=Y2(K)*Y2(K+1)+U(K)
+	RETURN
+	END
+	SUBROUTINE SPLINT(XA,YA,Y2A,N,X,Y,KLO,KHI)
+c     Computes spline fit of Y(X); YA(XA) is input data, Y2A are spline
+c  coefficents, klo and khi are running indices which bracket X.
+	implicit double precision(a-h,o-z)
+        DIMENSION XA(N),YA(N),Y2A(N)
+cc  Determine the bracketing indices
+        IF((KHI.GT.N).OR.(KLO.LT.1)) THEN
+          WRITE(*,*) ' SPLINT CRASHED '
+          WRITE(*,*) ' N,KHI,KLO =',N,KHI,KLO
+          STOP
+        ENDIF
+c
+        IF((KHI.GT.N).OR.(KHI.LT.1)) KHI = N
+        IF((KLO.GT.N).OR.(KLO.LT.1)) KLO = 1
+c
+ 	IF(KHI-KLO.GT.1)GOTO 1
+c-----------------------------------------------------
+	IF(XA(KHI).GT.X.AND.XA(KLO).LE.X) GOTO 2
+	KHI=MAX(KHI-1,1)
+	KLO=MAX(KLO-1,1)
+	IF(XA(KHI).GT.X.AND.XA(KLO).LE.X) GOTO 2
+	KHI=MIN(KHI+2,N)
+	KLO=MIN(KLO+2,N)
+	IF(XA(KHI).GT.X.AND.XA(KLO).LE.X) GOTO 2
+c-----------------------------------------------------
+	KLO=1
+	KHI=N
+ 1	IF(KHI-KLO.EQ.1) GOTO 2
+	K=(KHI+KLO)/2
+	IF(XA(K).GT.X)THEN
+	KHI=K
+	ELSE
+	KLO=K
+	ENDIF
+	GOTO 1
+ 2	H=XA(KHI)-XA(KLO)
+	IF(H.EQ.0.) PAUSE 'BAD XA INPUT. '
+cc  Compute spline fit.
+	A=(XA(KHI)-X)/H
+	B=(X-XA(KLO))/H
+	Y=A*YA(KLO)+B*YA(KHI)+
+     1 ((A**3-A)*Y2A(KLO)+(B**3-B)*Y2A(KHI))*H**2/6.
+c	write(*,5)klo,khi,x,xa(klo),xa(khi),ya(klo),ya(khi)
+c     > ,y2a(klo),y2a(khi),y
+ 5      format(2i3,1p8e9.2)
+        RETURN
+	END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       F_1_2
+c    TYPE:         DOUBLE PRECISION FUNCTION
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c    DATE:         11/29/89
+c
+c    CALL LINE:    F_1_2(Y)      (1/2th Fermi Integral)
+c
+c    INPUTS:       Y (DOUBLE PRECISION)   (Argument)
+c
+c    RETURN:       1/2th Fermi Integral (DOUBLE PRECISION)
+c
+c***********************************************************************
+      DOUBLE PRECISION FUNCTION F_1_2(Y)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      parameter(n=201)
+      DIMENSION A(7),eta(n),f32(n),f32a(n),f12(n),fr(n),f12a(n),fra(n),
+     > fia(n)
+      common /spl/eta,f32,f12,fr,f32a,f12a,fra,fia
+      DATA A,th,klo,khi/6.16850274D0,1.77568655D0,6.92965606D0
+     1,.176776695D0,6.41500299D-02,.4D0,1.32934039D0,.33333333333d0,1,n/
+      IF(y .gt. 30.) goto 10
+      if(y .lt. -10.) goto 20
+      call splint(eta,f12,f12a,n,y,f1,klo,khi)
+      GO TO 100
+ 10   X2=y**(-2)
+      F1=A(6)*y*SQRT(y)*th*(5+(A(1)+(3*A(2)+7*X2*A(3))*X2)*x2)
+      GO TO 100
+ 20   F0=DEXP(y)
+      F1=A(7)*th*F0*(2-(4*A(4)-(6*A(5)-.25*F0)*F0)*F0)
+ 100  F_1_2=F1
+ 999  RETURN
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       F_3_2
+c    TYPE:         DOUBLE PRECISION FUNCTION
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c    DATE:         11/29/89
+c
+c    CALL LINE:    F_3_2(Y)      (3/2th Fermi Integral)
+c
+c    INPUTS:       Y (DOUBLE PRECISION)   (Argument)
+c
+c    RETURN:       3/2th Fermi Integral (DOUBLE PRECISION)
+c
+c***********************************************************************
+      DOUBLE PRECISION FUNCTION F_3_2(y)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      parameter(n=201)
+      DIMENSION A(7),eta(n),f32(n),f32a(n),f12(n),fr(n),f12a(n),fra(n),
+     > fia(n)
+      common /spl/eta,f32,f12,fr,f32a,f12a,fra,fia
+      DATA A,klo,khi/6.16850274D0,1.77568655D0,6.92965606D0,.176776695D0
+     1,6.41500299D-02,.4D0,1.32934039D0,1,n/
+      IF(y .gt. 30.) goto 10
+      if(y .lt. -10.) goto 20
+      call splint(eta,f32,f32a,n,y,f1,klo,khi)
+      GO TO 100
+ 10   X2=y**(-2)
+      F1=A(6)*SQRT(y)*(1./X2+A(1)-(A(2)+X2*A(3))*X2)
+      GO TO 100
+ 20   F0=DEXP(y)
+      F1=A(7)*F0*(1.-(A(4)-(A(5)-.03125*F0)*F0)*F0)
+ 100  F_3_2=F1
+ 999  RETURN
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       FINV12
+c    TYPE:         DOUBLE PRECISION FUNCTION
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c    DATE:         11/29/89
+c
+c    CALL LINE:    FINV12(Y)      (Inverse of the 1/2th Fermi Integral)
+c
+c    INPUTS:       Y (DOUBLE PRECISION)   (Argument)
+c
+c    RETURN:       Inverse of Fermi Integral (DOUBLE PRECISION)
+c
+c***********************************************************************
+      DOUBLE PRECISION FUNCTION FINV12(y)
+      IMPLICIT DOUBLE PRECISION(A-H,O-Z)
+      parameter(n=201)
+      DIMENSION AI(8),f12(n),fia(n),eta(n),f32(n),fr(n),f32a(n),
+     > fra(n),f12a(n)
+      common /spl/eta,f32,f12,fr,f32a,f12a,fra,fia
+      DATA AI,klo,khi/-.822467032D0,-1.21761363D0,-9.16138616D0,
+     1.398942281D0,.0732748216D0,-1.310707D0,1.12837917D0,
+     28.2810645D-3,1,n/
+      if(y .gt. 109.695) goto 10
+      if(y .lt. 4.0234e-5) goto 20
+      call splint(f12,eta,fia,n,y,f1,klo,khi)
+      GO TO 100
+ 10   X2=(1.5*y)**(.666666667)
+      X4=1./(X2*X2)
+      F1=X2*(1.+(AI(1)+(AI(2)+AI(3)*X4)*X4)*X4)
+      GO TO 100
+ 20   F1=LOG(AI(7)*MAX(y,1.D-20)*(1.+(AI(4)+(AI(5)+AI(8)*y)*y)*y))
+ 100  finv12=F1
+ 999  RETURN
+      END
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c***********************************************************************
+c
+c    MODULE:       FHALF
+c    TYPE:         DOUBLE PRECISION FUNCTION
+c    AUTHOR:       F. DOUGLAS SWESTY, Dpt of Physics SUNY @ Stony Brook
+c    DATE:         3/10/90
+c
+c    CALL LINE:    FHALF(Y)
+c
+c    INPUTS:       Y (DOUBLE PRECISION)   (Argument)
+c
+c    RETURN:       Ratio of 1/2th Fermi Integral to the -1/2th Fermi
+c                  Integral (DOUBLE PRECISION)
+c
+c***********************************************************************
+      DOUBLE PRECISION FUNCTION FHALF(y)
+      IMPLICIT double precision(a-h,o-z)
+      parameter(n=201)
+      DIMENSION A(7),f12(n),fia(n),eta(n),f32(n),fr(n),f32a(n),
+     > fra(n),f12a(n)
+      common /spl/eta,f32,f12,fr,f32a,f12a,fra,fia
+      DATA A,th,klo,khi/6.16850274D0,1.77568655D0,6.92965606D0
+     1,.176776695D0,6.41500299D-02,.4D0,1.32934039D0,.33333333333d0,1,n/
+      IF(y .gt. 30.) goto 10
+      if(y .lt. -10.) goto 20
+      call splint(eta,fr,fra,n,y,f1,klo,khi)
+      GO TO 100
+ 10   X2=y**(-2)
+      F1=y*th*(1.+(.2*A(1)+(.6*A(2)+1.4*X2*A(3))*X2)*x2)
+     > /(1.-(.2*th*a(1)-(a(2)-4.2*x2*a(3))*x2)*x2)
+      GO TO 100
+ 20   F0=EXP(y)
+      F1=(1.-(2*a(4)-(3*a(5)-.125*f0)*f0)*f0)/
+     > (2.-(8*a(4)-(18*a(5)-f0)*f0)*f0)
+ 100  FHALF=F1
+ 999  RETURN
+      END

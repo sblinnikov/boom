@@ -1,0 +1,77 @@
+*deck ratehp2
+      subroutine  ratehp2 (xp,xh,ah,zh,fmuh,fmue,temp,ro
+     1,enu,denu,ydot,ccapt)
+*call implic
+*call const
+c     temperature in MeV
+      data  cep   / 1.835d-02/
+      data  ceh   / 1.994d-3/
+      data  wp    / 1.293d0 /
+      data  wh    / 4.3d0   /
+      data  block / 0.025d0 /
+c
+      if(xp.gt.0d0)  then
+      eel=enu+wp
+      arg=(enu-fmue+wp)/temp
+      if(arg.ge.115d0)  then
+                        fe=0d0
+                        elseif(arg.le.-115d0)  then
+                                               fe=1d0
+                                               else
+                                               fe=1d0/(exp(arg)+1d0)
+                                               endif
+      coefp=avo*ro*cep*xp*eel**2
+      ydotp=coefp*enu**2*denu*fe
+c
+      arg1=-(enu-fmue+fmuh)/temp
+      arg2= (wp-fmuh)/temp
+      if(arg1.ge.115d0) then
+                        fc=0d0
+                        elseif(arg1.le.-115d0) then
+                                        if(arg2.gt.115d0) then
+                                                          fc=0d0
+                                   elseif(arg2.le.-115d0) then
+                                                          fc=1d50
+                                                          else
+                                                          fc=exp(-arg2)
+                                                          endif
+                        else
+                        fc=1d0/(exp(arg1)+exp(arg2))
+                        endif
+      ccaptp=coefp*facdis*fc
+                      else
+                      ydotp=0d0
+                      ccaptp=0d0
+                      endif
+      if(xh.gt.0d0 .and. ah.gt.0d0)  then
+      eel=enu+wh+fmuh
+      arg=(enu-fmue+fmuh+wh)/temp
+      if(arg.ge.115d0)  then
+                        fe=0d0
+                        elseif(arg.le.-115d0)  then
+                        fe=1d0
+                        else
+                        fe=1d0/(exp(arg)+1d0)
+                        endif
+      coefh=avo*ro*ceh*xh*zh/ah*eel**2
+      if(ah-zh.ge.40.d0)  coefh=coefh*block
+      ydoth=coefh*enu**2*denu*fe
+c
+      arg1=-(enu-fmue+fmuh)/temp
+      arg2= wh/temp
+      if(arg1.ge.115d0) then
+                        fc=0d0
+                        elseif(arg1.le.-115d0) then
+                        fc=exp(-arg2)
+                        else
+                        fc=1d0/(exp(arg1)+exp(arg2))
+                        endif
+      ccapth=coefh*facdis*fc
+                                     else
+                                     ydoth=0d0
+                                     ccapth=0d0
+                                     endif
+      ydot=ydotp+ydoth
+      ccapt=ccaptp+ccapth
+      return
+      end

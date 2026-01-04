@@ -1,0 +1,13 @@
+*deck ktiva
+      subroutine  ktiva(ntype,nw,desc,nt,idim,vdim,cdim)
+*call implic
+      dimension  idim(nw),vdim(nw)
+      character*10 desc
+      character*(*) cdim(nw)
+      write (nt,*) ntype,nw,desc ! form!!!
+      if(nw.le.0)  return
+      if(ntype.eq.1) write (nt,*) (idim(i),i=1,nw)
+      if(ntype.eq.2) write (nt,*) (vdim(i),i=1,nw)
+      if(ntype.eq.3) write (nt,*) (cdim(i),i=1,nw)
+      return
+      end

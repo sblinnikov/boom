@@ -1,0 +1,33 @@
+*deck rdpar
+      subroutine  rdpar (nt)
+*call implic
+      character*10 word
+*call par
+c     read floating variables
+      read (nt,'(2i10,1x,a)',end=91) ntype,nw,word ! form!!!
+      if(ntype.ne.2)  print *,' ntype=',ntype
+      if(ntype.ne.2)  stop 'error in rdpar'
+      read (nt,*,end=92) paralen  ! form!!!
+*call parac
+      nwin=paralen+0.5
+      if(nw.ne.nwin) print *,'length incompatible. nw=',nw,'nwin=',nwin
+      if(nw.ne.nwin) stop 'rdpar lengs incompatible.'
+c     print *,'read para.  word=',word
+c     read integers
+      read (nt,'(2i10,1x,a)',end=91) ntype,nw,word ! form!!!
+      if(ntype.ne.1)  print *,' ntype=',ntype
+      if(ntype.ne.1)  stop 'error in rdpar'
+      read (nt,*,end=92) lenpari, ntindif ! form!!!
+*call paric
+      nwin=lenpari
+      if(nw.ne.nwin) print *,'length incompatible. nw=',nw,'nwin=',nwin
+      if(nw.ne.nwin) stop 'rdpar lengs incompatible.'
+c     print *,'read pari.  word=',word
+      return
+ 91   continue
+      print *,'error in rdpar 1 header'
+      stop 'error in 1 header'
+ 92   continue
+      print *,'error in rdpar main block'
+      stop 'error in main block'
+      end

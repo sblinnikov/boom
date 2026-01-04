@@ -1,0 +1,20 @@
+*deck kramer
+      subroutine  kramer (a,b,c,d,e,f,x,y)
+*call implic
+      del=a*d-b*c
+      if(del.eq.0.d0)  stop 'kramer del=0'
+      del=sign(max(1d-150,abs(del)),del)
+      x=(e*d-b*f)/del
+      y=(a*f-e*c)/del
+c....................................
+c      ee=sign(max(1d-150,abs(e)),e)
+c      dd=sign(max(1d-150,abs(d)),d)
+c      bb=sign(max(1d-150,abs(b)),b)
+c      ff=sign(max(1d-150,abs(f)),f)
+c      aa=sign(max(1d-150,abs(a)),a)
+c      cc=sign(max(1d-150,abs(c)),c)
+c      x=(ee*dd-bb*ff)/del
+c      y=(aa*ff-ee*cc)/del
+c....................................
+      return
+      end

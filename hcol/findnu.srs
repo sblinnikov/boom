@@ -1,0 +1,40 @@
+*deck findnu
+      subroutine  findnu(roe,beta,nu,nup,dnudr,dnudb,keypos)
+c
+c     find nu as function of roe and beta
+c
+*call implic
+      real*8 nu,nup
+      data rel,eps,itd,itx,itpr /0.80d0,1.0d-05,50,99,90/
+      if (nu .le. 0d0) nu=1d0
+
+      do 10 it=1,itx
+         if (nu .le. 0d0) nu=1d0
+      call  findroe(rr,beta,nu,nup,drodb,drodnu,keypos)
+      f=rr-roe
+      dnu=-f/drodnu
+      ab=abs(dnu/nu)
+
+      if(ab.gt.rel) then
+         nu= nu + rel*nu*sign(1.0d0,dnu)
+      else
+         nu=nu+dnu
+      endif
+
+      if(it.eq.itpr) print 900
+      if(it.ge.itpr) print 901,rr,roe,beta,nu,drodb,drodnu
+
+      abf=abs(f/roe)
+      if(ab.lt.eps) go to 12
+   10 continue
+      stop 'findnu'
+   12 continue
+      call  findroe(rr,beta,nu,nup,drodb,drodnu,keypos)
+      dnudr=1.0d0/drodnu
+      dnudb=-drodb/drodnu
+      return
+  900 format(' ','troubles in findnu')
+  901 format(' ','rr roe beta nu drodb drodnu',1p6e13.4)
+  902 format(' ',25i3)
+ 903  format(' ','attempting to break out of Newton cycle')
+      end

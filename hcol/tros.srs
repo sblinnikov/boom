@@ -1,0 +1,79 @@
+*deck tros
+      subroutine  tros (ro,t,ye,ynu,e,p,sx,xh,xn,xp,a,z,xmuh,xmue
+     1,                 dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+*call implic
+*call const
+       data  eps  /1d-5/
+       data  nter  /0/
+      if(nter.ne.0)    goto   1
+      nter=1
+      tmin0=10.d0**(-12.d0/20.d0)*tmev
+      tmax0=10.d0**( 37.d0/20.d0)*tmev
+1     continue
+      key0=0
+      iter=0
+      tmax=tmax0
+      tmin=tmin0
+8     continue
+      do  10  n=1,30
+      iter=iter+1
+      tmn=tmin
+      tmx=tmax
+      if(iter.ge.100)  goto  900
+      call  eostry(ro,t,ye,ynu,e,p,s,xh,xn,xp,a,z,xmuh,xmue
+     1,            dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      if(s.lt.0.d0)  goto   995
+      f=s-sx
+      if(f.ge.0.d0)  tmax= min (tmx,t)
+      if(f.le.0.d0)  tmin= max (tmn,t)
+      if(tmx.eq.tmax .and. tmn.eq.tmin)  goto   100
+c                                        lion  hunting
+      fp=dsdt
+      tt=t-f/fp
+c     print 901,iter,ro,sx,s,tt,t,f,fp
+cppppppppppppppppppppppppppppppppppppp
+      if(tt.lt.tmin0)  goto   80
+      if(tt.gt.tmax0)  goto   80
+      if(abs((tt-t)/t).le.eps)  goto   20
+      if(iter.ge.80) print 901,iter,ro,sx,s,tt,t,f,fp
+901   format(' tros newton iter ro sx s tt t f fp '/' ',i3,1p7e12.4)
+      t=tt
+10    continue
+      goto   100
+20    continue
+      t=tt
+22    continue
+      return
+80    continue
+      if(key0.ne.0)  goto   100
+      key0=1
+      tmn=tmin0
+      tmx=tmax0
+100   continue
+c     lion   hunting
+      do  200  n=1,10
+      iter=iter+1
+      tt=t
+      t=(tmn+tmx)/2.d0
+      call  eostry(ro,t,ye,ynu,e,p,s,xh,xn,xp,a,z,xmuh,xmue
+     1,            dedro,dedt,dpdro,dpdt,dsdro,dsdt)
+      if(s.lt.0.d0)  goto   995
+      f=s-sx
+      if(abs(f/sx).le.eps)  goto   22
+      if(f.ge.0.d0)  tmx= min (tmx,t)
+      if(f.le.0.d0)  tmn= max (tmn,t)
+      if(iter.ge.80) print 902,iter,ro,sx,s,tt,t,f,fp
+902   format(' tros lions  iter ro sx s tt t f fp '/' ',i3,1p7e11.4)
+200   continue
+      if(abs((tmx-tmn)/t).le.eps)  goto   20
+      tmin=tmn
+      tmax=tmx
+      goto   8
+900   continue
+      print 990,ro,sx,s,t,tmn,tmx
+990   format(' no convergence in tros ro sx s t tmn tmx'/1p6e12.5)
+      goto   20
+995   continue
+      sx=s
+      return
+      end

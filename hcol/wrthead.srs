@@ -1,0 +1,12 @@
+*deck wrthead
+      subroutine wrthead(jmax, ngmax, n)
+      implicit none
+*call dim
+*call par
+      integer, intent(in) :: jmax, ngmax, n
+909   format(10('zzzzzzzzzz'))
+      write (n,909)
+      write (n,926)  name(1:10),ntime,time,dtlast,dta,jmax,
+     &	ngmax, numax, khelem,kgainr
+926   format(a10,i10,1pe13.6,2e12.4,5i10)
+      end

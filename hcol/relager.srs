@@ -1,0 +1,183 @@
+*deck relager
+      subroutine  relager (jmax,ngmax,nxx,kzoning,param,nparm)
+*call implic
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call chemp
+*call keyeos
+      parameter  (jmaxdim=300)
+      dimension  fmo(jmaxdim),dmko(jmaxdim),dmpo(jmaxdim)
+      dimension  rold(jmaxdim),roo(jmaxdim),told(jmaxdim)
+      dimension  eold(jmaxdim),yeo(jmaxdim),velo(jmaxdim)
+      dimension  empold(jmaxdim),bgpold(jmaxdim)
+      dimension  alpold(jmaxdim),alprold(jmaxdim)
+      dimension  heatnuold(jmaxdim), eturbo(jmaxdim)
+	
+      dimension  vpluso(jmaxdim), vminuso(jmaxdim)
+      dimension  hpluso(jmaxdim), hminuso(jmaxdim)
+      dimension  ropluso(jmaxdim), rominuso(jmaxdim)
+      dimension  yepluso(jmaxdim), yeminuso(jmaxdim)
+      dimension  smpo(jmaxdim), smmo(jmaxdim)
+      dimension  asymo(jmaxdim)
+
+      
+
+      dimension  param(10),nparm(10)
+c
+      if(kzoning.eq.0)  return
+      jmaxold=jmax
+      jmaxnew=jmax
+c
+c     transfer arrays from "new" to old
+      if(jmaxold.gt.jmaxdim)  then
+                              print *,' jmaxdim=',jmaxdim,'  too small'
+                              print *,'  no relager'
+                              return
+                              endif
+      do  j=1,jmaxold
+         fmo (j)=fmass(j)
+         dmko(j)=dmk(j)
+         dmpo(j)=dmp(j)
+         rold(j)=ra(j)
+         roo (j)=roa(j)
+         told(j)=ta(j)
+         eold(j)=ea(j)
+         yeo (j)=ye(j)
+         velo(j)=vela(j)
+         eturbo(j)=eturba(j)
+         vpluso(j)=vplusa(j)
+         vminuso(j)=vminusa(j)
+         hpluso(j)=hplusa(j)
+         hminuso(j)=hminusa(j)
+         ropluso(j)=roplusa(j)
+         rominuso(j)=rominusa(j)
+         yepluso(j)=yeplusa(j)
+         yeminuso(j)=yeminusa(j)
+         smpo(j)=smpa(j)
+         smmo(j)=smma(j)
+         asymo(j)=asyma(j)
+      enddo
+      if(inkeygr.ne.0)  then
+                        do  j=1,jmaxold
+                        empold(j)=empa(j)
+                        bgpold(j)=bgpa(j)
+                        alpold(j)=alpa(j)
+                        alprold(j)=alprev(j)
+                        enddo
+                        endif
+c
+          if(kzoning.eq.1)  then
+      call  zoning1 (fmo,dmko,dmpo,jmaxold,fmass,dmk,dmp,jmaxnew)
+c
+      elseif(kzoning.eq.2)  then
+      fmassin=param(1)*solmas
+      nin=nparm(1)
+      call  zoning2 (fmo,dmko,rold,roo,jmaxold,fmassin,nin
+     1,fmass,dmk,dmp,rb,rob,jmaxnew)
+c
+      elseif(kzoning.eq.4)  then
+      fm3 =fmo(jmaxold)
+      fm1 =param(1)*solmas
+      fm2 =param(2)*solmas
+      frz1=param(3)
+      frz2=param(4)
+      frz3=1d0-(frz1+frz2)
+      call  zoning4(fmass,dmk,dmp,jmaxnew,fm1,fm2,fm3,frz1,frz2,frz3)
+      elseif(kzoning.eq.5) then
+         call zoning5(fmass,dmk,dmp,jmaxnew)
+      elseif(kzoning.eq.6) then
+         call zoning6(fmass,dmk,dmp,jmaxnew)
+      else
+         print *,' kzoning=',kzoning,' invalid.'
+         stop ' invalid kzoning'
+      endif
+      call  plotdiv(fmass,dmk,jmaxnew)
+c
+      call  relag
+     1(jmaxnew,jmaxold,fmo,fmass
+     2,eb,fmue,pb,rb,rob
+     3,tb,ye,velb,eturbb
+     +     ,keosn
+     4,s,xn,xp,xal,xhv,ahv,z,ynu
+     5,eold,yeo,velo,rold,roo,told,eturbo
+     6,empold,bgpold,alpold,alprold
+     7,empb,bgpb,alpb,alprev
+     +     ,vplusb, vminusb, hplusb, hminusb
+     +     ,roplusb, rominusb, yeplusb, yeminusb
+     +     ,yeminusb, smpb, smmb, asymb
+     +     ,vpluso, vminuso, hpluso, hminuso
+     +     ,ropluso, rominuso, yepluso, yeminuso
+     +     ,yeminuso, smpo, smmo, asymo
+     8,jmaxm)
+c
+      do  nut=1,numax
+      do  j=2,jmax
+      heatnuold(j)=heatnue(j,nut)
+      enddo
+      call  relagn
+     1(jmaxnew,jmaxold,fmo,fmass
+     2,rb,rob,rold,roo
+     3,heatnuold,heatnue(1,nut)
+     4,ya(1,1,nut),yb(1,1,nut),jmaxm,ngmaxm,ngmax)
+      enddo
+c
+c     transfer  arrays
+c     ---------------------
+      do   j=1,jmax
+         ea(j)=eb(j)
+         pa(j)=pb(j)
+         ra(j)=rb(j)
+         roa(j)=rob(j)
+         sgmb(j)=0d0
+         sgma(j)=sgmb(j)
+         ta(j)=tb(j)
+         vela(j)=velb(j)
+         eturba(j) = eturbb(j)
+         
+         vplusa(j) = vplusb(j)
+         vminusa(j) = vminusb(j)
+         hplusa(j) = hplusb(j)
+         hminusa(j) = hminusb(j)
+         roplusa(j) = roplusb(j)
+         rominusa(j) = rominusb(j)
+         yeplusa(j) = yeplusb(j)
+         yeminusa(j) = yeminusb(j)
+
+         smpa(j) = smpb(j)
+         smma(j) = smmb(j)
+
+         asyma(j) = asymb(j)
+      enddo
+      if(inkeygr.ne.0) then
+                       do   j=1,jmax
+                       empa(j)=empb(j)
+                       bgpa(j)=bgpb(j)
+                       alpa(j)=alpb(j)
+                       enddo
+                       endif
+      if(keynue.ge.2)  then
+                       do  nut=1,numax
+                       do  j=2,jmaxold
+                       do  ng=1,ngmax
+                       ya (j,ng,nut)=yb(j,ng,nut)
+                       ya0(j,ng,nut)=yb(j,ng,nut)
+                       enddo
+                       enddo
+                       enddo
+                       call setnup(jmaxold,ngmax,kfluxlm)
+                       endif
+c-----------------------------------------------
+      do    j=2,jmax
+      ynu (j)=0d0
+      ynub(j)=0d0
+         do  ng=1,ngmax
+         ynu (j)=ynu (j)+yb(j,ng,1)/rob(j)/avo
+         ynub(j)=ynub(j)+yb(j,ng,2)/rob(j)/avo
+         enddo
+      enddo
+c-----------------------------------------------
+      return
+      end

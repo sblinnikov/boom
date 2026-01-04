@@ -1,0 +1,5 @@
+      FUNCTION SECOND()
+      REAL TVAL
+      CALL CPU_TIME(TVAL)
+      SECOND = TVAL
+      END

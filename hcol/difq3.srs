@@ -1,0 +1,698 @@
+*deck difq3
+      subroutine  difq3 (jmax,ngmax,noconv,keyflux,eps)
+      implicit none      
+      integer*4, parameter :: nit=200
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+      common /jngjng/ j,ng
+      real*8, dimension(ngmaxm) :: ytaj, ytbj, ytak,
+     & ydtj, ydtk, ccaptj, ccaptk, zij, tra, trb, trc, dyde, yin,
+     & trd, djk, amsq, ff, dely, ydotj, yout, blockj,
+     & scatj, scatk, dely1, dely2, dely3, delyt,
+     & cscoutj, rscinj
+      integer*4, dimension(nit) :: iteration
+      real*8, dimension(ngmaxm) ::  ams, p2m, fi
+      real*8, dimension(ngmaxm) :: p2vel, q2ro
+      character*3, parameter ::  komptrm='trb'
+      character*5, parameter ::  cntring='b'
+      integer*4 :: ntry, kompres, noconv
+      integer*4, intent(IN) :: jmax, ngmax, keyflux
+      real*8, intent(IN) :: eps
+      real*8 :: fsurf
+      integer*4 :: i, j, k, iter, ndt, keydown, ng, it
+      integer*4 :: ntdiff, nt, ngp, ngm, knosmall
+      integer*4 :: ngnconv, mmg, nng, ngprime
+      real*8 :: dtfuse, rj3, areaj, bgq, dvol, drodt, tmv
+      real*8 :: sgm, blocky, blockc, ri3, ratio, arrj
+      real*8 :: droro, rj, rk, ytjng, amj, arrjd
+      real*8 :: rij, ars, ffm, ffp
+      real*8 :: absdel, absdelg, exx, dtfuseg
+      real*8 :: delb, occup, odef, dprodg, denscg
+c
+      save  fsurf, ntry
+c
+      data ntry /0/
+      integer*4, parameter :: keyddnu=4
+      integer*4, parameter :: newy=0, keyzrm=1
+      integer*4, parameter :: keydyde=1
+*call epsblok
+      real*8, parameter :: tminrat=0.3d0
+      real*8, parameter :: sigmrat=0.05d0
+      integer*4, parameter :: maxdit=5, ndtmax=4096
+      real*8, parameter :: eps1=1.0d-30, eps2=1.0d-25
+      real*8, parameter :: facdely=0.5d0
+      integer*4, parameter :: ntgrace=100, keypr=0
+
+      kompres=keycomp
+      noconv=0
+      if(ntry.eq.0) then
+         ntry=1
+         fsurf=clite*0.5d0
+         if(keyzrm.eq.0)  fsurf=0d0
+      endif
+      if(ntindif(nutype).eq.0)  then
+         print 901,ntime,nutype
+ 901     format(' ntime=',i5,'  nutype=',i1,'  enter difq3')
+         ntindif(nutype)=ntime
+         edd(1,1:ngmax,nutype)=shlish
+      endif
+c
+      ri3=0d0
+c     ------------------------------
+      ntdiff=ntime-ntindif(nutype)+1
+c======================================================
+c     make the schifa approximation
+      if(kompres.ne.0)   call normy(1,jmax,ngmax)
+c======================================================
+
+      zij(1:ngmax)=0d0
+      tra(1:ngmax)=0d0
+      trc(1:ngmax)=0d0
+
+      do  j=2,jmax
+      if(rob(j).ge.roequil)  jequil=j
+      enddo
+c
+c     --------------
+c     main loop on j
+c     --------------
+      do 1800 j=2,jmax
+      iter=min(j,nit)
+      iteration(iter)=0
+      ndt=1
+      dtfuse=dtb
+      dtfuseg=dtfuse*alpb(j)
+      i=j-1
+      k=j+1
+      rj3=rb(j)**3
+      areaj=pai4*rb(j)**2
+      bgq=0.5d0*(bgpb(i)+bgpb(j))
+      if(keygr.eq.0)  bgq=1.d0
+      dvol=pai43*(rj3-ri3)/bgq
+      drodt=(rob(j)-roa(j))/dtb
+c     determine blocky, blockc
+      tmv=tb(j)/tmev
+      sgm=sgmb(j)/pb(j)
+      blocky=1d0
+      blockc=1d0
+      if(tmv.lt.tminrat)  then
+                          blocky=0d0
+c                         blockc=0d0
+cxxxxxxxxxxxxxxxxxxxx     !!!!!!!!!!
+                          endif
+      if(sgm.gt.sigmrat .and. infall.eq.0 )  then
+                          blocky=0d0
+                          blockc=0d0
+                          endif
+      keydown=0
+      if(kdnscat.gt.0)  then
+c If you cut off downscattering at a given density.
+c you will get artifacts at that density
+      if(rob(j).gt.1d12)  goto  11
+      do  ng=1,ngmax
+      if(ya(j,ng,nutype)/yfull(ng).ge.epsdown)  then
+            if (cscatis(j,ng,nutype) .eq. 0d0) goto 11
+                ratio=clite/cscatis(j,ng,nutype)/(rb(j)-rb(i))
+                         if(ratio.le.10d0)  keydown=1
+                                                goto  11
+                                                endif
+      enddo
+11    continue
+                  endif
+      go to 10
+c
+c     return address for time nonconvergence or big change in y
+c     ---------------------------------------------------------
+ 1    continue
+      ndt=2*ndt
+      if(ndt.ge.ndtmax.and.ntdiff.gt.ntgrace) go to 9000
+c
+c     go to next j without convergence
+c     --------------------------------
+      if(ndt.ge.ndtmax) go to 1800
+c
+      dtfuse=dtb/ndt
+      dtfuseg=dtfuse*alpb(j)
+c
+c     ------------------
+c     start of time loop
+c     ------------------
+   10 continue
+c------------------------------------------------
+      if(j.le.jequil)  goto  1510
+c------------------------------------------------
+      do 1500 nt=1,ndt
+      if(j.lt.jmax) arrj=2.0d0*areaj*dtfuseg/dvol/(rb(k)-rb(i))
+          if(cntring.eq.'a')  then
+               droro=drodt*dtfuse/(roa(j)+(nt-1)*dtfuse*drodt)
+      elseif(cntring.eq.'ab') then
+               droro=drodt*dtfuse/(roa(j)+(nt-0.5d0)*dtfuse*drodt)
+      elseif(cntring.eq.'b')  then
+               droro=drodt*dtfuse/(roa(j)+nt*dtfuse*drodt)
+                              else
+               droro=drodt*dtfuse/(roa(j)+(nt-0.5d0)*dtfuse*drodt)
+                              endif
+      if(nt.eq.1) then
+         ytaj(1:ngmax)=ya(j,1:ngmax,nutype)
+         ytbj(1:ngmax)=ytaj(1:ngmax)
+         if(j.lt.jmax) ytak(1:ngmax)=ya(k,1:ngmax,nutype)
+      endif
+c     ----------------
+c     convergence loop
+c     ----------------
+      do 1200 it=1,99
+c     set up coefficients without energy derivatives
+c     ----------------------------------------------
+      if(nt.eq.1.and.it.eq.1) then
+         if(j.eq.2) then
+               scatj(1:ngmax)=cscatis(j,1:ngmax,nutype)/clite
+         endif
+         if(j.lt.jmax) then
+               scatk(1:ngmax)=cscatis(k,1:ngmax,nutype)/clite
+         endif
+      endif
+c
+
+      blockj(1:ngmax)=
+     &     max(one-ytbj(1:ngmax)/yfull(1:ngmax),zero)
+      ydtj(1:ngmax)=ydot(j,1:ngmax,nutype)
+      ccaptj(1:ngmax)=ccapt(j,1:ngmax,nutype)
+
+      if(j.lt.jmax) then
+         ydtk(1:ngmax)=ydot(k,1:ngmax,nutype)
+         ccaptk(1:ngmax)=ccapt(k,1:ngmax,nutype)
+      else
+         ccaptk(1:ngmax)=0d0
+         ydtk(1:ngmax)=0d0
+      endif
+
+
+      if(numax.eq.2.and.infall.eq.0) then
+         ydtj(1:ngmax)=
+     &        ydtj(1:ngmax)+ydotpj(j,1:ngmax,nutype)
+         ccaptj(1:ngmax) =
+     &        ccaptj(1:ngmax)+abstpj(j,1:ngmax,nutype)
+        if(j.lt.jmax) then
+           ydtk(1:ngmax)=
+     &          ydtk(1:ngmax)+ydotpj(k,1:ngmax,nutype)
+           ccaptk(1:ngmax)=
+     &          ccaptk(1:ngmax)+abstpj(k,1:ngmax,nutype)
+           endif
+        endif
+
+      ydotj(1:ngmax)=blockj(1:ngmax)*ydtj(1:ngmax)
+c
+      do  ng=1,ngmax
+      cscoutj(ng)=0d0
+      rscinj(ng)=0d0
+      if(keydown.gt.0)  then
+c------------------------------------------------------------------------
+c      do ngprime=1,ngmax
+c      if(ng.ne.ngprime)  then
+c             cscoutj(ng)=cscoutj(ng)+cscat(j,ng,ngprime)*blockj(ngprime)
+c             rscinj(ng)=rscinj(ng)+cscat(j,ngprime,ng)*ytbj(ngprime)
+c                         endif
+c      enddo
+c------------------------------------------------------------------------
+          if(ng.eq.1)      then
+            cscoutj(ng)=cscat(j,ng,ng+1,nutype)*blockj(ng+1)
+      elseif(ng.eq.ngmax)  then
+            cscoutj(ng)=cscat(j,ng,ng-1,nutype)*blockj(ng-1)
+                           else
+            cscoutj(ng)=cscat(j,ng,ng-1,nutype)*blockj(ng-1)
+     1                 +cscat(j,ng,ng+1,nutype)*blockj(ng+1)
+                           endif
+                        endif
+
+      trb(ng)=-(blockc*ccaptj(ng)+cscoutj(ng)
+     &              +blocky*ydtj(ng)/yfull(ng))*dtfuseg
+      trd(ng)=(blocky*ydtj(ng)+zij(ng)/dvol)*dtfuseg
+c     the in scattering terms add to tra & trc
+c
+c-------------------------------------------------------------------------
+c      trb(ng)=-(ccaptj(ng)+cscoutj(ng)
+c     &              +(ydtj(ng)+rscinj(ng))/yfull(ng))*dtfuseg
+c      trd(ng)=(ydtj(ng)+rscinj(ng)+zij(ng)/dvol)*dtfuseg
+c-------------------------------------------------------------------------
+c....  eq for trb+trd w/o downscatter
+c      trb(ng)=-(ccaptj(ng)+ydtj(ng))/yfull(ng))*dtfuseg
+c      trd(ng)=(ydtj(ng)+zij(ng)/dvol)*dtfuseg
+c--------------------------------------------------------------------
+c      different centring dy/dt=f(0.5(ya+yb))
+c      trb(ng)=-0.5d0*(ccaptj(ng)+ydtj(ng)/yfull(ng))*dtfuseg
+c      trd(ng)=(ydtj(ng)+zij(ng)/dvol
+c     &   -0.5d0*((ydtj(ng)/yfull(ng)+ccaptj(ng))
+c     &   *ytaj(ng)))*dtfuseg
+c--------------------------------------------------------------------
+      enddo
+c
+      if(j.lt.jmax) then
+      rj=0.5d0*(rb(i)+rb(j))
+      rk=0.5d0*(rb(j)+rb(k))
+
+      do  ng=1,ngmax
+         if(it.gt.maxdit)  goto 555
+         if(keyzrm.ne.0)  then
+c            if(newy.ne.0)  then
+c               ytjng=ytbj(ng)
+c            else
+               ytjng=ytaj(ng)
+c            endif
+            call ddnu4(rb(i),rb(j),rb(k),ytjng,ytak(ng)
+     1           ,cscatis(j,ng,nutype),cscatis(k,ng,nutype)
+     2           ,ydtj(ng),ydtk(ng),yfull(ng)
+     3           ,djk(ng),amj,edd(j,ng,nutype),keyflux)
+         else
+            djk(ng)=0d0
+            edd(j,ng,nutype)=0d0
+         endif                  ! keyzrm
+         ddnue(j,ng,nutype)=djk(ng)
+         amsq(ng)=0.5d0*(edd(i,ng,nutype)+edd(j,ng,nutype))
+ 555     continue
+         arrjd=djk(ng)*arrj
+c---------------------------------------
+c      the compression term droro was included in trb
+c      trb(ng)=trb(ng)-arrjd+droro
+c---------------------------------------
+         trb(ng)=trb(ng)-arrjd
+         if(kompres.eq.0) then
+            trb(ng)=trb(ng)+droro
+c             trd(ng)=trd(ng)+droro*ytaj(ng)
+         endif
+         trd(ng)=trd(ng)+arrjd*ytak(ng)+ytaj(ng)
+      enddo
+                   else
+c     j=jmax
+      rij=0.5d0*(rb(i)+rb(j))
+      ars=pai4*rij**2*fsurf*dtfuseg/dvol
+      do  ng=1,ngmax
+      trb(ng)=trb(ng)-ars
+      if(kompres.eq.0) then
+         trb(ng)=trb(ng)+droro
+c          trd(ng)=trd(ng)+droro*ytaj(ng)
+      endif
+      trd(ng)=trd(ng)+ytaj(ng)
+c      edd(j,ng,nutype)=2d0*edd(i,ng,nutype)-edd(i-1,ng,nutype)
+      edd(j,ng,nutype)=edd(i,ng,nutype)
+      edd(j,ng,nutype)=max(min(edd(j,ng,nutype),1d0),shlish)
+      enddo
+                    endif
+c
+
+      dyde(1:ngmax)=0d0
+c
+      if(ngmax.eq.1) go to 150
+c
+c     set up intergroup tridig coefficients
+c     -------------------------------------
+      if(keydyde.ne.0)  then
+      forall  (ng=1:ngmax)
+      p2vel(ng)=0.5d0*
+     1(3d0*edd(j,ng,nutype)-1d0)*(velb(j)-velb(i))/(rb(j)-rb(i))*dtfuseg
+      q2ro(ng)=0.5d0*(edd(j,ng,nutype)-1d0)*droro
+      ff(ng)=enu(ng)*(p2vel(ng)+q2ro(ng))
+      end forall
+                        else
+                        ff(1:ngmax)=0d0
+                        tra(1:ngmax)=0d0
+                        trc(1:ngmax)=0d0
+                        dyde(1:ngmax)=0d0
+                        goto  150
+                        endif
+c
+      do  ng=1,ngmax
+      ngm=ng-1
+      ngp=ng+1
+      tra(ng)=0d0
+      trc(ng)=0d0
+      delb   =0d0
+      if (ng .lt. ngmax) then
+         ffp = (ff(ng) * denu(ngp) + ff(ngp) * denu(ng)) /
+     +        (denu(ngp) + denu(ng))
+      else
+         ffp = 0d0
+      endif
+      if (ng .gt. 1) then
+         ffm = (ff(ng) * denu(ngm) + ff(ngm) * denu(ng)) /
+     +        (denu(ngm) + denu(ng))
+      else
+         ffm = ff(ng)
+      endif
+
+      if (ffp .ge. 0d0 .or. ng .eq. ngmax) then
+         delb=-ffp/denu(ng)/denu(ng)
+      else
+         trc(ng)=-ffp/denu(ngp)/denu(ngp)
+      endif
+
+      if (ffm .gt. 0d0 .and. ng .ne. 1) then
+         tra(ng)=ffm/denu(ngm)/denu(ngm)
+      else
+         delb=ffm/denu(ng)/denu(ng)
+      endif
+
+c
+      trb(ng)=trb(ng)+delb
+c     dyde(ng)=ff(ng)+delb*ytbj(ng)
+cyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+                      dyde(ng)=delb*ytbj(ng)
+      if(ng.gt.1)     dyde(ng)=dyde(ng)+tra(ng)*ytbj(ngm)
+      if(ng.lt.ngmax) dyde(ng)=dyde(ng)+trc(ng)*ytbj(ngp)
+      enddo
+c
+  150 continue
+c----------------------------------------------------------------------------
+      if(keydown.gt.0)  then
+c     down up scattering terms
+      do  ng =1,ngmax
+      ngm=ng-1
+      ngp=ng+1
+      if(ng.gt.1)  then
+c         tra(ng)=tra(ng)
+c     & +(cscat(j,ngm,ng)*blockj(ng)-cscat(j,ng,ngm)*ytbj(ng)/yfull(ngm))
+c     & *dtfuseg
+         tra(ng)=tra(ng)+cscat(j,ngm,ng,nutype)*blockj(ng)*dtfuseg
+                   endif
+      if(ng.lt.ngmax)  then
+c         trc(ng)=trc(ng)
+c     & +(cscat(j,ngp,ng)*blockj(ng)-cscat(j,ng,ngp)*ytbj(ng)/yfull(ngp))
+c     & *dtfuseg
+         trc(ng)=trc(ng)+cscat(j,ngp,ng,nutype)
+     &        *blockj(ng)*dtfuseg
+                       endif
+      enddo
+                        endif
+c----------------------------------------------------------------------------
+c--------------------------------------------------------------------------
+c     change trd coeff from y to dely
+c     y(ng)=tra(ng)*y(ngm)+trb(ng)*y(ng)+trc(ng)*y(ngp)+trd(ng)
+c     if y(ng)=yp(ng)+dy(ng)  then
+c     dy(ng)=tra(ng)*dy(ngm)+trb(ng)*dy(ng)+trc(ng)*dy(ngp)+trd(ng)
+c     where
+c     trd(ng)=trd(ng)+tra(ng)*yp(ngm)+trb(ng)*yp(ng)+trc(ng)*yp(ngp)-yp(ng)
+c--------------------------------------------------------------------------
+      do  ng=1,ngmax
+      ngm=ng-1
+      ngp=ng+1
+                      trd(ng)=trd(ng)+trb(ng)*ytbj(ng)
+      if(ng.gt.1)     trd(ng)=trd(ng)+tra(ng)*ytbj(ngm)
+      if(ng.lt.ngmax) trd(ng)=trd(ng)+trc(ng)*ytbj(ngp)
+                      trd(ng)=trd(ng)-ytbj(ng)
+      enddo
+c
+      call  tridig0(tra,trb,trc,trd,dely,ngmax)
+c
+      iteration(iter)=iteration(iter)+1
+
+      dely(1:ngmax) = 
+     &     max(min(dely(1:ngmax),
+     &     +facdely*yfull(1:ngmax))
+     &     ,-facdely*yfull(1:ngmax))
+
+      knosmall = 0
+      absdel=1.0d-99
+      do  ng=1,ngmax
+      if(ytbj(ng).gt.(eps2*yfull(ng))) then
+         knosmall = 1
+         absdelg=abs(dely(ng)/ytbj(ng))	
+         if(absdelg.ge.absdel) then
+            absdel=absdelg
+            ngnconv=ng
+         endif
+      endif
+      enddo
+
+      ytbj(1:ngmax)=
+     &     max(ytbj(1:ngmax)+dely(1:ngmax), eps1*yfull(1:ngmax))
+      if(absdel.le.eps) go to 1400
+c
+c     end of convergence loop
+c     -----------------------
+ 1200 continue
+c
+c     reduce dtfuse
+c     -------------
+      if(ntdiff.gt.ntgrace) go to 1
+c
+c
+
+ 1400 continue
+      ytaj(1:ngmax)=ytbj(1:ngmax)
+
+c
+c     end of ndt loop
+c     ---------------
+ 1500 continue
+c     ---------------------------------------------------
+      goto  1590
+ 1510 continue
+
+c     j.le.jequil
+c
+
+      djk(1:ngmax)=0d0
+      edd(j,1:ngmax,nutype)=shlish
+      ytaj(1:ngmax)=ya(j,1:ngmax,nutype)
+      if(j.lt.jmax) ytak(1:ngmax)=ya(k,1:ngmax,nutype)
+      ydtj(1:ngmax) = ydot(j, 1:ngmax, nutype) +
+     &     ydotpj(1, 1:ngmax, nutype)
+      ccaptj(1:ngmax) = ccapt(j, 1:ngmax, nutype) +
+     &     abstpj(j,1:ngmax, nutype)
+
+      if (nutype .eq. 1) then 
+         do ng=1,ngmax
+	 if (ydtj(ng) .ne. 0d0) then 
+            ytbj(ng)=yfull(ng)/
+     &           (1d0 + ccaptj(ng)*yfull(ng)/ydtj(ng))
+         else
+            ytbj(ng) = 0d0
+         endif
+	 enddo
+      else
+         ytbj(1:ngmax) = ytaj(1:ngmax)
+      endif
+
+      ytbj(1:ngmax)=max(ytbj(1:ngmax),eps1*yfull(1:ngmax))
+      ydotj(1:ngmax)=
+     &	ydtj(1:ngmax)*(1d0-ytbj(1:ngmax)/yfull(1:ngmax))
+      ynet(j,1:ngmax,nutype) = 0d0	
+
+ 1590 continue
+c
+      ri3=rj3
+c
+      if(ngmax.gt.1)  then
+      do  ng=2,ngmax
+      mmg=ngmax+1-ng
+      nng=mmg+1
+      odef=ytbj(nng)-yfull(nng)
+      if(odef.gt.0d0) then
+                      ytbj(nng)=yfull(nng)
+                      ytbj(mmg)=ytbj(mmg)+odef
+                      endif
+                      enddo
+                       endif
+c---------------------------------------------------
+c
+      prody(j,nutype)=0d0
+      prode(j,nutype)=0d0
+c
+
+      yin(1:ngmax)=zij(1:ngmax)*dtb/dvol
+      if(j.lt.jmax) then
+         zij(1:ngmax)=2d0*areaj
+     &        *djk(1:ngmax)*(ytbj(1:ngmax)
+     &        -ya(k,1:ngmax,nutype))/(rb(k)-rb(i))
+      else
+         rij=0.5d0*(rb(i)+rb(j))
+         zij(1:ngmax)=pai4*rij**2*fsurf*ytbj(1:ngmax)
+      endif
+      flum(j,1:ngmax,nutype)=zij(1:ngmax)
+      yout(1:ngmax)=zij(1:ngmax)*dtb/dvol
+      if(j.gt.jequil)    then
+      blockj(1:ngmax)=max(one-ytbj(1:ngmax)/yfull(1:ngmax),zero)
+      do  ng=1,ngmax
+c     Turn off capture if you have an almost full neutrino column or
+c     if the neutrino number is near the "floor" 
+
+      if(blockj(ng).le.epsblok) then
+         dprodg = 0d0
+      elseif (ytbj(ng) .le. eps2  * yfull(ng)) then
+         dprodg=blocky*ydotj(ng)
+      else
+         dprodg=blocky*ydotj(ng)-blockc*ccaptj(ng)*ytbj(ng)
+      endif
+
+c---------------------------------------------------------------
+c      dprodg=ydotj(ng)-0.5d0*ccaptj(ng)*(ytbj(ng)+ytaj(ng))
+c---------------------------------------------------------------
+
+c This suppresses changes due to numerical noise in the difference
+c between two large numbers.  This is important because otherwise
+c numerical noise will cause Ye to take unphysical values
+c
+      if (ydotj(ng)*blocky .gt. 0d0 .and. abs(dprodg/blocky/ydotj(ng))
+     &                               .lt. epsblok0) then
+         dprodg = 0d0
+      endif
+
+      ynet(j,ng,nutype) = dprodg	
+
+c Down scattering will change the energy and the number in which group
+c but it will not change the total number of neutrinos
+c
+c So we do the sum of the total number of neutrinos without taking
+c into account down scattering
+c 
+c We do this partly to keep numerical noise from destabilizing Ye
+c
+c Ye is much more susceptable to numerical noise than energy.  
+c the differences in energy are a smaller fraction than the
+c differences, and because the simulation adjusts to energy noise
+c on a hydrodynamical time scale, while the time scales to adjust
+c to Ye noise are much longer.
+ 
+      prody(j,nutype)=prody(j,nutype)+dprodg
+      prode(j,nutype)=prode(j,nutype)+dprodg*enu(ng)
+
+c Energy change due to down scattering
+      denscg=0d0
+      if(keydown.gt.0) then
+         do  ngprime=1,ngmax
+            denscg=denscg+ (enu(ng)-enu(ngprime))*
+     1           ( cscat(j,ngprime,ng,nutype)*ytbj(ngprime)*blockj(ng)
+     2           -cscat(j,ng,ngprime,nutype)*ytbj(ng)*blockj(ngprime))
+         enddo
+
+         if (ydotj(ng)*blocky .gt. 0d0 .and. 
+     &        abs(denscg/blocky/ydotj(ng)/enu(ng)) .lt. epsblok0) then
+            denscg = 0d0
+         endif
+
+	 if (blocky .eq. 0d0 .and. blockc .eq. 0d0) then
+            denscg = 0d0
+         endif
+         prode(j,nutype)=prode(j,nutype)+denscg
+      endif
+
+
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+c      prode(j,nutype)=prode(j,nutype)+dprodg*enu(ng)
+cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      enddo
+                         endif
+c
+c................................................
+c      dely1(ng)=dprodg*dtb
+c      dely2(ng)=droro*ndt*ytbj(ng)+dyde(ng)
+c      dely3(ng)=yin(ng)-yout(ng)
+c      delyt(ng)=dely1(ng)+dely2(ng)+dely3(ng)
+c      dely(ng)=ytbj(ng)-(ya(j,ng,nutype)+delyt(ng))
+
+
+      yb(j,1:ngmax,nutype)=ytbj(1:ngmax)
+      if(j.lt.jmax) scatj(1:ngmax)=scatk(1:ngmax)
+
+c     end of j loop
+c     -------------
+ 1800 continue
+c
+      do j=2,jmax
+         ams(1:ngmax)=
+     +        0.5d0*(edd(j-1,1:ngmax,nutype)+
+     +        edd(j,1:ngmax,nutype))
+         p2m(1:ngmax)=0.5d0*(3.0d0*ams(1:ngmax)-1d0)
+         fi(1:ngmax)=yb(j,1:ngmax,nutype)*enu(1:ngmax)
+         fip2m(j,nutype)=sum(fi(1:ngmax)*p2m(1:ngmax))*emev
+         pneut(j,nutype)=sum(fi(1:ngmax)*ams(1:ngmax))*emev
+         flumn(j,nutype)=sum(flum(j,1:ngmax,nutype))
+         flume(j,nutype)=sum(flum(j,1:ngmax,nutype) *
+     &        enu(1:ngmax))*emev
+      enddo
+
+c      areaj=pai4*rb(j)**2
+c      if(j.lt.jmax)  then
+c      dr=0.5d0*(rb(j+1)-rb(j-1))
+c	This is calculated in timstp
+c
+c      argj=(enu(ng)-fmue(j)+fmuhat(j))/tb(j)*tmev
+c      argk=(enu(ng)-fmue(j+1)+fmuhat(j+1))/tb(j+1)*tmev
+c      stimj=1d0+expm(-argj)
+c      stimk=1d0+expm(-argk)
+c      stimj=1d0
+c      stimk=1d0
+c      aneut(j,nutype)=aneut(j,nutype)+flum(j,ng,nutype)*dr/dmp(j)*0.5d0
+c     &        *( ccaptj(ng)*stimj+cscatis(j  ,ng,nutype)
+c     &          +ccaptk(ng)*stimk+cscatis(j+1,ng,nutype) )
+c     &        *enu(ng)*emev/clite**2
+c                      else
+c      dr=0.5d0*(rb(j)-rb(j-1))
+c      argj=(enu(ng)-fmue(j)+fmuhat(j))/tb(j)*tmev
+c      stimj=1d0+expm(-argj)
+c      stimj=1d0
+c      aneut(j,nutype)=aneut(j,nutype)+flum(j,ng,nutype)*dr/dmp(j)*0.5d0
+c     &        *( ccaptj(ng)*stimj+cscatis(j  ,ng,nutype) )
+c     &        *enu(ng)*emev/clite**2
+c                      endif
+
+
+c
+      goto  9999
+ 9000 continue
+      print 9003,jequil,j,ndt,dtb,dtfuse,dtfuseg,absdel,ngnconv
+9003  format(' no convergence in difq3 .  jequil=',i3
+     1/,' dtfuse reduced at j=',i3,' ndt=',i4,' dtb=',1pe11.3
+     2,' dtfuse=',e11.3,' dtfuseg=',e11.3,' absdel=',e11.3,' group=',i2)
+      print 9008, (iteration(j),j=2,jmax)
+9008  format(' iterations ',20i5)
+      noconv=j
+      do  ng=1,ngmax
+      print  9010,ntime,ng,ndt,time,dtb,dtfuse
+      print  9020,(   ya(j,ng,nutype),j=2,jmax)
+      print  9030,(   yb(j,ng,nutype),j=2,jmax)
+c      print  9050,( ydtj(ng),j=2,jmax)
+c      print  9070,(ccaptj(ng),j=2,jmax)
+      print  9080,(cscatis(j,ng,nutype)/clite,j=2,jmax)
+      print  9090,(flum(j,ng,nutype),j=2,jmax)
+      print  9095,(edd(j,ng,nutype),j=2,jmax)
+ 9010 format(' ntime=',i5,'  ng=',i2,' ndt=',i6
+     1,'  time=',1pe12.3,'  dtb=',e12.3,'  dtfuse=',e12.3)
+ 9020 format(' ya     ',1p10e12.3)
+ 9030 format(' yb     ',1p10e12.3)
+ 9050 format(' ydot   ',1p10e12.3)
+ 9070 format(' ccapt  ',1p10e12.3)
+ 9080 format(' scat   ',1p10e12.3)
+ 9090 format(' flum   ',1p10e12.3)
+ 9095 format(' edd    ',1p10e12.3)
+      enddo
+ 9999 continue
+      contains
+      subroutine  tridig0(a,b,c,d,g,nx)
+      implicit none
+
+      integer*4, intent(in) :: nx
+      real*8, dimension(nx), intent(out) :: g
+      real*8, dimension(nx) ::  a,b,c,d
+      integer*4 :: mx, nn, m, n
+      real*8 :: denom
+
+      mx=nx-1
+      a(nx)=a(nx)/(1d0-b(nx))
+      b(nx)=d(nx)/(1d0-b(nx))
+      do  nn=2,nx
+      m=nx+1-nn
+      n=m+1
+      denom=1d0-b(m)-a(n)*c(m)
+      a(m)= a(m)/denom
+      b(m)=(d(m)+b(n)*c(m))/denom
+      enddo
+      g(1)=b(1)
+      do  m=1,mx
+      n=m+1
+      g(n)=a(n)*g(m)+b(n)
+      enddo
+      end subroutine tridig0
+      end subroutine difq3

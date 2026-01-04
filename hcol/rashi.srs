@@ -1,0 +1,776 @@
+*deck rashi
+      subroutine  rashi (jmax,ngmax,nxx)
+*call implic
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call keyeos
+*call chemp
+*call vc
+      dimension param(10),nparm(10)
+      dimension nodifq(10)
+      character*80  line
+      integer*4, parameter ::  krrmax=100, kuumax=12, kdifmax=100
+      real*8, parameter ::  rocprfc=10d0, rocmax=1d16
+      real*8, parameter ::  yebot = 0.04d0, delye=0.01d0, dele=0.02d0
+      real*8, parameter ::  yeratebot = 0.1d0
+      real*8, parameter ::  sigmrat=0.05d0
+      integer*4, parameter ::  nt77 = 77
+      integer*4 :: kfilly=1, kfillyb=1
+      xmantle=0.d0
+      t000=second ()
+      cputime=t000
+      print *,' main/rashi'
+      print *,' infall=',infall
+      print *,' keos=',keos
+      print *,' nueosp=',nueosp
+      if(kchkdif.ne.0) then
+                       print *,'kfilly=',kfilly
+                       call fillyc(kfilly,jmax,ngmax)
+                       endif
+      print *,' ntindif(1)=',ntindif(1)
+      print *,' ntindif(2)=',ntindif(2)
+      if(ntindif(1).gt.0)    kfilly=0
+      if(ntindif(2).gt.0)    kfillyb=0
+      if(kfilly .ne.0) print *,' kfilly =1 at rashi'
+      if(kfillyb.ne.0) print *,' kfillyb=1 at rashi'
+      keyexit=0
+      nupress=nueosp
+      ntryeos=0
+      if(mxjmin.lt.0)  then
+                       jmin=-mxjmin
+                       mxjmin=0
+                       endif
+c      if(nuemis.ge.2)  then
+c                       jmin=max(jmin,jequil+1)
+c                       endif
+c                       jmin1=jmin-1
+c      if(jmin1.ge.2)   then
+c         vela(2:jmin1)=0.d0
+c         velb(2:jmin1)=0.d0
+c         acc(2:jmin1)=0.d0
+c         yedot(2:jmin1)=0.d0
+c      endif
+c
+      krtime=0
+      kye=0
+ 1001 continue
+      nodifq(1:numax) = 0
+      krr=0
+      kuu=0
+      kdif=0
+40    continue
+	call flush(6) ! Flush stdout 
+c     Call convection routines
+      call joether(jmax, ngmax, nxx)
+      if (kromax .ne. 0) then 
+         krr=krr+1
+         if (krr .gt. 50) goto 1100
+         stabil=stabil*stabfc
+         dtb = dtb *stabfc
+         krtime=ntime+3
+         goto 40
+      endif
+
+      if(kchkdif.eq.0)  then
+                        if(keygr.eq.0) then
+                                       call  timstp (jmax,ngmax,nxx)
+                                       else
+                                       call  grstep (jmax,ngmax,nxx)
+                                       endif
+                        else
+                        velb(1:jmax)=0d0
+                        ktransy=0
+                        call  transfr (jmax,ngmax,numax,ktransy)
+                        kromax=0
+                        ku=0
+                        kromin=1
+                        dtnext=dtb/stab
+                        stabil=stab
+                        endif
+      if(kesfail.eq.0)  goto  50
+      call  eosfail (jmax,ngmax,nxx,keyfin)
+      if(keyfin.ne.0)  goto  1150
+      goto  40
+50    continue
+      if(kromax.eq.0) go to 60
+      krr=krr+1
+      if(krr.gt.krrmax)  goto  1100
+      stabil=stabil*stabfc
+      dtb=dtb*stabfc
+      krtime=ntime+3
+      go to 40
+60    if(ku.eq.0) go to 80
+      kuu=kuu+1
+      if(kuu.gt.kuumax)  goto   1110
+      stabil=stabil*stabfc
+      dtb=dtb*stabfc
+      krtime=ntime+3
+      go to 40
+80    if(kromin.ne.0) go to 100
+      if(ntime.lt.krtime)  goto  100
+      stabil= min (stabil/stabfc,stab)
+100   continue
+      if(nuemis.eq.0) goto  135
+      if(nuemis.eq.1) then
+                      delyemx=0d0
+                      call  elecap (jmax,ngmax,nxx)
+                      do   j=2,jmax
+                         yedot(j) = yedot(j) + yeconv(j)
+                      delyej=abs(dtb*yedot(j)/ye(j))
+                      if(delyej.ge.delyemx) then
+                                            delyemx=delyej
+                                            jdelye=j
+                                            endif
+                      enddo
+      if(delyemx.gt.epsdye)  then
+                             kdif=kdif+1
+                             stabil=stabil*stabfc
+                             dtb=dtb*stabfc
+                             if(dtb.le.dtmin)  goto  1130
+                             krtime=ntime+10
+      print 952,ntime,kdif,jdelye,dtb,delyemx,epsdye
+952   format(' elecap-ye  reduces time step, ntime=',i6,' kdif=',i2
+     1,' jdelye=',i3,' dtb=',1pe11.4,' delyemx=',e9.2,' epsdye=',e9.2)
+                                                 go to 40
+                                                 endif
+                      do   j=2,jmax
+                      ye(j)=ye(j)+dtb*yedot(j)
+                      ynu(j)=ynu(j)-dtb*yedot(j)
+                      enddo
+                      goto  135
+                      endif
+c------------------------------------------------------
+c     nuemis.ge.2
+c     first calculate pairs rate
+      if(numax.ge.2 .and. infall.eq.0)  then
+         call ratesp(jmax,ngmax)
+      endif
+
+      if (infall .eq.0) then
+         nlim = numax
+      else
+         nlim = 1
+      endif
+
+      do nutype=1,nlim
+         if(nodifq(nutype) .eq.0) then
+            call rates(jmax, ngmax, nutype)
+         endif
+
+c     Artificially boost absorption, scattering, and emission
+
+         call boostr(jmax, ngmax, numax)
+
+c     nodifq=0 means difq converged.
+c
+         if(kfilly.ne.0) then
+            call normy(kschifa,jmax,ngmax)
+            call filly(kfilly,jmax,ngmax)
+c     skip difq as rates are not defined
+         else
+c            call difq (jmax,ngmax,nodifq,kfluxlm,epsdifq)
+            call difq3(jmax,ngmax,nodifq(nutype),kfluxlm,epsdifq)
+c            call difq4(jmax,ngmax,nodifq,kfluxlm,epsdifq)
+c            call difq5(jmax,ngmax,nodifq,kfluxlm,epsdifq)
+         endif
+c
+         if(nodifq(nutype).ne.0)  then
+            if(nuemis.ge.3)  
+     +           goto  1140
+            kdif=kdif+1
+            if(kdif.gt.kdifmax)  goto  1140
+            stabil=stabil*stabfc
+            dtb=dtb*stabfc
+            krtime=ntime+20
+            print 950,ntime,nutype,nodifq,kdif,dtb
+950   format(' difq reduces time step, ntime=',i6,' nutype=',i1
+     1,' nodifq=',i3,' kdif=',i2,' dtb=',1pe12.4)
+      go to 40
+                       
+      endif
+      enddo  
+
+c     Advect neutrinos from convection
+      yb(jmin:jmax,1:ngmax,1:numax) = 
+     1     yb(jmin:jmax,1:ngmax,1:numax) 
+     2     + yconv(jmin:jmax,1:ngmax,1:numax) * dtb
+
+
+c----------------------------------------------------------------
+c     check for large changes in e or ye
+c     --------------------------------------
+      deleyemx=0d0
+      delyemx =0d0
+      delye1mx=0d0
+      delye2mx=0d0
+      delemx  =0d0
+      dele1mx =0d0
+      dele2mx =0d0
+      delyfluxmx = 0d0
+      delconvmx = 0d0
+
+      do   j=jmin,jmax
+      delye1=-prody(j,1)/rob(j)/avo
+      delye2=+prody(j,2)/rob(j)/avo
+c      yedot(j)=-(prody(j,1)-prody(j,2))/rob(j)/avo + yeconv(j)
+      yedot(j)=delye1+delye2 + yeconv(j)
+      delyej=abs(dtb*yedot(j)/ye(j))
+      egaine=-dtb*yedot(j)*avo*fmelctr*clite2
+
+c      egaine=-dtb*yedot(j)*avo*fmelctr*clite2
+      egaine=0d0
+c     ??????????
+      if (kchkcon .gt. 0) then
+         egainue = 0d0
+         egainue1 = 0d0
+         egainue2 = 0d0
+      else
+c The neutrinos in group 3 include account for only one species
+c To take into account all of the different species it is necessary
+c to multiply by a factor of four
+c
+c **** Why is there a negative sign here? ***
+c 
+c -joe 19971107
+
+         egainue=-(prode(j,1)+prode(j,2))*dtb/rob(j)*emev
+         egainue1=-prode(j,1)*dtb/rob(j)*emev
+         egainue2=-prode(j,2)*dtb/rob(j)*emev
+         egainue3=4d0 * prode(j,3) * dtb/rob(j) * emev
+      endif
+      egain=egaine+egainue1+egainue2 +econv(j)  * dtb
+      delej=abs((eb(j) - ea(j) +egain)/ea(j))
+      
+      if (infall .eq. 0) then
+         i=j-1
+         dvol = pai43 * (rb(j)**3 - rb(i)**3)
+         yin = flumn(i,1) * dtb/dvol
+         yout = flumn(j,1) * dtb/dvol
+         delyfluxj = abs(yin-yout) / sum(ya(j,1:ngmax,1))
+      else
+         delyfluxj = 0d0
+      endif
+         
+      deleyej=max(delyej,delej)
+      deleyej=max(deleyej,delyfluxj)
+      if(deleyej.gt.deleyemx) then
+         jdelye=j
+         deleyemx=deleyej
+         delyemx =delyej
+         delye1mx=delye1*dtb/ye(j)
+         delye2mx=delye2*dtb/ye(j)
+         delemx=delej
+         dele1mx=egainue1/eb(j)
+         dele2mx=egainue2/eb(j)
+         delyfluxmx = delyfluxj
+      endif
+      enddo
+
+c
+      if(deleyemx.gt.epsdye) then
+         kdif=kdif+1
+         stabil=stabil*stabfc
+         dtb=dtb*stabfc
+         if(dtb.le.dtmin)  goto  1130
+         krtime=ntime+25
+      print 951,ntime,kdif,jdelye,dtb,delyemx,delye1mx,delye2mx
+     &         ,                      delemx, dele1mx, dele2mx,
+     &        delyfluxmx
+951   format(' big d(e-ye) ntime=',i6,' kdif=',i2,' j=',i3,
+     &' dtb=',1pe11.4,' dy,dy1,dy2=',e9.2,2e9.1,
+     &                ' de,de1,de2=',e9.2,2e9.1,' dyflux=',e9.2)
+                                                 go to 40
+                                                 endif
+c----------------------------------------------------------------
+c---- e and ye adjusting
+      kyerror=0
+
+      if (kchkcon .lt. 2) then
+         yedot(jmin:jmax)=-(prody(jmin:jmax,1)-
+     &        prody(jmin:jmax,2))/rob(jmin:jmax)/avo
+      else
+         yedot(jmin:jmax)=0d0
+      endif
+      ye(jmin:jmax)=ye(jmin:jmax)+dtb*yedot(jmin:jmax) 
+     &     + yeconv(jmin:jmax) * dtb
+
+c This should really be replaced by an F90 where call
+c But Intel F90 8.1 seems to incorrectly process this
+c and set ye(jmax) to yebot
+      do j=jmin,jmax 
+      if (ye(j) .lt. yebot) ye(j) = yebot
+      enddo
+
+      do    j=jmin,jmax
+         ynu (j)=sum(yb(j,1:ngmax,1))/rob(j)/avo
+         ynub(j)=sum(yb(j,1:ngmax,2))/rob(j)/avo
+
+
+c       egaine=-dtb*yedot(j)*avo*fmelctr*clite2
+c       egaine=0d0
+c      ??????????
+      if (kchkcon .gt. 0) then
+         egainue = 0d0
+         egainueb = 0d0
+         egainumt = 0d0
+      else
+         egainue =-prode(j,1)*dtb/rob(j)*emev * fnufac(1)
+         egainueb= -prode(j,2)*dtb/rob(j)*emev * fnufac(2)
+         egainumt= -prode(j,3)*dtb/rob(j)*emev * fnufac(3)
+      endif
+      egainc = econv(j) * dtb
+      egain=egaine+egainue+egainueb+egainumt+egainc
+
+      delemx=max(delemx,abs((egain/eb(j))))
+       eb(j)=eb(j)+egain 
+       heatnue(j,1)=heatnue(j,1)+egainue
+       heatnue(j,2)=heatnue(j,2)+egainueb
+       heatnue(j,3)=heatnue(j,3)+egainumt
+
+c     calcalute pressure with modified eb
+       keyets=1
+c       xmue=fmue(j)
+       xmunu=fmunu(j)
+       keyeos=keosn(j)
+       jzone=j
+
+       call  state
+     1(rob(j),eb(j),tb(j),pb(j),s(j),sound
+     2,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     3,ahv(j),z(j),ye(j),ynu(j),xn(j),xp(j),xal(j),xhv(j)
+     *,keyets)
+      if(kesfail.ne.0)  then
+          print *,' eos failes in rashi readjusting pressure zone=',j
+	print *, rob(j), eb(j), ye(j)
+
+          call  eosfail (jmax,ngmax,nxx,keyfin)
+          if(keyfin.ne.0)  goto  1150
+          goto 40
+       endif
+       fmue(j)=xmue
+       fmuhat(j)=xmuhat
+      enddo
+c----------------------------------------------------------------
+      emro=emev*avo
+      do  j=jmin,jmax
+         if(abs(ye(j)-yeprev(j)).ge.delye .or. 
+     &        ye(j) .lt. yeratebot .or. 
+     1        abs((eb(j)-eprev(j))/emro).ge.dele .or.
+     &	      (sgmb(j)/pb(j) .gt. sigmrat .and. infall .eq. 0))
+     *	      then
+            krates(j,1:3)=1
+            eprev(j)=eb(j)
+            yeprev(j)=ye(j)
+         else
+            krates(j,1:3)=0
+         endif
+      enddo
+c----------------------------------------------------------------
+      if(kyerror.gt.0)  then
+         print *,'  ye lower than ',yebot,' at j=',kyerror
+         ntimax=0
+      endif
+      dlif1=sum(flum(jmax,1:ngmax,1))
+      dlif2=sum(flum(jmax,1:ngmax,2))
+      dlif1b=sum(flum(jmax,1:ngmax,1)*enu(1:ngmax)) 
+      dlif2b=sum(flum(jmax,1:ngmax,2)*enu(1:ngmax)) 
+
+      dlifnu =dlifnu +dlif1 *dtb
+      dlifnub=dlifnub+dlif1b*dtb
+      dlifen =dlifen +dlif2 *dtb*emev
+      dlifenb=dlifenb+dlif2b*dtb*emev
+
+      enutot=0.d0
+      enubtot=0.d0
+
+      yetot =sum(dmk(2:jmax)*ye(2:jmax))*avo
+      ynutot=sum(dmk(2:jmax)*ynu(2:jmax))*avo
+      ynubtot=sum(dmk(2:jmax)*ynub(2:jmax))*avo
+
+      yl=yetot+ynutot+dlifnu-ynubtot-dlifnub
+
+      do   j=2,jmax
+      enutotj = 0d0
+      do  ng=1,ngmax
+      do  nutype=1,numax
+      enutotj=enutotj+yb(j,ng,nutype) * enu(ng) * fnufac(nutype)
+      enddo
+      enddo
+      enutot=enutot+enutotj* (rb(j)**3d0 - rb(j-1)**3d0)
+      enddo
+      enutot=enutot*pai43*emev
+
+135   continue
+      eprs=eprs-pext*(ra(jmax)**3-rb(jmax)**3)*pai43
+c
+c     transfer all arrays
+c     -------------------
+      ktransy=1
+      call printbal(jmax,ngmax)	
+      call  transfr (jmax,ngmax,numax,ktransy)
+c
+      call  lochelm (jmax,ngmax,nxx)
+      if(kstab.ne.0)  goto  136
+      if(infall.ne.0)  goto  136
+      if(fmass(khelem)/solmas.le. 1.0d0)  goto  136
+      stab=9.d0
+      print *,'  stab changed to  ',stab,'  khelem=',khelem
+      kstab=1
+136   continue
+      ntime=ntime+1
+      time=time+dtb
+      kot=mprnt*10
+      if(time.ge.timax .or. ntime.ge.ntimax) mprnt=1
+      if(time.ge.timax .or. ntime.ge.ntimax) kot  =1
+      if(mod(ntime,mprnt).ne.0)  goto   150
+      call  enrbal (jmax,ngmax,nxx)
+      kdtb=1d6*(dtb+5d-7)
+      if(fmantle.gt.xmantle)  then
+                              xmantle=fmantle
+                              xeblow=eblow
+                              tblow=time
+                              endif
+      if(khelem.gt.jmin) then
+                         fmhl=fmass(khelem)/solmas
+                         else
+                         fmhl=0d0
+                         endif
+      if(mod(ntime-1,kot).eq.0)  print  900
+      print 901,ntime,kmin,time,kdtb
+     1,etot,egrav,etrm,ekin,ebal
+     2,eblow,eblowk,eprs,fmantle
+     3,eout,emisst,khelem,fmhl
+      write (nt77,903) ntime,time,dtb,kmin,khelem,kgainr
+      call flush(nt77)
+900   format(' ntime  km   time    dtb'
+     1,2x,'etot',5x,'egrav',4x,'etrm',5x,'ekin',5x,'ebal'
+     2,3x,'eblow',4x,'eblowk',3x,'eprs',4x,'mantle'
+     3,2x,'eout',6x,'nu',5x,'khelm mass'
+     *)
+901   format(i6,i4,f8.6,i6,1p4e9.2,0pf7.2,1p3e9.2
+     1,0pf6.3,1p2e10.2,i4,0pf6.2)
+903   format(' ntime=',i7,'  time=',3pf8.3,' msec.  dt=',6pf10.3
+     1     ,' musec. kmin=',i3,' khelem=',i3,' kgainr=',i3)
+      if(nuemis.ge.2)
+     * print 929,ntime,yetot,ynutot,ynubtot,dlifnu,dlifnub
+     *,yl,dlifen,dlifenb
+929   format(' ntime.  tot el.',5x,'tot nu',6x,'tot nub',5x
+     1 ,'dlifnu',6x,'dlifnub',5x,'tot lep',5x
+     2 ,'dlifen',6x,'dlifenb'
+     3 /,i6,1p10e12.4)
+150   continue
+      kmod=500
+      if(ntime.ge.5000)   kmod=1000
+      if(ntime.ge.10000)  kmod=2000
+      if(mod(ntime,kmod).ne.0)  goto  151
+      write (nt77,904) ntime,time,dtb,kmin,roa(2),khelem,kgainr
+      call flush(nt77)
+904   format(' ntime=',i7,'  time=',3pf8.3,' msec.  dt=',6pf10.3
+     1,' musec. kmin=',i3,'  roc=',1pe10.2,'  khelem=',i3,' kgainr=',i3)
+151   continue
+      dtlast=dta
+      dta=dtb
+      dtb=stabil*dtnext
+      if(dtb.le.dtmin)  goto  1130
+      dtb= min (dtb,dtmax)
+      if(infall.eq.0)  goto   154
+      if(ra(2).gt.ra2*0.9d0)  goto   154
+      if(ra(2).lt.ram)  goto   152
+      if(roa(2).lt.1d13)  goto  154
+      infall=0
+      ram=zero
+      timeck=time+dtck
+      call  printh (jmax,ngmax,nxx)
+      if(keydump.ne.0)  then
+                        call  wrtprof(jmax,ngmax,nxx)
+                        call  wrtro  (jmax,ngmax,nxx)
+                       call wrtshock(jmax, ngmax, nxx)	
+                        tprof=time-mod(time,dtprof)+dtprof
+                        endif
+      write  (nt77,930) ntime,time,dtb,roa(2)
+      call flush(nt77)
+930   format(' bounce at ntime=',i6,'  time=',3pf8.3,'  dt=',6pf10.3
+     1     ,'  roc=',1pe12.3)
+      goto    154
+152   continue
+      ram=ra(2)
+154   continue
+902   format(' jmin changed from ',i3,' to ',i3,' . ntime=',i6,' time='
+     1,1pe14.6)
+
+c     now change jmin according to jequil (from difq3)
+c      if(nuemis.ge.2 .and. jequil+1.gt.jmin)  then
+c                       jj=min(mxjmin,jequil+1)
+c                       if(jj.gt.jmin)  then
+c                    print  902,jmin,jj,ntime,time
+c                       jm=jj-1
+c                       do    j=jmin,jm
+c                       vela(j)=zero
+c                       velb(j)=zero
+c                       acc (j)=zero
+c                       enddo
+c                       jmin=jj
+c                       endif
+c                                                 endif
+c
+c     print each decade during collapse
+      if(roa(2).ge.rocpr)  then
+      call  printh (jmax,ngmax,nxx)
+      if(keydump.ne.0) then
+                       call  wrtro (jmax,ngmax,nxx)
+                       call  wrtprof (jmax,ngmax,nxx)
+                       call wrtshock(jmax, ngmax, nxx)
+                       tprof=time-mod(time,dtprof)+dtprof
+                       endif
+      write (nt77,904) ntime,time,dtb,kmin,roa(2),khelem,kgainr
+      call flush(nt77)
+170   rocpr=rocpr*rocprfc
+      if(roa(2).ge.rocpr)  goto  170
+                           endif
+      if(roa(2).gt.1.01d0*rocmax)  then
+                                   print 916,roa(2),rocmax
+916   format(' ro(2)=',1pe12.3,' gt  rocmax=',e12.3)
+                                   keyexit=15
+                                   goto  1111
+                                   endif
+      if(time.ge.timax) then
+                        print *,' time exceeded timax=',timax
+                        go to 1111
+                        endif
+      if(ntime.ge.ntimax) then
+                          print *,' ntime exceeded ntimax=',ntimax
+                          go to 1111
+                          endif
+c-----------------------------------------------------------------------
+      if(ntime-lastpr.ge.nprnt) then
+      if(time.ge.tprnt)  then
+                         call  printh (jmax,ngmax,nxx)
+      if(keydump.ne.0)   call  wrtro  (jmax,ngmax,nxx)
+                         tprnt=tprnt+dtprnt
+                         else
+                if(ntime.gt.nprnt0 .and. mod(ntime,nprnt).eq.0) then
+                                          call  printh (jmax,ngmax,nxx)
+                       if(keydump.ne.0)   call  wrtro  (jmax,ngmax,nxx)
+                                                                endif
+                         endif
+                                 endif
+c-----------------------------------------------------------------------
+      if(nuprnt.gt.0)    then
+                         if(mod(ntime,nuprnt).eq.0 .and. nuemis.ge.2)
+     1                   call  printn (jmax,ngmax,nxx)
+                         endif
+c-----------------------------------------------------------------------
+      if(nuprnt1.gt.0)    then
+         if(mod(ntime,nuprnt1).eq.0 .and. nuemis.ge.2)
+     1        call  printn1 (jmax,ngmax,nxx)
+      endif
+c-----------------------------------------------------------------------
+      if(nocprnt.gt.0)   then
+         if(mod(ntime,nocprnt).eq.0 .and. nuemis.ge.2)  then
+            do  nut=1,numax
+               call  printoc (jmax,ngmax,nut)
+            enddo
+         endif
+      endif
+
+
+			
+c-----------------------------------------------------------------------
+      if(keydump.ne.0) then
+      if(mod(ntime,nwtprof).eq.0) then
+                                  call  wrtprof (jmax,ngmax,nxx)
+                       call wrtshock(jmax, ngmax, nxx)
+                                  tprof=time-mod(time,dtprof)+dtprof
+                                  endif
+                if(time.ge.tprof) then
+                                  call  wrtprof (jmax,ngmax,nxx)
+                       call wrtshock(jmax, ngmax, nxx)
+                                  tprof=time-mod(time,dtprof)+dtprof
+                                  endif
+                       endif
+c-----------------------------------------------------------------------
+      if(keydump.ne.0) then
+      if(mod(ntime,nwtflux).eq.0) then
+                                  call  wrtflux (jmax,ngmax,nxx)
+                                  call  wrtalex (jmax,ngmax,nxx)
+                                  tflux=time-mod(time,dtflux)+dtflux
+                                  endif
+                if(time.ge.tflux) then
+                                  call  wrtflux (jmax,ngmax,nxx)
+                                  call  wrtalex (jmax,ngmax,nxx)
+                                  tflux=time-mod(time,dtflux)+dtflux
+                                  endif
+                endif
+      if(keydump.ne.0) then
+      if(mod(ntime,nwtconv).eq.0) then
+                                  call  wrtconv (jmax,ngmax,nxx)
+                                  tplotc=time-mod(time,dtconv)+dtconv
+                                  endif
+                if(time.ge.tplotc) then
+                                  call  wrtconv (jmax,ngmax,nxx)
+                                  tplotc=time-mod(time,dtconv)+dtconv
+                                  endif
+                       endif
+
+c-----------------------------------------------------------------------
+c     ploting
+      if(keyplt.ne.0 .and. keydump.ne.0)  then
+         if(keyplt.gt.0 .or. lngplt.gt.0)  then
+            if(time.lt.tplotp) goto  190
+            tplotp=tplotp+dtplot
+         else
+            if(ra(2).gt.ra2/2.5d0) goto 190
+            tplotp=int(time*100.d0)+1
+            tplotp=tplotp/100.d0
+         endif
+         lngplt=lngplt+1
+c
+         rlog(1)=time
+         rlog(2:jmax)=log10(ra(2:jmax))
+         call wrthead(jmax, ngmax, ntplot)
+	 do j=2,jmax
+            i=j-1
+            if (rb(i) .le. rnumeas .and. rnumeas .le.
+     ^           rb(j)) then
+!     Interpolation factor
+               rifac = (rnumeas - rb(i)) / (rb(j) - rb(i))
+               rjfac = 1-rifac
+               do nut=1,numax
+                  flumnout = rifac * flumn(i,nut) +
+     &                 rjfac * flumn(j,nut)
+                  flumeout = rifac * flume(i,nut) +
+     &                 rjfac * flume(j,nut)
+
+                  flume2out = abs(sum(flum(i,1:ngmax,nut) * 
+     &                 enu(1:ngmax)*enu(1:ngmax)) * rifac
+     &                 + sum(flum(j,1:ngmax,nut) * 
+     &                 enu(1:ngmax)*enu(1:ngmax)) * rjfac)
+                  if (flumnout .gt. 0d0) then 
+                     feavg = sqrt(flume2out / flumnout)
+                  else
+                     feavg = 0d0
+                  endif
+                  
+ 827              format(10('nnnnnnnnnn'))
+                  write(ntplot,827)
+                  write(ntplot,*) flumnout, 
+     &                 flumeout, feavg,kgainrn(nut)
+               enddo 
+               exit
+            endif
+	 enddo
+         write(ntplot,828)
+ 828     format(10('rrrrrrrrrr')) 
+         write (ntplot,*) (rlog(j),j=1,jmax)
+         write (ntplot,*) (fmass(j), j=1,jmax)
+         call flush(ntplot)
+ 189     if(time.lt.tplotp)  goto   190
+         tplotp=tplotp+dtplot
+         goto   189
+ 190     continue
+      endif
+c-----------------------------------------------------------------------
+c     dmping
+      if(keydump.eq.0)  goto  200
+      clt2=second()
+      if(clt2-cputime.lt.dmping)  goto   200
+      call  dump (jmax,ngmax,nxx)
+      cputime=clt2
+c-----------------------------------------------------------------------
+200   continue
+
+c
+c	Do adaptive meshing
+c
+      if (kadaptlag .gt. 0) then
+         call adaptlag(jmax, ngmax)
+      endif
+
+c     check for relager
+c----------------------------------
+      call dorelag (kdorelag)
+      if (kdorelag .gt. 0) then
+         if(keyzons.eq.1)  then
+            kzoning=1
+            param(1)=0d0
+            param(2)=0d0
+            nparm(1)=0
+            nparm(2)=0
+         elseif(keyzons.eq.2)  then
+            kzoning=2
+            param(1)=0d0
+            param(2)=0d0
+            nparm(1)=0
+            nparm(2)=0
+         elseif(keyzons.eq.4)  then
+            kzoning=4
+            param(1)=fmass1
+            param(2)=fmass1+fmass2
+            param(3)=frnz1
+            param(4)=frnz2
+         else
+            kzoning=0
+         endif
+
+         call  relager (jmax,ngmax,nxx,kzoning,param,nparm)
+      endif
+      tx=second()
+      if(tx.ge.runtime) then
+                        print *,' cpu time exceeded runtime=',runtime
+                        goto   1111
+                        endif
+
+      go to 1001
+1100  continue
+      keyexit=1100
+      print 910,dtb,kromax
+910   format(' small dtb',1pe11.3,' . kromax=',i3,' .',4x)
+      write (line,910)   dtb,kromax
+      call  remark(line,nt77)
+      goto   1111
+1110  continue
+      keyexit=1110
+      print 911,dtb,ku
+911   format(' small dtb',1pe11.3,' . ku=',i3,' .',8x)
+      write (line,911)  dtb,ku
+      call  remark(line,nt77)
+      goto   1111
+1130  continue
+      keyexit=1130
+      print 923,krr,kuu,kdif,jdelye,dtb,dtmin,dtlast,dta,dtnext,stabil
+     &,delyemx,epsdye
+923   format(' small dtb, krr=',i2,' kuu=',i2,' kdif=',i2,' jdelye=',i3
+     &/,' dtb=',1pe11.3,' dtmin=',e11.3
+     &/,' dtlast=',e11.3,' dta=',e11.3,' dtnext=',e11.3
+     &/,' stabil=',e11.3,' delyemx=',e11.3,' epsdye=',e11.3)
+      write (line,922)  dtb
+922   format(' small dtb',1pe11.3)
+      call  remark(line,nt77)
+      goto   1111
+1140  continue
+      keyexit=1140
+      print 924,dtb,kdif
+924   format(' small dtb',1pe11.3,' . kdif=',i3,' .',8x)
+      write (line,911)  dtb,kdif
+      call  remark(line,nt77)
+      goto   1111
+1150  continue
+      keyexit=1150
+      print 925
+925   format(' eos failed, illegal exit')
+      write (line,925)
+      call  remark(line,nt77)
+c     goto  finish
+1111  continue
+      write (77,927)  xeblow,xmantle,tblow
+927   format('  eblow=',1pe11.2,'  mantle=',0pf6.3,' t=',3pf8.3)
+      t111=second()
+      cpumain=t111-t000
+      print 912,cpumain
+      write (line,912)  cpumain
+      call  remark(line,nt77)
+912   format(' main cp time =',f10.3,3x,8hseconds.)
+      end

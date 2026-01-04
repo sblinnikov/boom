@@ -1,0 +1,49 @@
+*deck maketl
+      subroutine  maketl(ntab,lmax,fmumax,tltabs)
+*call implic
+      dimension tltabs(ntab,lmax)
+      data terminh,termint /1d-8,1d-16/
+      tltabs(1,1)=0.693147180559945
+      tltabs(1,2)=0.822467033424113
+      tltabs(1,3)=0.901542677369696
+      tltabs(1,4)=0.947032829497246
+      tltabs(1,5)=0.972119770446909
+      tltabs(1,6)=0.985551091297435
+      tltabs(1,7)=0.992593819922830
+      tltabs(1,8)=0.996233001852648
+      step=fmumax/(ntab-1)
+      fmu=0.0
+      do 100 n=2,ntab
+      fmu=fmu+step
+      x=exp(-fmu)
+      do 80 l=1,lmax
+      xx=x
+      xsq=x*x
+      head=0d0
+      khead=1
+      tail=0d0
+      do 60 nsum=1,32000
+      f2=1d0/float(2*nsum)
+      f1=1d0/float(2*nsum-1)
+      term=xx*(f1**l-x*f2**l)
+        if(khead.eq.1) then
+        head=head+term
+        else
+        tail=tail+term
+        end if
+          if(khead.ne.1) then
+          if((term/tail).lt.termint) go to 64
+          end if
+      if(khead.eq.1.and.(term/head).lt.terminh) khead=0
+      xx=xsq*xx
+   60 continue
+      print *,'too many terms in maketl.  see you later !!!'
+      stop    'too many terms in maketl'
+   64 continue
+      sum=head+tail
+      tltabs(n,l)=sum
+   80 continue
+  100 continue
+c
+      return
+      end

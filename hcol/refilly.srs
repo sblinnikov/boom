@@ -1,0 +1,56 @@
+*deck refilly
+      subroutine refilly(key,jmax,ngmax)
+*call implic
+*call dim
+*call par
+*call const
+      if(key.eq.1)  then
+      small2=1e-9
+      small1=1e-15
+      dsmall=log(small2/small1)/(enu(ngmax)-enu(1))
+      totadnu=0d0
+      totaden=0d0
+      do  j=2,jmax
+c      prody(j,nutype)=0d0
+c      prode(j,nutype)=0d0
+      do  ng=1,ngmax
+      small=small1*exp((enu(ng)-enu(1))*dsmall)
+      yplusq=yfull(ng)*small
+      dyb=yplusq/rob(j)*rob(2)
+      prody(j,nutype)=prody(j,nutype)+dyb/dtb
+      prode(j,nutype)=prode(j,nutype)+enu(ng)*dyb/dtb
+      yb(j,ng,nutype)=yb(j,ng,nutype)+dyb
+      totadnu=totadnu+dyb*dmk(j)/rob(j)
+      totaden=totaden+dyb*enu(ng)*emev*dmk(j)/rob(j)
+      enddo
+      enddo
+      elseif(key.eq.2)  then
+      smally=1e-6
+      sumw=0d0
+      do  ng=1,ngmax
+      sumw=sumw+1d0/enu(ng)
+      enddo
+      totadnu=0d0
+      totaden=0d0
+      do  j=2,jmax
+      dynu=smally*rob(j)*avo
+      do  ng=1,ngmax
+      weight=1d0/enu(ng)
+      dyb=dynu*weight/sumw
+      prody(j,nutype)=prody(j,nutype)+dyb/dtb
+      prode(j,nutype)=prode(j,nutype)+enu(ng)*dyb/dtb
+      yb(j,ng,nutype)=yb(j,ng,nutype)+dyb
+      totadnu=totadnu+dyb*dmk(j)/rob(j)
+      totaden=totaden+dyb*enu(ng)*emev*dmk(j)/rob(j)
+      enddo
+      enddo
+      endif
+      print 900,nutype
+900   format(' nutype=',i1,' !!!')
+      print 901,ntime,totadnu
+901   format(' ntime=',i5,' total number of neutrino added=',1pe12.4)
+      print 902,ntime,totaden
+902   format(' ntime=',i5,' total energy of neutrino added=',1pe12.4)
+c     ------------------
+      return
+      end

@@ -1,0 +1,97 @@
+*deck etanu
+      subroutine  etanu(nu,eta,detadnu)
+c
+c     find eta as function of nu
+c
+*call implic
+      real*8  nu
+c
+      save  gp1,gp2,gp3,gp4,gp5
+      save  al1,al2,al3
+      save  as1,as2,as3,as4
+      save  bs1,bs2,bs3
+      save  ap0,ap1,ap2,ap3,ap4,ap5
+      save  bp0,bp1,bp2,bp3,bp4,bp5
+c
+      data ntry /0/
+c-----------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      gp1= 1.831553d-2
+      gp2= 4.703605d-1
+      gp3= 1.579532d0
+      gp4= 5.483691d0
+      gp5= 2.621025d+1
+      al1=-1.382343d-4
+      al2= 8.874617d-3
+      al3=-7.246491d-2
+      as1= 4.928760d-1
+      as2=-1.951571d-2
+      as3=-1.402274d+0
+      as4= 1.227393d+0
+      bs1= 8.746651d-1
+      bs2=-2.917708d-3
+      bs3=-8.001705d-1
+      ap0=-2.501742d0
+      ap1= 6.059117d0
+      ap2=-6.939459d0
+      ap3= 5.057922d0
+      ap4=-1.971764d0
+      ap5= 3.138509d-1
+      bp0=-1.278330d0
+      bp1= 1.779168d0
+      bp2=-5.753742d-1
+      bp3= 1.229256d-1
+      bp4=-1.401382d-2
+      bp5= 6.504300d-4
+                     endif
+c-----------------------------
+c
+      if(nu.lt.gp1) go to 10
+      if(nu.lt.gp2.and.nu.ge.gp1) go to 20
+      if(nu.lt.gp3.and.nu.ge.gp2) go to 30
+      if(nu.lt.gp4.and.nu.ge.gp3) go to 40
+      if(nu.lt.gp5.and.nu.ge.gp4) go to 50
+c
+c     nu.gt.gp5
+      sq=sqrt(nu-bs1)
+      eta=sq+bs2+bs3/nu
+      detadnu=0.5d0/sq-bs3/(nu**2)
+      go to 799
+c
+   10 continue
+      eta=log(nu)
+      detadnu=1.0d0/nu
+      go to 799
+c
+   20 continue
+      xl=log(nu)
+      pol=1.0d0+nu*(al1+nu*(al2+nu*al3))
+      dpol=al1+nu*(2.0d0*al2+nu*3.0d0*al3)
+      eta=xl*pol
+      detadnu=pol/nu+xl*dpol
+      go to 799
+c
+   30 continue
+      eta=ap0+nu*(ap1+nu*(ap2+nu*(ap3+nu*(ap4+nu*ap5))))
+      detadnu=ap1+nu*(2.0d0*ap2+nu*(3.0d0*ap3+nu*(4.0d0*ap4+nu*5.0d0*ap5
+     1)))
+      go to 799
+c
+   40 continue
+      eta=bp0+nu*(bp1+nu*(bp2+nu*(bp3+nu*(bp4+nu*bp5))))
+      detadnu=bp1+nu*(2.0d0*bp2+nu*(3.0d0*bp3+nu*(4.0d0*bp4+nu*5.0d0*bp5
+     1)))
+      go to 799
+c
+   50 continue
+      sq=sqrt(nu-as1)
+      xs=nu*nu
+      eta=sq+as2+as3/nu+as4/xs
+      detadnu=0.5d0/sq-as3/xs-2.0d0*as4/(nu*xs)
+      go to 799
+c
+c
+  799 continue
+      return
+      end

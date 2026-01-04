@@ -1,0 +1,19 @@
+*deck rateh
+      subroutine  rateh (xh,ah,zh,fmuh,fmue,temp,enu,denu,yedoth)
+*call implic
+      data  ceh   /-1.994d-3/
+      data  wh    / 4.3d0   /
+      data  block / 0.025d0 /
+      eel=enu+wh+fmuh
+      arg=(eel-fmue)/temp
+      if(arg.ge.115d0)  then
+                        fe=0d0
+                        elseif(arg.le.-115d0)  then
+                                               fe=1d0
+                                               else
+                                               fe=1d0/(exp(arg)+1d0)
+                                               endif
+      yedoth=ceh*xh*zh/ah*(enu*eel)**2*denu*fe
+      if(ah-zh.ge.40.d0)  yedoth=yedoth*block
+      return
+      end

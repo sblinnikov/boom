@@ -1,0 +1,175 @@
+*deck eostry
+      subroutine  eostry(ro,t,ye,ynu,ee,pp,ss,xhh,xnn,xpp,aa,zz
+     1,xmuh,xmue,        deedro,deedt,dppdro,dppdt,dssdro,dssdt)
+*call implic
+*call l
+*call int
+*call keyeos
+*call const
+      dimension  buf (20)
+      dimension  e(2,2,2),p(2,2,2),s(2,2,2)
+      dimension  xh(2,2,2),xn(2,2,2),xp(2,2,2)
+      dimension  a(2,2,2),z(2,2,2)
+      dimension  fmuhat(2,2,2),fmue(2,2,2)
+c
+      save  ll,ii,jj,kk,lbuf,im,ja,jb
+      save  facro,fact,face,face10,facp,facs,tenln,rom
+      save  br,bt,by
+c
+c     nad(l,i,j,k)=l+(i-1)*ll+(j-1)*ll*ii+(k-1)*ll*ii*jj
+      nad(l,i,j,k)=((jj*(k-1)+j-1)*ii+i-1)*ll+l
+      data  ip,jp,kp /0,0,0/
+      data  ntry  /0/
+c--------------------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      ll=10
+      ii=38
+      jj=50
+      kk=6
+      lbuf=2*ll
+      facro= 1d39/avo
+      fact = emev/boltz
+      face = avo*emev
+      face10=face*10d0
+      facp = emev*1d39
+      facs = avo*boltz
+      tenln= log(10d0)
+      ar=5.d0/tenln
+      br=38d0-ar* log(facro)
+      at=20d0/tenln
+      bt=13d0-at* log(fact)
+      ay=20d0
+      by=-4d0
+c     calc. and print table boundaries
+      ro1=exp((1d0-br)/ar)
+      ro2=exp((38d0 -br)/ar)
+      t1 =exp((1d0-bt)/at)
+      t2 =exp((50d0 -bt)/at)
+      ye1=    (1d0-by)/ay
+      ye2=    (6d0-by)/ay
+      call  readin  (ii,jj,kk)
+      print 903,ro1,ro2,t1,t2,ye1,ye2
+903   format(' table boundaries : ro1-ro2=',1pe10.2,' - ',e10.2
+     &/'  t1-t2=',e10.2,' - ',e10.2,'  ye1-ye2=',0pf6.3,' - ',f6.3)
+      im=32
+      ja=13
+      jb=33
+      call  highro (im,ja,jb,rom)
+                            endif
+c--------------------------------------------------------------------
+      rox=ro
+      tx =t
+      yex=ye
+      rol= log(ro)
+      tl= log(t)
+      ri=ar*rol+br
+      tj=at*tl +bt
+      yk=ay*ye+by
+      i=ri
+      j=tj
+      k=yk
+      if(i.lt.1 .or. i.ge.ii)  goto   990
+      if(j.lt.1 .or. j.ge.jj)  goto   990
+      if(k.lt.1 .or. k.ge.kk)  goto   990
+      if(i.eq.ip .and. j.eq.jp .and. k.eq.kp)  goto  105
+      if(i.ge.23)  goto   12
+      jpin=20+(i-1)*30/22
+      if(j.le.jpin)  goto   12
+      ss=-1.d0
+      return
+12    continue
+10    continue
+      do  30  k0=1,2
+      do  20  j0=1,2
+      na=nad(1,i,j+j0-1,k+k0-1)
+      do  iii=1,lbuf
+      buf(iii)=ecs(na+iii-1)
+      enddo
+      do  15  i0=1,2
+      i00=(i0-1)*ll
+      e      (i0,j0,k0)=buf ( 1+i00)
+      p      (i0,j0,k0)=buf ( 2+i00)
+      s      (i0,j0,k0)=buf ( 3+i00)
+      xh     (i0,j0,k0)=buf ( 4+i00)
+      xn     (i0,j0,k0)=buf ( 5+i00)
+      xp     (i0,j0,k0)=buf ( 6+i00)
+      a      (i0,j0,k0)=buf ( 7+i00)
+      z      (i0,j0,k0)=buf ( 8+i00)
+      fmuhat (i0,j0,k0)=buf ( 9+i00)
+      fmue   (i0,j0,k0)=buf (10+i00)
+      if(s(i0,j0,k0).le.0.d0)  goto   999
+15    continue
+20    continue
+30    continue
+      ip=i
+      jp=j
+      kp=k
+105   continue
+      dr=ri-i
+      dt=tj-j
+      dy=yk-k
+      if(keyeos.eq.3.and.ro.gt.rom)  goto   500
+      call  inter (s,dr,dt,dy,ss,dssdro,dssdt,dssdye)
+      ss=ss*facs
+      dssdro=dssdro*facs
+      dssdt =dssdt *facs
+      dssdye=dssdye*facs
+      call  inter (e,dr,dt,dy,ee,deedro,deedt,deedye)
+      eee=exp(ee)
+      ee=eee-face10
+      deedro=deedro*eee
+      deedt =deedt *eee
+      deedye=deedye*eee
+      call  inter (p,dr,dt,dy,pp,dppdro,dppdt,dppdye)
+      pp=exp(pp)
+      dppdro=dppdro*pp
+      dppdt =dppdt *pp
+      dppdye=dppdye*pp
+      goto   600
+500   continue
+      call  eos14 (ro,t,k,dy,ee,pp,ss
+     1,deedro,deedt,dppdro,dppdt,dssdro,dssdt)
+600   continue
+      call  inter (xh,dr,dt,dy,xhh,dxhdro,dxhdt,dxhdye)
+      call  inter (xn,dr,dt,dy,xnn,dxndro,dxndt,dxndye)
+      call  inter (xp,dr,dt,dy,xpp,dxpdro,dxpdt,dxpdye)
+      call  inter (a,dr,dt,dy,aa,daadro,daadt,daadye)
+      call  inter (z,dr,dt,dy,zz,dzzdro,dzzdt,dzzdye)
+      call  inter (fmuhat,dr,dt,dy,xmuh,dmuhdr,dmuhdt,dmuhdy)
+      call  inter (fmue,dr,dt,dy,xmue,dmuedr,dmuedt,dmuedy)
+      if(nupress.eq.0)  goto   800
+      if(ynu.le.0.d0)    goto   800
+      call  eosnu(rox,tx,ynu,enu,pnu,snu
+     1,enur,enut,pnur,pnut,snur,snut
+     2,enuy,pnuy,snuy)
+      ee=ee+enu
+      pp=pp+pnu
+      ss=ss+snu
+      deedro=deedro+enur
+      deedt =deedt +enut
+      dppdro=dppdro+pnur
+      dppdt =dppdt +pnut
+      dssdro=dssdro+snur
+      dssdt =dssdt +snut
+800   continue
+      return
+990   continue
+      print 991,i,j,k
+991   format(' i=',i3,' j=',i3,' k=',i3
+     1,' in eostry, out of table boundaries.')
+      if(i.lt.1)  i=1
+      if(j.lt.1)  j=1
+      if(k.lt.1)  k=1
+      if(i.ge.ii)  i=ii-1
+      if(j.ge.jj)  j=jj-1
+      if(k.ge.kk)  k=kk-1
+      goto   10
+999   continue
+c     error: negative entropy
+      print  909,ro,t,ye,i,j,k,i0,j0,k0
+      ss=0.d0
+      return
+909   format(' no data for ro=',1pe10.2,'  t=',e10.2,'  ye=',e10.2
+     1,' i j k i0 j0 k0 ',6i4)
+      end

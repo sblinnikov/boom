@@ -1,0 +1,17 @@
+*deck ratep
+      subroutine  ratep (xp,fmue,temp,enu,denu,yedotp)
+*call implic
+      data  cep  /-1.835d-02/
+      data  wp   / 1.293d0  /
+      eel=enu+wp
+      arg=(eel-fmue)/temp
+      if(arg.ge.115d0)  then
+                        fe=0d0
+                        elseif(arg.le.-115d0)  then
+                                               fe=1d0
+                                               else
+                                               fe=1d0/(exp(arg)+1d0)
+                                               endif
+      yedotp=cep*xp*(enu*eel)**2*denu*fe
+      return
+      end

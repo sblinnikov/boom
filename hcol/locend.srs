@@ -1,0 +1,7 @@
+*deck locend
+      subroutine  locend (nt)
+*call implic
+      call fseek(nt, 0, 2)
+      print *,' end encountered on read ',nt
+      return
+      end

@@ -1,0 +1,50 @@
+*deck ddnu0
+      subroutine  ddnu0(rj,rk,yj,yk,yfull,scj,sck,ydotj,ydotk
+     1,djk,ddjkdyj,ddjkdyk,amsqjk)
+*call implic
+*call const
+      data  eps  /1d-9/
+      epsy=eps*yfull
+      dy=abs(yk-yj)
+      ym=0.5d0*(yk+yj)
+      dr=(rk-rj)
+      scatm=0.5d0*(scj*yj+sck*yk)
+      ydotm=0.5d0*(ydotj+ydotk)/clite
+      if(abs(ym).le.epsy) then
+                          f=shlish
+                          amsqjk=shlish
+                          u=0d0
+                          dudyj=0d0
+                          dfdyj=0d0
+                          dudyk=0d0
+                          dfdyk=0d0
+                          else
+                          denom=dr*(scatm+ydotm)
+                          u=dy/denom
+                          dudyj=1d0*sign(1d0,yj-yk)/denom
+                          dudyk=-dudyj
+                          dudyj=dudyj-0.5d0*dy*scj*dr/denom**2
+                          dudyk=dudyk-0.5d0*dy*sck*dr/denom**2
+                          denom=u*(u+3d0)+6d0
+                          f=(2d0+u)/denom
+                          amsqjk=f*(1d0+f*u**2)
+                          dfdyj=-u*(u+4d0)*dudyj/denom**2
+                          dfdyk=-u*(u+4d0)*dudyk/denom**2
+                          endif
+      denom=scatm+ydotm
+      djk=f*clite*ym/denom
+      ddjkdyj=0.5d0*f+dfdyj*ym-0.5d0*f*ym*scj/denom
+      ddjkdyj=ddjkdyj*clite/denom
+      ddjkdyk=0.5d0*f+dfdyk*ym-0.5d0*f*ym*sck/denom
+      ddjkdyk=ddjkdyk*clite/denom
+      if(yj.gt.yk) then
+                   fac=max(0d0,1d0-yj/yfull)
+                   ddjkdyj=fac*ddjkdyj-djk/yfull
+                   djk=fac*djk
+                   else
+                   fac=max(0d0,1d0-yk/yfull)
+                   ddjkdyk=ddjkdyk-djk/yfull
+                   djk=fac*djk
+                   endif
+      return
+      end

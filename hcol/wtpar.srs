@@ -1,0 +1,20 @@
+*deck wtpar
+      subroutine  wtpar (nt)
+*call implic
+      character*10 word
+*call par
+      ntype=2
+      nw=paralen+0.5d0
+      word='para'
+      write (nt,'(2i10,1x,a)') ntype,nw,word ! form!!!
+      write (nt,*) paralen ! form!!!
+*call parac
+      ntype=1
+      nw=lenpari
+      word='pari'
+      write (nt,'(2i10,1x,a)') ntype,nw,word  ! form!!!
+      write (nt,*) lenpari, ntindif  ! form!!!
+*call paric
+      call flush(nt)
+      return
+      end

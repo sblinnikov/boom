@@ -1,0 +1,24 @@
+*deck tridig
+      subroutine  tridig(a,b,c,d,x,ascr,bscr,neq)
+*call implic
+      dimension a(neq),b(neq),c(neq),d(neq),x(neq)
+      dimension ascr(neq),bscr(neq)
+c
+      ascr(neq)=-a(neq)/b(neq)
+      bscr(neq)=d(neq)/b(neq)
+      do 20 nn=2,neq
+      m=neq+1-nn
+      n=m+1
+      denom=b(m)+c(m)*ascr(n)
+      ascr(m)=-a(m)/denom
+      bscr(m)=(d(m)-c(m)*bscr(n))/denom
+   20 continue
+      x(1)=bscr(1)
+      do 40 n=2,neq
+      m=n-1
+      x(n)=ascr(n)*x(m)+bscr(n)
+   40 continue
+c
+  799 continue
+      return
+      end

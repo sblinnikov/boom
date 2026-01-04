@@ -1,0 +1,39 @@
+*deck ffna
+      subroutine  ffna(xn,xa,fn,fa,fnn,fna,fan,faa)
+*call implic
+*call azy
+*call xnpah
+*call cfnp
+*call funcnam
+      expm(arg)=exp(max(min(arg,argmax),-argmax))
+c      data  ffnanm /4hffna/
+      data  argmax /200d0/
+      funk='ffna'
+      xpl=0.5d0*( log(xa)-cal)- log(2.d0*xn)
+      xp=expm(xpl)
+c     xp=sqrt(xa/ca)/(2.*xn)
+      dxpdxn=-xp/xn
+      dxpdxa=0.5d0*xp/xa
+      chl= log(ah)+alfa* log(xn)+(beta-1.d0)* log(xp)+cbl
+      ch=expm(chl)
+c     ch=ah*xn**alfa*xp**(beta-1.)*cb
+      xh=ch*xp
+      dxhdxn=alfa*xh/xn+beta*ch*dxpdxn
+      dxhdxa=beta*ch*dxpdxa
+      fn=xn+0.5d0*xa+c13*xh+c14
+      fa=xp+0.5d0*xa+c23*xh+c24
+      fnn=1.d0+c13*dxhdxn
+      fna=0.5d0+c13*dxhdxa
+      fan=dxpdxn+c23*dxhdxn
+      faa=dxpdxa+0.5d0+c23*dxhdxa
+c
+      x1=xn
+      x2=xa
+      x3=xp
+      x4=xh
+      x31=dxpdxn
+      x32=dxpdxa
+      x41=dxhdxn
+      x42=dxhdxa
+      return
+      end

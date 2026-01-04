@@ -1,0 +1,74 @@
+*deck lochelm
+      subroutine  lochelm (jmax,ngmax,nxx)
+      implicit none
+*call dim
+*call par
+      data  klast /0/
+      integer*4, intent(in) :: jmax, ngmax, nxx
+      integer*4, save :: kold, klast
+      integer*4 :: imin, imax, khel, i, j, k, nut
+      real*8 :: sgmmax, sgm, egain, egaink
+
+c return if infall
+      if (infall .ne. 0) then
+         kold = 2
+      endif
+
+c if shock has reached last shell, it will stay there
+      
+      if (klast .eq. 1) then
+         khelem = imaxp1 - 1
+         return
+      endif
+
+      imin=jmin
+      sgmmax=0.d0
+      khel=0
+      imax = imaxp1 - 1
+      do i=imin,imax
+         if (pa(i) .gt. 0d0) then
+            sgm=sgma(i)/pa(i)
+         else
+            sgm=0d0
+         endif
+         if(sgm.gt.sgmmax)  then
+            khel=i
+            sgmmax=sgm
+         endif
+      enddo
+
+      if(sgmmax.gt.0.05d0) then
+         khelem=khel
+         kold=khel
+c if shock is at the last shell set a flag to remember this
+      if (khelem .eq. imax) then
+         klast = 1
+      endif
+      else
+         khelem=kold
+      endif
+
+      kgainr = khelem
+      do j=khelem,2,-1
+         k = j+1
+         egain = prode(j,1) + prode(j,2) + prode(j,3)*4d0
+         egaink = prode(k,1) + prode(k,2) + prode(k,3)*4d0
+         if ((egain + egaink) .lt. 0d0) then
+            kgainr = j
+            exit
+         endif
+      enddo
+
+      do nut=1,numax
+         do j=khelem,2,-1
+            kgainrn(nut) = khelem
+            egain = prode(j,nut)
+            egaink = prode(k,nut)
+            if ((egain + egaink) .lt. 0d0) then
+               kgainrn(nut) = j
+               exit
+            endif
+         enddo
+      enddo
+      end
+

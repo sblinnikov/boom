@@ -1,0 +1,101 @@
+*deck rosp
+      subroutine  rosp
+     1 (ro,e,t,px,s,snd
+     a, fmue,j,keosz
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,xn,xp,xa,xh
+     *)
+*call implic
+*call chemp
+*call keyeos
+      data eps  /1d-6/
+      data itmax  /100/
+      data itpr  /80/
+      romin0=1d4
+      romax0=1d10
+      key0=0
+      romax= romax0
+      romin= romin0
+8     continue
+      p=px
+      it=0
+      do  10  n=1,30
+      it=it+1
+      romn=romin
+      romx=romax
+      if(it.ge.itmax)  goto   900
+      xmue=fmue
+      ynu=0.d0
+      keyets=3
+      keyeos=keosz
+      jzone=j
+      call  state
+     1 (ro,e,t,p,s,snd
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,ynu,xn,xp,xa,xh
+     4, keyets
+     *)
+      fmue=xmue
+      dp=p-px
+      if(dp.ge.0.d0)  romax= min  (romx,ro)
+      if(dp.le.0.d0)  romin= max  (romn,ro)
+      if(romx.eq.romax .and. romn.eq.romin)  goto   100
+c                                          lion hunting
+      dpdros=pr-pe*sr/se
+      dro=dp/dpdros
+      ro1=ro-dro
+      if(ro1.lt.romin0)  goto  80
+      if(ro1.gt.romax0)  goto   80
+      err=abs(dp/px)
+      if(err.le.eps) go to 20
+      ro=ro1
+3     continue
+      if(it.lt.itpr) go to 10
+      if(it.eq.itpr) print 4
+      print 5,it,ro1,s,px,p,dp,dpdros,dro
+4     format(/' troubles in rosp'/
+     1,'  i',4x,'ro',10x,'s',11x,'px',10x,'p',11x
+     2,'dp',10x,'dpdro',7x,'dro')
+5     format(i4,1p7e12.4)
+10    continue
+      goto  100
+20    continue
+      ro=ro1
+22    continue
+      return
+80    continue
+      if(key0.ne.0)  goto   100
+      key0=1
+      romn=romin0
+      romx=romax0
+100   continue
+c     lion  hunting
+      do  200  n=1,10
+      it=it+1
+      ro0=ro
+      ro=0.5d0*(romn+romx)
+      keyets=3
+      keyeos=keosz
+      call  state
+     1 (ro,e,t,p,s,snd
+     2, tr,te,pr,pe,sr,se
+     3, ah,zh,ye,ynu,xn,xp,xa,xh
+     4, keyets
+     *)
+      fmue=xmue
+      dp=p-px
+      if(abs(dp/px).le.eps)  goto  22
+      if(dp.ge.0.d0)  romx= min (romx,ro)
+      if(dp.le.0.d0)  romn= max (romn,ro)
+      if(it.ge.itpr)  print 902,it,ro,ro0,p,px,s
+902   format(' rosp lion it ro ro0 p px s ',i3,1p6e11.3)
+200   continue
+c     if(abs((romx-romn)/ro).le.eps)  goto  20
+      romin=romn
+      romax=romx
+      goto   8
+900   continue
+      print 901
+901   format(' no convergence in rosp')
+      stop    'no convergence in rosp'
+      end

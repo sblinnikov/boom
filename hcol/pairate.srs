@@ -1,0 +1,94 @@
+*deck pairate
+      subroutine   pairate
+     $(ro,t,ye,ynu,ynub,s,fmue,fmuhat
+     ^,enum,denu,enrnu,enrnub
+     ^,ydotpr,totnurate,totmurate
+     ^,tnumv,fmunu,etanu,tnubmv,fmunub,etanub
+     ^,ngmax)
+c     -------------------
+c     this subroutine computes the electron neutrino and antineutrino
+c     emission spectra for the combined processes of pair annihilation
+c     and plasmon decay.  the number spectra are assumed to be
+c     proportional to  e**3 * f,  where  f  is a fermi-dirac
+c     function.
+*call implic
+*call const
+      parameter  (ngmaxm=51)
+      dimension  weight(ngmaxm,2)
+      dimension  enum(ngmax),denu(ngmax)
+      dimension  ydotpr(ngmax,2)
+c
+      expm(x)=exp(max(min(x,argmax),-argmax))
+c
+      data  argmax / 600d0 /
+      data  ynumin  / 1d-3 /
+      data  ynubmin / 1d-3 /
+      data  tnuprev  /0d0/
+c
+c     zero all previous values
+      totnurate=0d0
+      totmurate=0d0
+      tnumv    =0d0
+      tnubmv   =0d0
+      etanu    =0d0
+      etanub   =0d0
+      fmunu    =0d0
+      fmunub   =0d0
+      do    ng=1,ngmax
+      ydotpr(ng,1)=0d0
+      ydotpr(ng,2)=0d0
+      enddo
+c
+      tmv=t/tmev
+c     compute rates only for high temperatures.
+      if((tmv .lt. 1d0) .and. (s/rgas .lt. 5d0))  goto 999
+      if(fmue/tmv .gt. 10.)                       goto 999
+c----------------------------------------------------------------------------
+      if(ynu.ge.ynumin)    then
+      if(tnuprev.le.0d0) then
+                         tnu=t
+                         else
+                         tnu=tnuprev
+                         endif
+      call  eosnuet(ro,enrnu,tnu,ynu,etanu)
+c      print 9002,ro,enrnu,tnu,ynu,etanu
+      if(tnu.lt.0d0)  tnu=t
+      tnuprev=tnu
+      tnumv=tnu/tmev
+      fmunu=tnumv*etanu
+                          endif
+      tnumv=max(tmv,tnumv)
+c----------------------------------------------------------------------------
+      if(ynub.ge.ynubmin)   then
+c     find values for the e-antineutrinos.
+      tnub=t
+      call  eosnuet(ro,enrnub,tnub,ynub,etanub)
+      if(tnub.lt.0d0)  tnub=t
+      tnubmv=tnub/tmev
+      fmunub=etanub*tnubmv
+                            endif
+      tnubmv=max(tmv,tnubmv)
+c----------------------------------------------------------------------------
+c     calculate bulk emission rates.
+      call nurate(enutot,epair,ephot,eplas,ro,tmv,ye)
+      totnurate=0.698*enutot
+      totmurate=0.302*enutot*0.25 !  4 species.
+c
+c     calculate net source terms, up to a factor of the total energy
+c
+      sumw=0d0
+      do     ng=1,ngmax
+      weight(ng,1)=denu(ng)*enum(ng)**4
+     ^            /(expm((enum(ng)-fmunu)/tnumv)+1d0)
+      weight(ng,2)=denu(ng)*enum(ng)**4
+     ^            /(expm((enum(ng)-fmunub)/tnubmv)+1d0)
+      sumw=sumw+weight(ng,1)+weight(ng,2)
+      enddo
+c
+c     normalise production spectra.
+      do    ng=1,ngmax
+      ydotpr(ng,1)= totnurate * weight(ng,1) / sumw / (emev*enum(ng))
+      ydotpr(ng,2)= totnurate * weight(ng,2) / sumw / (emev*enum(ng))
+      enddo
+ 999  return
+      end

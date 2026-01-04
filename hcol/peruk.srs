@@ -1,0 +1,231 @@
+*deck peruk
+      subroutine  peruk(ro,t
+     1, xxn,xxp,xxa,xxh
+     2, dxndt,dxpdt,dxadt,dxhdt
+     3, dxndro,dxpdro,dxadro,dxhdro)
+*call implic
+*call azy
+*call const
+c
+*call cfnp
+*call xnpah
+      external ffah,ffna,ffnp
+      external ffx
+      data  eps/1d-6/
+      monp=0
+      xn= max (xxn,eps)
+      xp= max (xxp,eps)
+      xa= max (xxa,eps)
+      xh= max (xxh,eps)
+      call  coeff(ro,keyprk)
+      if(keyprk.eq.1) go to 100
+      if(keyprk.eq.2) go to 200
+      if(keyprk.eq.3) go to 300
+      if(keyprk.eq.4) go to 400
+c
+      keyconv=0
+      xp=0d0
+      dxpdro=0d0
+      dxpdt=0d0
+      d11m1=d11-1.d0
+      xl=(ye21l-d11*ye2l-c11l)/d11m1
+      dxldro=-c11lr/d11m1
+      dxldt=-c11lt/d11m1
+      x=0d0
+      if(xl.gt.-50d0) x=exp(xl)
+      if(x.le.1.d-8) go to 20
+      x= min (x,1d-4)
+      call  newtn1(x,ffx,kinus)
+      if(kinus.eq.0) go to 930
+      cc=x/(1.d0-x)*d12-d11m1
+      dxldro=c11lr/cc
+      dxldt=c11lt/cc
+20    continue
+      xh=1.d0-x
+      xa=ye2*x
+      xn=ye21*x
+      dxhdro=-x*dxldro
+      dxadro=xa*dxldro
+      dxndro=xn*dxldro
+      dxhdt=-x*dxldt
+      dxadt=xa*dxldt
+      dxndt=xn*dxldt
+      goto   800
+c
+100   continue
+      keyconv=1
+      call  newtn2(xa,xh,ffah,kinus,it)
+      if(kinus.ne.0) go to 110
+      monp=monp+1
+      if(monp.ge.3) go to 910
+      if(monp.ge.2) go to 190
+      xh=0.99d0
+      xa=0.01d0
+      go to 100
+110   continue
+      xn=x3
+      xp=x4
+      dxndxa=x31
+      dxndxh=x32
+      dxpdxa=x41
+      dxpdxh=x42
+      xnr=xn*c11lr
+      xpr=xp*c21lr
+      a=dxndxa+0.5d0
+      b=dxndxh+c13
+      c=dxpdxa+0.5d0
+      d=dxpdxh+c23
+      e=-xnr
+      f=-xpr
+      call  kramer(a,b,c,d,e,f,dxadro,dxhdro)
+      dxndro=xnr+dxndxa*dxadro+dxndxh*dxhdro
+      dxpdro=xpr+dxpdxa*dxadro+dxpdxh*dxhdro
+      xnt=xn*c11lt
+      xpt=xp*c21lt
+      e=-xnt
+      f=-xpt
+      call  kramer(a,b,c,d,e,f,dxadt,dxhdt)
+      dxndt=xnt+dxndxa*dxadt+dxndxh*dxhdt
+      dxpdt=xpt+dxpdxa*dxadt+dxpdxh*dxhdt
+      goto   800
+c
+ 190  continue
+      xn=0.1d0
+      xa=0.1d0
+      monp=1
+200   continue
+      keyconv=2
+      call  newtn2(xn,xa,ffna,kinus,it)
+      if(kinus.ne.0) go to 210
+      monp=monp+1
+      if(monp.ge.3) go to 920
+      if(monp.ge.2) go to 290
+      xn=0.1d0
+      xa=0.1d0
+      go to 200
+210   continue
+      xp=x3
+      xh=x4
+      dxpdxn=x31
+      dxpdxa=x32
+      dxhdxn=x41
+      dxhdxa=x42
+      xpr=-0.5d0*xp*calr
+      xhr=xh*(cblr-0.5d0*beta*calr)
+      a=1.d0+c13*dxhdxn
+      b=0.5d0+c13*dxhdxa
+      c=dxpdxn+c23*dxhdxn
+      d=0.5d0+dxpdxa+c23*dxhdxa
+      e=-c13*xhr
+      f=-c23*xhr-xpr
+      call  kramer(a,b,c,d,e,f,dxndro,dxadro)
+      dxpdro=xpr+dxpdxn*dxndro+dxpdxa*dxadro
+      dxhdro=xhr+dxhdxn*dxndro+dxhdxa*dxadro
+      xpt=-0.5d0*xp*calt
+      xht=xh*(cblt-0.5d0*beta*calt)
+      e=-c13*xht
+      f=-c23*xht-xpt
+      call  kramer(a,b,c,d,e,f,dxndt,dxadt)
+      dxpdt=xpt+dxpdxn*dxndt+dxpdxa*dxadt
+      dxhdt=xht+dxhdxn*dxndt+dxhdxa*dxadt
+      go to 800
+c
+ 290  continue
+      xn=0.1d0
+      xp=0.1d0
+      monp=1
+300   continue
+      keyconv=3
+      call  newtn2(xn,xp,ffnp,kinus,it)
+      if(kinus.ne.0) go to 310
+      monp=monp+1
+c     if(monp.gt.1) go to 900
+c.........................^
+      if(monp.gt.1) go to 400
+      xn=0.1d0
+      xp=0.1d0
+      go to 300
+310   continue
+      xa=x3
+      xh=x4
+      dxadxn=x31
+      dxadxp=x32
+      dxhdxn=x41
+      dxhdxp=x42
+      xar=xa*calr
+      xhr=xh*cblr
+      a=1.d0+0.5d0*dxadxn+c13*dxhdxn
+      b=0.5d0*dxadxp+c13*dxhdxp
+      c=0.5d0*dxadxn+c23*dxhdxn
+      d=1.d0+0.5d0*dxadxp+c23*dxhdxp
+      e=-0.5d0*xar-c13*xhr
+      f=-0.5d0*xar-c23*xhr
+      call  kramer(a,b,c,d,e,f,dxndro,dxpdro)
+      dxadro=xar+dxadxn*dxndro+dxadxp*dxpdro
+      dxhdro=xhr+dxhdxn*dxndro+dxhdxp*dxpdro
+      xat=xa*calt
+      xht=xh*cblt
+      e=-0.5d0*xat-c13*xht
+      f=-0.5d0*xat-c23*xht
+      call  kramer(a,b,c,d,e,f,dxndt,dxpdt)
+      dxadt=xat+dxadxn*dxndt+dxadxp*dxpdt
+      dxhdt=xht+dxhdxn*dxndt+dxhdxp*dxpdt
+      go to 800
+c
+  400 continue
+      keyconv=4
+      xn=1.d0-ye
+      xp=ye
+      xh=0d0
+      xa=0d0
+      dxndt=0d0
+      dxpdt=0d0
+      dxadt=0d0
+      dxhdt=0d0
+      dxndro=0d0
+      dxpdro=0d0
+      dxadro=0d0
+      dxhdro=0d0
+c
+800   continue
+      xxn=xn
+      xxp=xp
+      xxa=xa
+      xxh=xh
+      return
+c
+c   zarot
+900   continue
+      print 902,it,xn,xp,xa,xh
+902   format(/,' problems in newtn2 via ffnp, xb.lt.1e-6'
+     1/'  it,xn,xp,xa,xh ',i2,4f10.6)
+      print 903,ro,t,ah,zh,ye
+  903 format('  ro, t, ah, zh, ye ',1p5e12.4)
+      print 904,ca,cb,calr,calt,cblr,cblt
+  904 format('  ca, cb, calr, calt, cblr, cblt ',1p6e12.4)
+      stop  'peruk, problems in newtn2-ffnp'
+  910 continue
+      print 912,it,xn,xp,xa,xh
+  912 format(/,' problems in newtn2 via ffah'
+     1/'  it, xn, xp, xa, xh ',i2,4f10.6)
+      print 903,ro,t,ah,zh,ye
+      print 914,c11,c13,c14,d11,d12
+  914 format('  c11, c13, c14, d11, d12 ',1p5e12.4)
+      print 915,c21,c23,c24,d21,d22
+  915 format('  c21, c23, c24, d21, d22 ',1p5e12.4)
+      stop  'peruk, problems in newtn2-ffah'
+  920 continue
+      print 922,it,xn,xp,xa,xh
+  922 format(/,' problems in newtn2 via ffna'
+     1/'  it, xn, xp, xa, xh ',i2,4f10.6)
+      print 903,ro,t,ah,zh,ye
+      print 904,ca,cb,calr,calt,cblr,cblt
+      stop  'peruk, problems in newtn2-ffna'
+  930 continue
+      print 932,x
+  932 format(/,' problems in newtn1 via ffx.  x=',1pe12.4)
+      print 903,ro,t,ah,zh,ye
+      print 934,c11l,c11lr,c11lt
+  934 format('  c11l, c11lr, c11lt ',1p3e12.4)
+      stop  'peruk, problems in newtn1-ffx'
+      end

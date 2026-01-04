@@ -1,0 +1,144 @@
+*deck normy
+      subroutine normy(key,jmax,ngmax)
+*call implic
+*call dim
+*call par
+*call const
+c     key=0 - do nothing
+c     key=1 - full schifa all over
+c     key=2 - no schifa all over
+c     key=3 - full schifa for ro>roschif, no schifa for ro<roschif
+      data  roschif /1d12/
+      data eps2 /1.0d-20/
+      if(key.eq.0)  return
+      if(key.eq.1)  then
+      js1=2
+      js2=jmax
+      jn1=0
+      jn2=0
+      elseif(key.eq.2)  then
+      jn1=2
+      jn2=jmax
+      js1=0
+      js2=0
+      elseif(key.eq.3)  then
+                        if(rob(2).le.roschif)  then
+                                               js1=0
+                                               js2=0
+                                               jn1=2
+                                               jn2=jmax
+                                               else
+                                               js1=2
+                                               js2=2
+                                    do  j=2,jmax
+                                    if(rob(j).lt.roschif)  goto 11
+                                    js2=j
+                                    enddo
+11                                             continue
+                                               jn1=js2+1
+                                               jn2=jmax
+                                               endif
+                         else
+                         print *,' invalid key=',key,' in normy'
+                         stop 'normy'
+                         endif
+      if(js2.gt.0)  then
+c     schifa
+c      enufield=0d0
+      do 1 j=js1,js2
+      comprs=rob(j)/roa(j)
+      dyngm=0d0
+      do  ng=1,ngmax
+      n=ngmax-ng+1
+      ybjn=ya0(j,n,nutype)*comprs+dyngm
+      if(ybjn.gt.yfull(n)) then
+                           dyngm=ybjn-yfull(n)
+                           ybjn=yfull(n)
+                           else
+                           dyngm=0d0
+                           endif
+c      enufield=enufield+enu(n)*(ybjn-ya0(j,n,nutype))*emev
+      ya(j,n,nutype)=ybjn
+      enddo
+  1   continue
+                     endif
+c     no schifa
+      if(jn2.gt.0)   then
+      do  j=jn1,jn2
+      do  ng=1,ngmax
+      yb(j,ng,nutype)=0d0
+      enddo
+      enddo
+      jb=2
+      bottom=0d0
+      do 30 ja=jn1,jn2
+      if(jb.gt.jmax)  goto  20
+ 10   continue
+      if(ra(ja).lt.rb(jb))  then
+         va=pai43*ra(ja)**3
+         do  ng=1,ngmax
+            if (ya0(jb,ng,nutype) .gt. eps2 * yfull(ng)) then
+               yb(jb,ng,nutype)=
+     &              yb(jb,ng,nutype)+ya0(ja,ng,nutype)*(va-bottom)
+            endif
+         enddo
+         bottom=va
+      else
+         vb=pai43*rb(jb)**3
+         do  ng=1,ngmax
+            if (ya0(jb,ng,nutype) .gt. eps2 * yfull(ng)) then
+            yb(jb,ng,nutype)=
+     &           yb(jb,ng,nutype)+ya0(ja,ng,nutype)*(vb-bottom)
+            endif
+         enddo
+         bottom=vb
+         jb=jb+1
+         if(jb.gt.jmax)  goto  20
+         goto  10
+      endif
+      goto  30
+ 20    continue
+       va=pai43*ra(ja)**3
+       do  ng=1,ngmax
+          outg=ya0(ja,ng,nutype)*(va-bottom)
+          out=out+outg
+          oute=oute+outg*enu(ng)*emev
+       enddo
+       bottom=va
+ 30     continue
+      v1=0d0
+      do  j=jn1,jn2
+      v2=pai43*rb(j)**3
+      dv=v2-v1
+      do  ng=1,ngmax
+         if (ya0(jb,ng,nutype) .gt. eps2 * yfull(ng)) then
+            yb(j,ng,nutype)=yb(j,ng,nutype)/dv
+         endif
+      enddo
+      v1=v2
+      enddo
+c     now check for yfull
+c      do  j=jn1,jn2
+c      dyngm=0d0
+c      do  ng=1,ngmax
+c      n=ngmax-ng+1
+c      yb(j,n,nutype)=yb(j,n,nutype)+dyngm
+c      if(yb(j,n,nutype).gt.yfull(n)) then
+c                              dyngm=yb(j,n,nutype)-yfull(n)
+c                              yb(j,n,nutype)=yfull(n)
+c                              else
+c                              dyngm=0d0
+c                              endif
+c      enddo
+c      enddo
+      do  j=jn1,jn2
+      do  ng=1,ngmax
+c      enufield=enufield+enu(ng)*(yb(j,ng,nutype)-ya0(j,ng,nutype))*emev
+      ya(j,ng,nutype)=yb(j,ng,nutype)
+      enddo
+      enddo
+      dlifnu=dlifnu+out
+      dlifen=dlifen+oute
+                     endif
+      return
+      end

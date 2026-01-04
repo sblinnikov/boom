@@ -1,0 +1,117 @@
+*deck state
+      subroutine  state  (ro,e,t,p,s,c
+     1,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2,a ,z ,ye,ynu,xn,xp,xa,xh
+     *,keyets)
+*call implic
+*call const
+*call keyeos
+*call chemp
+*call noperk
+
+c
+      data  romin /6.62d7/
+      data  tmin  /2.92d9/
+c------------------------------------------------------------
+      if(ntryeos.eq.0)  then
+      ntryeos=1
+      noperk=0
+c     -----------------------------------------------
+c     elevel=binding energy,per gram,of typical heavy
+c     -----------------------------------------------
+      elevel0=8.4d+18
+      if(keyeos.eq.1) elevel0=8.484d18
+      if(keyeos.eq.4) elevel0=0d0
+      if(keyeos.eq.5) elevel0=0d0
+      if(keyeos.eq.6) elevel0=0d0
+      if(keyeos.eq.7) elevel0=0d0
+      print 901,keyeos,nupress,elevel0
+901   format(' enter state: keyeos=',i2,' nupress=',i1
+     &,' elevel=',1pe10.2)
+      if(keyeos.le.3)  print 902,noperk
+902   format(' noperk=',i1)
+      if(keyeos.eq.2.or.keyeos.eq.3) print 903,romin,tmin
+903   format(' romin=',1pe10.2,'  tmin=',e10.2)
+      endif
+c------------------------------------------------------------
+                      elevel0=8.4d+18
+      if(keyeos.eq.1) elevel0=8.484d18
+      if(keyeos.eq.4) elevel0=0d0
+      if(keyeos.eq.5) elevel0=0d0
+      if(keyeos.eq.6) elevel0=0d0
+      if(keyeos.eq.7) elevel0=0d0
+      elevel=elevel0	
+c do an keyets check here. If keyets is not one then e might be garbage
+
+      if (keyets .eq. 1) then	
+         e=e-elevel
+      endif
+
+      if(ynu.le.0d0)  xmunu=0d0
+      
+c     If keyets is not 2 (i.e. temperature is not significant, it is possible
+c     that t will be set to zero causing a floating point exception).
+
+      if (keyets .eq. 2 .and. keyeos .ne. 0) then
+         etanue=xmunu/t*tmev
+         etaelc=xmue/t*tmev
+      endif
+c
+      eossubf=' '
+      kesfail=0
+      select case (keyeos)
+      case (0)
+c Dust equation of state
+	p=0d0
+	e=0d0
+	t=0d0
+	s=0d0
+	c=0d0
+	dtdro=0d0
+	dtde=0d0
+	dpdro=0d0
+	dpde=0d0
+	dsde=0d0
+	a=0d0
+	z=0d0
+	xn=0d0
+	xp=0d0
+	xa=0d0
+	xh=0d0
+      case (1)
+         call  statez (ro,e,t,p,s,c
+     1        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2        ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+      case (2:3)
+         if(ro.le.romin .or. t.le.tmin) then
+            kesfail=4
+            eossubf='state'
+         else
+            call  statel  (ro,e,t,p,s,c
+     1           ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2           ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+         endif
+      case (4)
+         call  stateb  (ro,e,t,p,s,c
+     1        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2        ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+      case (5)
+         call  statec  (ro,e,t,p,s,c
+     1        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2        ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+      case (6)
+         call  states  (ro,e,t,p,s,c
+     1        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2        ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+      case (7)
+         call  state7  (ro,e,t,p,s,c
+     1        ,dtdro,dtde,dpdro,dpde,dsdro,dsde
+     2        ,a ,z ,ye,ynu,xn,xp,xa,xh,keyets)
+      case default
+         print *,' keyeos=',keyeos,'  invalid.'
+         stop 'invalid keyeos'
+      end select
+
+      e=e+elevel
+      return
+      end

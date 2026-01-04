@@ -1,0 +1,33 @@
+*deck ecapt
+      subroutine  ecapt (fmue,fmuni,fmuhat,xp,xh,a,z,temp,block,ro
+     1            ,delta,yedot,yedoth,yedotp,eav,eavh,eavp)
+*call implic
+      if(abs(delta).le.1d-3)  goto  50
+      if(xh.le.0.d0 .or. a.le.0.d0)  goto  10
+      call  ecapts (fmue,fmuni,fmuhat,xh,a,z,yedoth,delta,eavh)
+c     ecapts is electron capture on heavies.
+      if(a-z.gt.40.0d0)    yedoth=yedoth/block
+      goto  20
+10    continue
+      yedoth=0.d0
+      eavh=0.d0
+20    continue
+      if(xp.le.0.d0)  goto  30
+      call  ecaptp (fmue,fmuni,xp,temp,yedotp,delta,eavp)
+      goto  40
+30    continue
+      yedotp=0.d0
+      eavp=0.d0
+40    continue
+      yedot=yedoth+yedotp
+      eav=(yedoth*eavh+yedotp*eavp)/yedot
+      return
+50    continue
+      yedoth=0.d0
+      eavh=0.d0
+      yedotp=0.d0
+      eavp=0.d0
+      yedot=0.d0
+      eav=0.d0
+      return
+      end

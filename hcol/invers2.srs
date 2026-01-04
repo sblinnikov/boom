@@ -1,0 +1,17 @@
+*deck invers2
+      subroutine  invers2(a,b)
+*call implic
+      dimension a(2,2),b(2,2)
+      data eps /1d-16/
+      aaa=max(abs(a(1,1)),abs(a(2,2)),abs(a(1,2)),abs(a(2,1)))
+      if(abs(a(1,2)/aaa).le.eps.and.abs(a(2,1)/aaa).le.eps) then
+                                       det=a(1,1)*a(2,2)
+                                                            else
+                                       det=a(1,1)*a(2,2)-a(1,2)*a(2,1)
+                                                            endif
+      b(1,1)=a(2,2)/det
+      b(2,2)=a(1,1)/det
+      b(1,2)=-a(1,2)/det
+      b(2,1)=-a(2,1)/det
+      return
+      end

@@ -1,0 +1,68 @@
+*deck plotdiv
+      subroutine  plotdiv(fmass,dmk,jmax)
+*call implic
+      dimension  dmk(jmax),fmass(jmax)
+      parameter (nx=130,ny=20)
+      character*1 pr(nx,ny)
+c     find min and max dmk
+      dmkmin=1d33
+      dmkmax=0d0
+      do  j=2,jmax
+      dmkmin=min(dmkmin,dmk(j))
+      dmkmax=max(dmkmax,dmk(j))
+      enddo
+      dx=1d0/nx
+      do ix=1,nx
+      do iy=1,ny
+      pr(ix,iy)=' '
+      enddo
+      x=ix*dx
+      do  j=2,jmax
+      fmassrel=fmass(j)/fmass(jmax)
+      if(fmassrel.ge.x) goto 300
+      enddo
+      j=jmax
+300   continue
+      x0=fmass(j-1)/fmass(jmax)
+      x1=fmass(j  )/fmass(jmax)
+      w1=(x-x0)/(x1-x0)
+      w0=1d0-w1
+      y=dmk(max(j-1,2))*w0+dmk(j)*w1
+      iy=ny-y/dmkmax*ny
+      iy=max(iy,1)
+      pr(ix,iy)='*'
+      enddo
+      print 900
+900   format(30x,'dmk(mass) relative scale',/,131('-'))
+      do  iy=1,ny
+      print 901,(pr(ix,iy),ix=1,nx)
+901   format('|',130a1)
+      enddo
+      print 902,(j,j=1,9)
+902   format('_',10(12('_'),i1),13('_'))
+      print 903
+903   format(30x,' m/total-mass',////)
+c     now plot dmk(j) on relative scale
+      do ix=1,nx
+      do iy=1,ny
+      pr(ix,iy)=' '
+      enddo
+      enddo
+      dy=dmkmax/ny
+      nxx=min(nx,jmax-1)
+      do  ix=1,nxx
+      y=dmk(ix+1)
+      iy=ny-y/dy
+      iy=max(1,iy)
+      pr(ix,iy)='x'
+      enddo
+      print 910
+910   format(30x,'dmk(j) relative scale',/,131('-'))
+      do  iy=1,ny
+      print 901,(pr(ix,iy),ix=1,nxx)
+      enddo
+      print 902,(j,j=1,9)
+      print 913
+913   format(30x,' zone #',/)
+      return
+      end

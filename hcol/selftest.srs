@@ -1,0 +1,19 @@
+*deck selftest
+      subroutine selftest ()
+      implicit none
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+*call keyeos
+*call chemp
+*call vc
+      print *, 'Starting selftest'
+
+      if (abs(enelmev - 0.511) > 0.1) then
+	 stop 'Internal error - Electron rest mass incorrect'
+      endif
+      print *, 'Selftest complete'
+      end
+

@@ -1,0 +1,20 @@
+*deck powers
+      subroutine  powers(w,wp)
+*call implic
+      save  /wpowers/ 
+      common/wpowers/w2,w3,w4,wp2,wp3,wp4,wwp,w2wp2,w2wp,w2wp3,w3wp2
+     1               ,w3wp
+      w2=w*w
+      w3=w*w2
+      w4=w*w3
+      wp2=wp*wp
+      wp3=wp*wp2
+      wp4=wp*wp3
+      wwp=w*wp
+      w2wp=w2*wp
+      w2wp2=wwp*wwp
+      w2wp3=w2*wp3
+      w3wp=w3*wp
+      w3wp2=w3*wp2
+      return
+      end

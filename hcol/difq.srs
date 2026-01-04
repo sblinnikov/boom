@@ -1,0 +1,311 @@
+*deck difq
+      subroutine difq(jmax,ngmax,noconv,keyflux,eps)
+*call implic
+*call dim
+*call const
+*call par
+*call corct
+      parameter(small=1.0d-16)
+c     _______________________
+c     internal working arrays
+      dimension yaj(ngmaxm),ybj(ngmaxm),yak(ngmaxm)
+      dimension ybk(ngmaxm),yal(ngmaxm)
+      dimension qinj(ngmaxm),qink(ngmaxm),qinl(ngmaxm),blockj(ngmaxm)
+      dimension zi(ngmaxm),zj(ngmaxm),zk(ngmaxm),blockk(ngmaxm)
+      dimension routj(ngmaxm),routk(ngmaxm),qoutj(ngmaxm),qoutk(ngmaxm)
+      dimension a(2,2,ngmaxm),b(2,2,ngmaxm),c(2,2,ngmaxm)
+      dimension d(2,ngmaxm),dy(2,ngmaxm),aa(2,2,ngmaxm),bb(2,ngmaxm)
+      dimension amsqj(ngmaxm),amsqi(ngmaxm),abrat(ngmaxm)
+      data itmax,ratymax /24,0.9/
+      data  ntry  /0/
+c     data eps /1.0d-5/
+c     data keyflux /1/
+c     if keyflux.eq.0 ddnu=c**2/(3*rs)
+c     correctors:
+c     keyflux=kfluxlm
+c     eps=epsdifq
+      if(ntry.eq.0)  then
+                     ntry=1
+                     ntindif(nutype)=ntime
+                     print *,' first entry to difq at ntime=',ntime
+                     endif
+      if(ntindif(nutype).eq.0)  then
+                    print 901,ntime,nutype
+  901 format(' ntime=',i5,'  nutype=',i1,'  enter difq3')
+                    ntindif(nutype)=ntime
+                    endif
+c     make the schifa approximation
+      call normy(1,jmax,ngmax)
+      noconv=0
+c
+      do 10 j=1,jmax
+      prody(j,nutype)=zero
+      prode(j,nutype)=zero
+      pneut(j,nutype)=zero
+      fip2m(j,nutype)=zero
+   10 continue
+c
+      imax=jmax-1
+      do 20 ng=1,ngmax
+      flum(1,ng,nutype)=zero
+      zi(ng)=zero
+      amsqi(ng)=1.0/3.0     !! musq at cell boundary i=j-1
+      do 20 jl=1,2
+      d(jl,ng)=zero
+      do 20 jc=1,2
+      a(jl,jc,ng)=zero
+      b(jl,jc,ng)=zero
+      c(jl,jc,ng)=zero
+   20 continue
+c
+      do 60 ng=1,ngmax
+      yaj(ng)=ya(2,ng,nutype)
+      yak(ng)=ya(3,ng,nutype)
+      yal(ng)=ya(4,ng,nutype)
+      ybj(ng)=yaj(ng)
+      ybk(ng)=yak(ng)
+   60 continue
+c
+      voli=zero
+      areaj=pai4*rb(2)**2
+      volj=areaj*rb(2)/3.0
+      rj=half*(rb(1)+rb(2))
+      rk=half*(rb(2)+rb(3))
+c     ______________________
+c     main j loop !!!!!!!!!!
+c     ----------------------
+      dtf=dtb
+      do 500 j=2,imax
+      i=j-1
+      k=j+1
+      l=j+2
+      drj=half*(rb(k)-rb(i))
+      if(j.lt.imax) then
+                    drk=half*(rb(l)-rb(j))
+                    rl=half*(rb(k)+rb(l))
+                    else
+                    drk=zero
+                    rl=zero
+                    endif
+      dvolj=volj-voli
+      areak=pai4*rb(k)**2
+      volk=areak*rb(k)/3.0
+      dvolk=volk-volj
+c     ________________
+c     convergence loop
+c     ----------------
+      keyend=0
+      do 350 itdif=1,itmax
+      konvrg=1
+c     __________
+c     group loop
+c     ----------
+      do  ng=1,ngmax
+      blockj(ng)=max(one-ybj(ng)/yfull(ng),zero)
+      blockk(ng)=max(one-ybk(ng)/yfull(ng),zero)
+      end do
+c
+      do 300 ng=1,ngmax
+      ngm=ng-1
+      ngp=ng+1
+c     rates out of group ng
+      routj(ng)=ccapt(j,ng,nutype)
+      routk(ng)=ccapt(k,ng,nutype)
+      do 175 ngprime=1,ngmax
+      if(ngprime.eq.ng) go to 175
+      routj(ng)=routj(ng)+cscat(j,ng,ngprime, nutype)*blockj(ngprime)
+      routk(ng)=routk(ng)+cscat(k,ng,ngprime, nutype)*blockk(ngprime)
+  175 continue
+      qoutj(ng)=routj(ng)*ybj(ng)
+      qoutk(ng)=routk(ng)*ybk(ng)
+      qinj(ng)=ydot(j,ng,nutype)
+      qink(ng)=ydot(k,ng,nutype)
+      if(j.lt.imax) then
+                    qinl(ng)=ydot(l,ng,nutype)
+                    else
+                    qinl(ng)=zero
+                    endif
+      do 200 ngprime=1,ngmax
+      if(ngprime.eq.ng) go to 200
+      qinj(ng)=qinj(ng)+cscat(j,ngprime,ng, nutype)*ybj(ngprime)
+      qink(ng)=qink(ng)+cscat(k,ngprime,ng, nutype)*ybk(ngprime)
+      if(j.lt.imax) qinl(ng)=qinl(ng)+
+     +		    cscat(l,ngprime,ng, nutype)*yal(ngprime)
+  200 continue
+      if(ng.gt.1) then
+                  a(1,1,ng)=-dtf*(cscat(j,ngm,ng, nutype)*blockj(ng)
+     1                  +cscat(j,ng,ngm, nutype)*ybj(ng)/yfull(ngm))
+                  a(2,2,ng)=-dtf*(cscat(k,ngm,ng, nutype)*blockk(ng)
+     1                  +cscat(k,ng,ngm, nutype)*ybk(ng)/yfull(ngm))
+                  endif
+      if(ng.lt.ngmax) then
+         c(1,1,ng)=
+     1        -dtf*(cscat(j,ngp,ng, nutype)*blockj(ng)
+     2        +cscat(j,ng,ngp, nutype)*ybj(ng)/yfull(ngp))
+         c(2,2,ng)=
+     1        -dtf*(cscat(k,ngp,ng, nutype)*blockk(ng)
+     2        +cscat(k,ng,ngp, nutype)*ybk(ng)/yfull(ngp))
+      endif
+c
+      call ddnu(rj,rk,ybj(ng),ybk(ng),cscat(j,ng,ng,nutype),
+     1                     cscat(k,ng,ng, nutype)
+     2                     ,qinj(ng),qink(ng),yfull(ng)
+     3                     ,dj,amj,amsqj(ng),keyflux)
+      zj(ng)=areaj*dj*(ybj(ng)-ybk(ng))/drj
+      ddnue(j,ng,nutype)=dj
+      if(j.lt.imax) then
+           call ddnu(rk,rl,ybk(ng),yal(ng),cscat(k,ng,ng, nutype),
+     1        cscat(l,ng,ng, nutype)
+     2        ,qink(ng),qinl(ng),yfull(ng)
+     3        ,dk,amk,amsqk,keyflux)
+           zk(ng)=areak*dk*(ybk(ng)-yal(ng))/drk
+           ddnue(k,ng,nutype)=dk
+                    endif
+      ardvj=areaj*dj/dvolj/drj
+      b11=qinj(ng)/yfull(ng)+routj(ng)+ardvj
+      b(1,1,ng)=one+dtf*b11
+      b12ng=max(dtf*ardvj,1d-16)
+      b(1,2,ng)=-b12ng
+      ardvk=areaj*dj/dvolk/drj
+      b21ng=max(dtf*ardvk,1d-16)
+      b(2,1,ng)=-b21ng
+      b22=qink(ng)/yfull(ng)+routk(ng)+ardvk
+      if(j.lt.imax) then
+                    b22=b22+areak*dk/dvolk/drk
+                    b(2,2,ng)=one+dtf*b22
+                    else
+                    halfdrl=half*(rb(k)-rb(j))
+                    drilast=half*(rb(k)-rb(i))
+                    ratlast=halfdrl/drilast
+                    grady=(ybk(ng)-ybj(ng))/drilast
+                    ysurf=max(ybk(ng)+halfdrl*grady,zero)
+                    zk(ng)=areak*clite*ysurf
+                    bbb=max(dtf*areak*clite*ratlast/dvolk,1d-32)
+                    b(2,1,ng)=b(2,1,ng)-bbb
+                    b(2,2,ng)=one+b22*dtf+(one+ratlast)*bbb
+                    endif
+      qj=qinj(ng)*blockj(ng)
+      qk=qink(ng)*blockk(ng)
+      d(1,ng)=(zi(ng)-zj(ng))/dvolj+qj-qoutj(ng)
+      d(1,ng)=yaj(ng)-ybj(ng)+dtf*d(1,ng)
+      d(2,ng)=(zj(ng)-zk(ng))/dvolk+qk-qoutk(ng)
+      d(2,ng)=yak(ng)-ybk(ng)+dtf*d(2,ng)
+  300 continue
+c     _________________
+c     end of group loop
+c     -----------------
+      call trimat(a,b,c,d,dy,aa,bb,ngmax,ngmaxm)
+c
+      do 320 ng=1,ngmax
+      smally=100.0*small*yfull(ng)
+      bigy=yfull(ng)/1.01
+        if(dy(1,ng).lt.zero) then
+        dy(1,ng)=max(dy(1,ng),-ratymax*ybj(ng))
+        end if
+        if(dy(2,ng).lt.zero) then
+        dy(2,ng)=max(dy(2,ng),-ratymax*ybk(ng))
+        end if
+      ybjnew=ybj(ng)+dy(1,ng)
+      ybknew=ybk(ng)+dy(2,ng)
+      abrat(ng)=abs(dy(1,ng)/max(ybj(ng),smally))
+      if(abrat(ng).gt.eps.and.ybjnew.gt.smally.and.
+     1   ybj(ng).gt.smally.and.ybjnew.lt.bigy)  konvrg=0
+      if(j.eq.imax.and.konvrg.ne.0) then
+                     abrat(ng)=abs(dy(2,ng)/max(ybk(ng),smally))
+                     if(abrat(ng).gt.eps.and.ybknew.gt.smally.and.
+     1               ybk(ng).gt.smally.and.ybknew.lt.bigy)  konvrg=0
+                                    endif
+      ybj(ng)=ybjnew
+      ybk(ng)=ybknew
+      ybj(ng)=max(ybj(ng),zero)
+      ybk(ng)=max(ybk(ng),zero)
+      ybj(ng)=min(ybj(ng),yfull(ng))
+      ybk(ng)=min(ybk(ng),yfull(ng))
+c     update fermi blocking factors for new ybj,ybk
+      blockj(ng)=max(one-ybj(ng)/yfull(ng),zero)
+      blockk(ng)=max(one-ybk(ng)/yfull(ng),zero)
+  320 continue
+      if(konvrg.eq.1)  then
+c                      an additional iteration after convergence
+                       keyend=keyend+1
+                       if(keyend.eq.2) go to 356
+                       else
+                       keyend=0
+                       endif
+  350 continue
+c     ______________
+c     no convergence
+c     --------------
+      noconv=j
+      go to 799
+c     _________________
+c     converged  !!!!!!
+c     -----------------
+  356 continue
+      areaj=areak
+      rj=rk
+      if(j.lt.imax) rk=rl
+      voli=volj
+      volj=volk
+c     ___________________________________________
+c     set eddington factors and neutrino pressure
+c     -------------------------------------------
+      do 358 ng=1,ngmax
+      edd(j,ng,nutype)=half*(amsqi(ng)+amsqj(ng))
+      amsqi(ng)=amsqj(ng)
+      fi=enu(ng)*ybj(ng)*emev
+      pneut(j,nutype)=pneut(j,nutype)+edd(j,ng,nutype)*fi
+      fip2m(j,nutype)=fip2m(j,nutype)+half*(3d0*edd(j,ng,nutype)-one)*fi
+      if(j.eq.imax) then
+                    fi=enu(ng)*ybk(ng)*emev
+                    edd(jmax,ng,nutype)=half*(amsqj(ng)+1.0)
+            pneut(jmax,nutype)=pneut(jmax,nutype)+edd(jmax,ng,nutype)*fi
+                    fip2m(jmax,nutype)=fip2m(jmax,nutype)
+     1                      +half*(3d0*edd(jmax,ng,nutype)-one)*fi
+                    endif
+  358 continue
+c
+c     ______________________________
+c     particle and energy production
+      do 370 ng=1,ngmax
+      denscg=0d0
+      do 362 ngprime=1,ngmax
+      denscg=denscg+(enu(ng)-enu(ngprime))
+     1       *cscat(j,ngprime,ng, nutype)*ybj(ngprime)*blockj(ng)
+  362 continue
+      dsourg=ydot(j,ng,nutype)*blockj(ng)
+      dcaptg=ccapt(j,ng,nutype)*ybj(ng)
+      dprodg=dsourg-dcaptg
+      prody(j,nutype)=prody(j,nutype)+dprodg
+      prode(j,nutype)=prode(j,nutype)+enu(ng)*dprodg-denscg
+  370 continue
+c     _____________________________
+c     final transfers at interval j
+      do 410 ng=1,ngmax
+      yb(j,ng,nutype)=ybj(ng)
+      flum(j,ng,nutype)=zj(ng)
+      if(j.lt.imax) then
+                    yaj(ng)=ya(k,ng,nutype)
+                    ybj(ng)=ybk(ng)
+                    yak(ng)=ya(l,ng,nutype)
+                    ybk(ng)=yak(ng)
+                    if(j.lt.(imax-1)) then
+                                      yal(ng)=ya((l+1),ng,nutype)
+                                      else
+                                      yal(ng)=zero
+                                      endif
+                    zi(ng)=zj(ng)
+                    else
+                    flum(jmax,ng,nutype)=zk(ng)
+                    yb(jmax,ng,nutype)=ybk(ng)
+                    endif
+  410 continue
+c
+  500 continue
+c     __________________
+c     end of main j loop
+c     ------------------
+      if(keycomp.ne.0)   call compres(jmax,ngmax)
+  799 continue
+      return
+      end

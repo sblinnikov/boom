@@ -1,0 +1,2107 @@
+*deck rotepsb
+      subroutine  rotepsb(ro,t,e,p,s
+     1, dedro,dedt,dpdro,dpdt,dsdro,dsdt
+     2, ah,zh,ye,ynu,xn,xp,xa,xh
+     3, xnr,xnt,xpr,xpt
+     4, xar,xat,xhr,xht)
+*call implic
+*call keyeos
+*call chemp
+      parameter (ndim = 200)
+c                                                                      c
+c        Equation of state arrays                                      c
+      save   /esgrid/
+      save   /params/
+      save   /nccomp/
+c
+      common /esgrid/ dgrid,tgrid,ygrid
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+c                                                                      c
+      common /nccomp/ xnn(ndim,9),unuc(ndim),nse(ndim)
+c                                                                      c
+c
+      save  yense,yefe
+      save  nses
+c
+      data rmu    /1.674e-24/
+      data  ntry  /0/
+c--------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      dgrid        = 10.
+      tgrid        = 40.
+      ygrid        = 100.
+      gamhv        = 2.5
+      wnm          = - 16.0
+      ws           = 31.5
+      xk0          = 180.0
+      xkzafac      = 2.0
+      yense=0.45
+      yefe=26./56.
+      nses=1
+                     endif
+c--------------------------------------------------
+c         for nse=0
+c         xnn(j,1)     : Carbon-12    mass fraction
+c         xnn(j,2)     : Oxygen-16    mass fraction
+c         xnn(j,3)     : Neon-20      mass fraction
+c         xnn(j,4)     : Magnesium-24 mass fraction
+c         xnn(j,5)     : Silicon-28   mass fraction
+c         xnn(j,6)     : Nickel-56    mass fraction
+c         xnn(j,7)     : Alpha        mass fraction
+c         xnn(j,8)     : Free neutron mass fraction
+c         xnn(j,9)     : Free proton  mass fraction
+c
+      j=jzone
+      nse(j)       = nses
+      if(ye.gt.yense)  then
+      nse(j)=0
+      xnn(j,1)     = 0d0
+      xnn(j,2)     = 0d0
+      xnn(j,3)     = 0d0
+      xnn(j,4)     = 0d0
+      xnn(j,5)     = 0d0
+      xnn(j,6)     = 1.-xnn(j,1)-xnn(j,2)-xnn(j,3)-xnn(1,4)-xnn(j,5)
+      xnn(j,7)     = 0d0
+      xnn(j,8)     = 0d0
+      xnn(j,9)     = 0d0
+                       endif
+c
+      call esrgn (j,ro,t,ye)
+      call eqstpt(j,ro,t,ye,p,dpdd,dpdt,dpdy)
+      call eqstut(j,ro,t,ye,e,dudd,dudt,dudy)
+      call eqstxt(j,ro,t,ye,xn,xp,xh)
+      call eqstct(j,ro,t,ye,cmpn,cmpp,cmpe)
+      call eqstst(j,ro,t,ye,s)
+      call eqstat(j,ro,t,ye,ah)
+      call eqstzt(j,ro,t,ye,zh)
+c
+      dedro=dudd
+      dedt=dudt
+      dpdro=dpdd
+      dsdro=-dpdt/ro**2
+      dsdt=dudt/t
+      xmue=cmpe
+      xmun=cmpn
+      xmup=cmpp
+c
+      if(nupress.gt.0.and.ynu.gt.0.d0)  then
+      eofnu=0.d0
+      pnu=0.d0
+      snu=0.d0
+      enr=0.d0
+      pnr=0.d0
+      snr=0.d0
+      ent=0.d0
+      pnt=0.d0
+      snt=0.d0
+      call  eosnu(ro,t,ynu,eofnu,pnu,snu,enr,ent,pnr,pnt,snr,snt
+     1,           enuy,pnuy,snuy)
+      e=e+eofnu
+      p=p+pnu
+      s=s+snu
+      dedro=dudd+enr
+      dpdro=dpdd+pnr
+      dsdro=dsdro+snr
+      dedt=dudt+ent
+      dpdt=dpdt+pnt
+      dsdt=dsdt+snt
+      endif
+c
+      return
+      end
+c##################################################################
+c  now comes the package from Bruenn
+c  common names are:
+c  tcrit params lsca1 isca1 sca1 sca2 sca3 sca4 sca5
+c  zeros nccomp eossav esgrid thmdt idxdty
+c
+c  commons are not put by 'include' as 3 of them are not identical:
+c  sca1 sca3 nccomp
+c##################################################################
+      subroutine eos
+c***********************************************************************
+      implicit double precision (a-h,o-z)
+      logical bad,fmbad,first
+      save
+c***********************************************************************
+      parameter(ndim=200,zero=0.0)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+c                                                                      c
+c        Reaction rate arrays                                          c
+      common /nccomp/ xnn(ndim,9),unuc(ndim),nse(ndim)
+c                                                                      c
+      data asig  /8.56e-8/
+      data tburn /.17235 /
+      data first /.true. /
+c                                                                      c
+          if (first) then
+      dtran     = 0.0
+      first     = .false.
+          end if
+c*************************************************** radiation *********
+      at4       = asig*t*t*t*t
+      erad      = at4/d
+      prad      = at4/3.0
+      srad      = (erad+prad/d)/t
+      enu       = erad
+      pnu       = prad
+      snu       = srad
+c************************************************** electrons *********
+c*************************************************no neutrinos ********
+                call lectron
+c**************************************************** nucleons *********
+                call eos0
+                if (nse(jshel) .eq. 1) then
+       dtest    = .16 * (1.-3.*(.5-ye)**2)
+                if (dtran .le. 0.0) dtran = dtest
+       dtran    = min(dtran,dtest)
+                if (d .ge. dtran) then
+                call eosnm
+                else
+                call saha
+                endif
+                else
+                call eosnuc
+                endif
+c************************************************ get totals ***********
+      etot      = eh + erad + ee + ed
+      ptot      = ph + prad + pe + pd
+      stot      = sh + srad + se + sd
+c      delbet    = ue - unu - uhat
+c***************************************** approx for energy inversion *
+      dedt      = se + sh +erad*4/t +ed/t
+      return
+      end
+      subroutine eos0
+c***********************************************************************
+      implicit double precision (a-h,o-z)
+      logical first
+      logical bad,fmbad
+      save
+c***********************************************************************
+      parameter(third=1./3.,ba=-7.075,zero=0.0,dnp=1.2935)
+      parameter(a0=.067,c0=2.3798e-4,d00=.16)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+      common /zeros / ye0,theta0,size0,egy0
+c                                                                      c
+      data first/.true./
+c***********************************************************************
+      f3(z)        = sign( (abs(z))**third , z)
+      fw1(x)       = 78.0 * x * x * (1.0-x) * f3(1.0-x)
+      fbulk(x)     = wnm + ws * (1.0-2.0*x)*(1.0-2.0*x)
+      fphi(x)      = 1.0 - 3.0 * (0.5-x)**2
+      fxk(za)      = xk0*(1. - xkzafac*(1.- 2.*za)**2)
+      fcomp(theta) = (fxk(za)/18.0) * (1.0 - theta)*(1.0 - theta)
+c******************************************** get energy zeroes ********
+              if(first)then
+      ye0 = 26./56.
+      za = ye0
+      theta0 = 1.0
+      size0 = fw1(ye0) /(fphi(ye0))**third
+      theta0 = 1 +(3.0/fxk(ye0))*size0/theta0/theta0**third
+      size0 = size0/theta0**third
+      theta0 = 1 +(3.0/fxk(ye0))*size0/theta0/theta0**third
+      size0 = size0/theta0**third
+      egy0 = fbulk(ye0) + size0 + fcomp(theta0)
+      write(6,999)ye0,d00*theta0*fphi(ye0),theta0,size0,egy0
+      first = .false.
+             endif
+c***********************************************************************
+                        return
+c***********************************************************************
+999   format(' zero level for fe: ye,d0,theta,wsize,egy',5f10.5)
+                        end
+c***********************************************************************
+c                  Module eosdtgen                                     c
+c                                                                      c
+      subroutine eosdtgen(j,idd,itt,iyy,ida,ita,iya)
+c----------------------------------------------------------------------c
+c        This subroutine calls subroutine eos, the bck equation        c
+c         of state, and stores the thermodynamic quantities in         c
+c         arrays for interpolation                                     c
+c----------------------------------------------------------------------c
+c                                                                      c
+c        The variables that must be passed in the calling statement    c
+c         are                                                          c
+c                                                                      c
+c   j         : radial zone number                                     c
+c   idd       : density grid index                                     c
+c   itt       : temperature grid index                                 c
+c   iyy       : electron fraction grid index                           c
+c   ida       : equation of state table density index                  c
+c   ita       : equation of state table temperature index              c
+c   iya       : equation of state table electron fraction index        c
+c                                                                      c
+c        The variables that must be passed through common are          c
+c                                                                      c
+c   dgrid     : number of table entries per decade in rho              c
+c   tgrid     : number of table entries per decade in t                c
+c   ygrid     : number of table entries in ye between ye = 0.5 and     c
+c                ye = 0                                                c
+c   ap(j,2,4,2),                                                       c
+c         etc.: thermodynamic function table for zone j                c
+c                                                                      c
+c----------------------------------------------------------------------c
+      implicit double precision (a-h,o-z)
+      save
+c----------------------------------------------------------------------c
+c                                                                      c
+c        nz     :  ge number of radial zones + 1                       c
+c                                                                      c
+c                                                                      c
+      parameter (nz   = 200)
+      parameter (ndim = nz )
+c                                                                      c
+c                                                                      c
+      double precision kmev,kfm,kp,ku
+c                                                                      c
+c                                                                      c
+      logical bad,fmbad,first
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /eossav/ uea(nz),una(nz),uhata(nz),thetaa(nz),zaa(nz),
+     *           xaa(nz),dtrana(nz),duesrc(nz)
+      common /esgrid/ dgrid,tgrid,ygrid
+      common /thmdt/ ap    (nz,2,4,2) ,
+     *               au    (nz,2,4,2) ,
+     *               aa    (nz,2,4,2) ,
+     *               axn   (nz,2,4,2) ,
+     *               axp   (nz,2,4,2) ,
+     *               axnc  (nz,2,4,2) ,
+     *               as    (nz,2,4,2) ,
+     *               acmpn (nz,2,4,2) ,
+     *               acmpp (nz,2,4,2) ,
+     *               acmpe (nz,2,4,2) ,
+     *               az    (nz,2,4,2)
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,rhofm,d0,dbdlu,dedt,delbet,dtran,
+     *                 ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,tmev,therm,theta,tsi,u,u1,ue,uhat,uhtra,
+     *                 un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+c                                                                      c
+c                                                                      c
+      data kmev   /8.618e-11/
+      data kfm    /5.974e-16/
+      data kp     /1.602d+33/
+      data ku     /9.570e+17/
+      data rmu    /1.674e-24/
+      data first  /.true.   /
+c----------------------------------------------------------------------c
+c        kmev : boltzmann constant ( mev/k )                           c
+c        kfm  : ( # nucleons/gram )( cm3/fm3 )                         c
+c        kp   : ( erg/cm3 ) / ( mev/fm3 )                              c
+c        ku   : ( # nucleons/gram )( erg/mev )                         c
+c----------------------------------------------------------------------c
+c       Initialize                                                     c
+c----------------------------------------------------------------------c
+          if (first) then
+      first        = .false.
+            do 1000 jj = 1,nz
+      uea(jj)      = 0.0
+      una(jj)      = 0.0
+      uhata(jj)    = 0.0
+      thetaa(jj)   = 0.0
+      zaa(jj)      = 0.0
+      xaa(jj)      = 0.0
+      dtrana(jj)   = 0.0
+ 1000       continue
+          end if
+c----------------------------------------------------------------------c
+c        Compute independent variables at grid point                   c
+c----------------------------------------------------------------------c
+      rhod         = 10.**( float(idd)/dgrid )
+      td           = 10.**( float(itt)/tgrid )
+      yed          = 0.5 -( float(iyy)/ygrid )
+c----------------------------------------------------------------------c
+c        Convert to independent variables of the bck equation          c
+c         of state                                                     c
+c----------------------------------------------------------------------c
+      rhofm        = rhod*kfm
+      tmev         = td*kmev
+      ye           = yed
+c----------------------------------------------------------------------c
+c        Load equation of state parameters for zone j                  c
+c----------------------------------------------------------------------c
+      ue           = uea(j)
+      un           = una(j)
+      uhat         = uhata(j)
+      theta        = thetaa(j)
+      za           = zaa(j)
+      xa           = xaa(j)
+      dtran        = dtrana(j)
+      jshel        = j
+c----------------------------------------------------------------------c
+c        Call the bck equation of state                                c
+c----------------------------------------------------------------------c
+        call eos
+          if (xn .lt. 0.0 .or. xp .lt. 0.0 .or. stot .lt. 0.0) then
+      dtran        = rhofm
+        call eos
+          end if
+c----------------------------------------------------------------------c
+c        Store equation of state parameters for zone j                 c
+c----------------------------------------------------------------------c
+      uea   (j)    = ue
+      una   (j)    = un
+      uhata (j)    = uhat
+      thetaa(j)    = theta
+      zaa   (j)    = za
+      xaa   (j)    = xa
+      dtrana(j)    = dtran
+c----------------------------------------------------------------------c
+c        Convert thermodynamic quantities from units of mev and fm     c
+c         to cgs units                                                 c
+c----------------------------------------------------------------------c
+      ps           = ptot*kp
+      us           = etot*ku
+          if (rhofm .ge. dtran) then
+      xn           = 1. - ye
+      xp           = ye
+      xh           = 0.0
+          end if
+          if (xn .lt. 0.0) then
+      xn           = 0.0
+          end if
+          if (xp .lt. 0.0) then
+      xp           = 0.0
+          end if
+          if (xh .lt. 0.0) then
+      xh           = 0.0
+          end if
+      ss           = stot
+      cmpns        = un
+      cmpps        = un - uhat
+      zs           = za*ah
+c----------------------------------------------------------------------c
+c        Store table entries                                           c
+c----------------------------------------------------------------------c
+      ap    (j,ida,ita,iya)  = log10( ps                )
+      au    (j,ida,ita,iya)  = log10( us                )
+      aa    (j,ida,ita,iya)  = log10( abs(ah) + 1.e-36 )
+      axn   (j,ida,ita,iya)  = log10( xn      + 1.e-36 )
+      axp   (j,ida,ita,iya)  = log10( xp      + 1.e-36 )
+      axnc  (j,ida,ita,iya)  = log10( xh      + 1.e-36 )
+      as    (j,ida,ita,iya)  = log10( abs(ss) + 1.e-36 )
+      acmpn (j,ida,ita,iya)  = cmpns
+      acmpp (j,ida,ita,iya)  = cmpps
+      acmpe (j,ida,ita,iya)  = ue
+      az    (j,ida,ita,iya)  = log10( abs(zs) + 1.e-36 )
+c                                                                      c
+c                                                                      c
+      return
+      end
+c                  Module eqstbckt                                     c
+c                                                                      c
+c                  Module eosidx                                       c
+c                                                                      c
+      subroutine eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,
+     * fym,fyp,fyy)
+c----------------------------------------------------------------------c
+c        This subroutine computes the independent variable grid        c
+c         indices and interpolation coefficients for subroutine        c
+c         eqstbckt                                                     c
+c----------------------------------------------------------------------c
+c                                                                      c
+c        The variables that must be passed in the calling statement    c
+c         are                                                          c
+c                                                                      c
+c   j         : radial zone number                                     c
+c   rho       : matter density (g/cm**3)                               c
+c   t         : matter temperature (K)                                 c
+c   ye        : matter electron fraction                               c
+c   ida       : equation of state table density index                  c
+c   ita       : equation of state table temperature index              c
+c   iya       : equation of state table electron fraction index        c
+c                                                                      c
+c        The variables that must be passed through common are          c
+c                                                                      c
+c   dgrid     : number of table entries per decade in rho              c
+c   tgrid     : number of table entries per decade in t                c
+c   ygrid     : number of table entries in ye between ye = 0.5 and     c
+c                ye = 0                                                c
+c   idr(j)    : rho grid index for zone j                              c
+c   itr(j)    : t grid index for zone j                                c
+c   iyr(j)    : ye grid index for zone j                               c
+c                                                                      c
+c----------------------------------------------------------------------c
+      implicit double precision (a-h,o-z)
+      save
+c----------------------------------------------------------------------c
+c                                                                      c
+c        nz     :  ge number of radial zones + 1                       c
+c                                                                      c
+c                                                                      c
+      parameter (nz   = 200)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /esgrid/ dgrid,tgrid,ygrid
+      common /idxdty/ idr(nz),itr(nz),iyr(nz)
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+      fd           = dgrid*log10(rho )
+      ft           = tgrid*log10(t   )
+      fy           = ygrid*( 0.5 - ye )
+c                                                                      c
+      id           = idr(j)
+      ida          = 1
+      fdp          = fd - float( id )
+      fdm          = 1.0 - fdp
+      fdd          = 0.4342944*dgrid/( rho ) ! 0.4342944 = log(e)
+c                                                                      c
+      it           = int( ft )
+      ita          = min( max( it - itr(j) + 2, 1 ), 3 )
+      ftp          = ft - float( it )
+      ftm          = 1.0 - ftp
+      ftt          = 0.4342944*tgrid/( t   ) ! 0.4342944 = log(e)
+c                                                                      c
+      iy           = iyr(j)
+      iya          = 1
+      fyp          = fy - float( iy )
+      fym          = 1.0 - fyp
+      fyy          = - ygrid
+c                                                                      c
+c                                                                      c
+      return
+      end
+C                  Module eosnuc                                       C
+C                                                                      C
+      subroutine eosnuc
+C                                                                      C
+C----------------------------------------------------------------------C
+C                                                                      C
+C        This subroutine computes the equations of state for           C
+C         stellar material not in nuclear statistical equilibrium      C
+C                                                                      C
+C        xn(jz,1)     : Carbon-12    mass fraction                     C
+C        xn(jz,2)     : Oxygen-16    mass fraction                     C
+C        xn(jz,3)     : Neon-20      mass fraction                     C
+C        xn(jz,4)     : Magnesium-24 mass fraction                     C
+C        xn(jz,5)     : Silicon-28   mass fraction                     C
+C        xn(jz,6)     : Nickel-56    mass fraction                     C
+C        xn(jz,7)     : Alpha        mass fraction                     C
+C        xn(jz,8)     : Free neutron mass fraction                     C
+C        xn(jz,9)     : Free proton  mass fraction                     C
+C                                                                      C
+C----------------------------------------------------------------------C
+      implicit double precision (a-h,o-z)
+      save
+C----------------------------------------------------------------------C
+C                                                                      C
+C        nz     :  ge number of radial zones + 1                       C
+C                                                                      C
+C                                                                      C
+      parameter (nz   = 200)
+C                                                                      C
+C                                                                      C
+      logical bad,fmbad
+C                                                                      C
+C                                                                      C
+      dimension be(9),zn(9),an(9)
+C                                                                      C
+C                                                                      C
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xnn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+      common /zeros / ye0,theta0,size0,egy0
+c                                                                      c
+c        Reaction rate arrays                                          c
+      common /nccomp/ xn(nz,9),unuc(nz),nse(nz)
+C                                                                      C
+C                                                                      C
+      data c0   /2.3798E-04/
+      data zero /0.0       /
+      data dnp  /1.2935    /
+      data be /  92.16294,
+     *          127.62093,
+     *          160.64788,
+     *          198.2579 ,
+     *          236.5379 ,
+     *          483.98   ,
+     *           28.29603,
+     *            0.0    ,
+     *            0.0     /
+      data an /12.,16.,20.,24.,28.,56.,4.,1.,1./
+      data zn / 6., 8.,10.,12.,14.,28.,2.,0.,1./
+C----------------------------------------------------------------------C
+C        Initialize                                                    C
+C----------------------------------------------------------------------C
+      theta        = zero
+      za           = zero
+      xsil         = zero
+      un           = zero
+      uhat         = zero
+      d0           = 0.16
+      dtran        = 0.16
+      u            = d/d0
+      xmstar       = 1.0
+C----------------------------------------------------------------------C
+C        Composition                                                   C
+C----------------------------------------------------------------------C
+C----------------------------------------------------------------------C
+C        Compute                                                       C
+C         xnn : free neutron mass fraction                             C
+C         xp  : free proton mass fraction                              C
+C         xa  : helium mass fraction                                   C
+C         xh  : heavy nuclei mass fraction                             C
+C         za  : average charge to mass ratio for heavy nuclei          C
+C         ah  : average heavy nucleus mass                             C
+C----------------------------------------------------------------------C
+      xnn          = xn(jshel,8)
+      xp           = xn(jshel,9)
+      xa           = xn(jshel,7)
+      xh           = 0.0
+      za           = 0.0
+      ah           = 0.0
+      do 1000 i = 1,6
+        xh         = xh + xn(jshel,i)
+ 1000 continue
+      do 1100 i = 1,6
+        za         = za + zn(i)*xn(jshel,i)/an(i)
+        ah         = ah + an(i)*xn(jshel,i)
+ 1100 continue
+      if (xh .le. 0.0) then
+        za         = 0.5
+        ah         = 56.
+      else
+        za         = za/xh
+        ah         = ah/xh
+      end if
+C----------------------------------------------------------------------C
+C        Compute                                                       C
+C         b  : binding energy/particle in unburnt shell                C
+C         av : average mass number of all particles                    C
+C----------------------------------------------------------------------C
+      b            = 0.0
+      av           = 0.0
+C                                                                      C
+      do 2000 i = 1,9
+        b          = b  + xn(jshel,i)*( -be(i) )/an(i)
+        av         = av + an(i)*xn(jshel,i)
+ 2000 continue
+C----------------------------------------------------------------------C
+C        Compute                                                       C
+C         eh : energy of nuclei w/o translation                        C
+C         ph : pressure of nuclei w/o translation                      C
+C         sh : entropy of heavy nuclei (intrinsic)                     C
+C         ed : energy of drip (including heavy translation)            C
+C         pd : pressure of drip (including heavy translation)          C
+C         sd : entropy of drip (including heavy translation)           C
+C----------------------------------------------------------------------C
+      eh        = b - ( egy0 - ( ye - ye0 )*dnp )
+      ph        = zero
+      sh        = zero
+      ed        = 1.5*t/av
+      pd        = t/av * d
+C                                                                      C
+      therm     = c0 * t * sqrt(t) / d
+C                                                                      C
+      if (xnn .le. 0.0) then
+        un      = -100.
+        sn      = 0.0
+      else
+        un      = t * log( abs( xnn/therm ) )
+        sn      = ( xnn   ) * ( 2.5 - un )
+      end if
+C                                                                      C
+      if (xp .le. 0.0) then
+        up      = -100.
+        sp      = 0.0
+      else
+        up      = t * log( abs( xp/therm ) )
+        sp      = ( xp    ) * ( 2.5 - up )
+      end if
+C                                                                      C
+      if (xa .le. 0.0) then
+        ua      = -100.
+        sa      = 0.0
+      else
+        ua      = t * log( abs( xa/( 32.*therm ) ) )
+        sa      = ( xa/4. ) * ( 2.5 - ua )
+      end if
+C                                                                      C
+      if (xh .le. 0.0) then
+        utrha   = -100.
+        sh      = 0.0
+      else
+        utrha   = t * log( abs( xh/( av*av*sqrt(av)*therm ) ) )
+        strh    = ( xh/ah ) * ( 2.5 - utrha )
+      end if
+      sd        = sn + sp + sa + strh
+      uhat      = un - up
+c***********************************************************************
+c what about uhat and un etc?  this is a problem of first order?!!
+      return
+      end
+c                  Module eqstbckt                                     c
+c                                                                      c
+      subroutine eqstpt(jp,rho,t,ye,p,pd,pt,py)
+c----------------------------------------------------------------------c
+c        This subroutine interpolates thermodynamic variables          c
+c         in a local table of nearest entries created for each zone    c
+c        The table consists of the eight nearest-neighbor entries      c
+c         of the state point, except for t, for which the nect         c
+c         nearest-neighbor entries are also included                   c
+c        Derivatives of p and u are obtained from the expressions      c
+c         for p and u by direct differentiation of these expressions   c
+c        Entry esrcal generates or updates the local table for         c
+c         the zone specified in the call statement                     c
+c----------------------------------------------------------------------c
+c                                                                      c
+c        The variables that must be passed in the calling statement    c
+c         are                                                          c
+c                                                                      c
+c   j         : radial zone                                            c
+c   rho       : matter density (g/cm**3)                               c
+c   t         : matter temperature (K)                                 c
+c   ye        : matter electron fraction                               c
+c                                                                      c
+c        The variables that must be passed through common are          c
+c                                                                      c
+c   dgrid     : number of table entries per decade in rho              c
+c   tgrid     : number of table entries per decade in t                c
+c   ygrid     : number of table entries in ye between ye = 0.5 and     c
+c                ye = 0                                                c
+c   idr(j)    : rho grid index for zone j                              c
+c   itr(j)    : t grid index for zone j                                c
+c   iyr(j)    : ye grid index for zone j                               c
+c                                                                      c
+c----------------------------------------------------------------------c
+      implicit double precision (a-h,o-z)
+      save
+c----------------------------------------------------------------------c
+c                                                                      c
+c        nx     :  ge number of radial zones + 1                       c
+c                                                                      c
+      parameter (nz   = 200)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /esgrid/ dgrid,tgrid,ygrid
+      common /idxdty/ idr(nz),itr(nz),iyr(nz)
+      common /thmdt/ ap    (nz,2,4,2) ,
+     *               au    (nz,2,4,2) ,
+     *               aa    (nz,2,4,2) ,
+     *               axn   (nz,2,4,2) ,
+     *               axp   (nz,2,4,2) ,
+     *               axnc  (nz,2,4,2) ,
+     *               as    (nz,2,4,2) ,
+     *               acmpn (nz,2,4,2) ,
+     *               acmpp (nz,2,4,2) ,
+     *               acmpe (nz,2,4,2) ,
+     *               az    (nz,2,4,2)
+c                                                                      c
+c                                                                      c
+      data nprint   /6        /
+      data rmu      /1.674e-24/
+      data realmx   /1.e+36  /, realmn /0.0/, alogmx /36.0/
+c                                                                      c
+c                                                                      c
+ 1001 format (1x,20x,'***parameter out of range in eqst***')
+ 1002 format (' rho=',1pe10.3,' t=',1pe10.3,' ye=',1pe10.3)
+ 1003 format (' bp=',1pe10.3,' bpd=',1pe10.3,' bpt=',1pe10.3,' bpy=',
+     * 1pe10.3)
+ 1004 format (' bu=',1pe10.3,' bud=',1pe10.3,' but=',1pe10.3,' buy=',
+     * 1pe10.3)
+ 1005 format (' babnn=',1pe10.3,' babnp=',1pe10.3,' babnnc=',1pe10.3,
+     * ' bs=',1pe10.3)
+ 1006 format (' bs=',1pe10.3)
+ 1007 format (' cmpn=',1pe10.3,' cmpp=',1pe10.3,' cmpe=',1pe10.3)
+ 1008 format (' bah=',1pe10.3)
+ 1009 format (' bzh=',1pe10.3)
+ 1010 format (1h1)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Pressure data arrays                                          c
+c----------------------------------------------------------------------c
+      ap111        = ap(j,ida  ,ita  ,iya  )
+      ap211        = ap(j,idap1,ita  ,iya  )
+      ap121        = ap(j,ida  ,itap1,iya  )
+      ap112        = ap(j,ida  ,ita  ,iyap1)
+      ap221        = ap(j,idap1,itap1,iya  )
+      ap212        = ap(j,idap1,ita  ,iyap1)
+      ap122        = ap(j,ida  ,itap1,iyap1)
+      ap222        = ap(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Pressure                                                      c
+c----------------------------------------------------------------------c
+      bp           =  fym*( fdm*( ftm*ap111 + ftp*ap121 )
+     *              +       fdp*( ftm*ap211 + ftp*ap221 ) )
+     *              + fyp*( fdm*( ftm*ap112 + ftp*ap122 )
+     *              +       fdp*( ftm*ap212 + ftp*ap222 ) )
+c                                                                      c
+          if (abs(bp) .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1003) bp,bpd,bpt,bpy
+        stop
+          end if
+c                                                                      c
+      p            = 10.**bp
+c----------------------------------------------------------------------c
+c        d(pressure)/d(density)                                        c
+c----------------------------------------------------------------------c
+      bpd          = fdd*( fym*( ftm*( -ap111 + ap211 )
+     *              +            ftp*( -ap121 + ap221 ) )
+     *              +      fyp*( ftm*( -ap112 + ap212 )
+     *              +            ftp*( -ap122 + ap222 ) ) )
+          if (abs(bpd*p) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1003) bp,bpd,bpt,bpy
+        stop
+          end if
+c                                                                      c
+      pd           = 2.3025851*bpd*p
+c----------------------------------------------------------------------c
+c        d(pressure)/d(temperature)                                    c
+c----------------------------------------------------------------------c
+      bpt          = ftt*( fym*( fdm*( -ap111 + ap121 )
+     *              +            fdp*( -ap211 + ap221 ) )
+     *              +      fyp*( fdm*( -ap112 + ap122 )
+     *              +            fdp*( -ap212 + ap222 ) ) )
+c                                                                      c
+          if (abs(bpt*p) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1003) bp,bpd,bpt,bpy
+        stop
+          end if
+c                                                                      c
+      pt           = 2.3025851*bpt*p
+c----------------------------------------------------------------------c
+c        d(pressure)/d(ye)                                             c
+c----------------------------------------------------------------------c
+      bpy          = fyy*( fdm*( ftm*( -ap111 + ap112 )
+     *              +            ftp*( -ap121 + ap122 ) )
+     *              +      fdp*( ftm*( -ap211 + ap212 )
+     *              +            ftp*( -ap221 + ap222 ) ) )
+c                                                                      c
+          if (abs(bpy*p) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1003) bp,bpd,bpt,bpy
+        stop
+          end if
+c                                                                      c
+      py         = 2.3025851*bpy*p
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstut(jp,rho,t,ye,u,ud,ut,uy)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Energy data arrays                                            c
+c----------------------------------------------------------------------c
+      au111        = au(j,ida  ,ita  ,iya  )
+      au211        = au(j,idap1,ita  ,iya  )
+      au121        = au(j,ida  ,itap1,iya  )
+      au112        = au(j,ida  ,ita  ,iyap1)
+      au221        = au(j,idap1,itap1,iya  )
+      au212        = au(j,idap1,ita  ,iyap1)
+      au122        = au(j,ida  ,itap1,iyap1)
+      au222        = au(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Energy                                                        c
+c----------------------------------------------------------------------c
+      bu           =  fym*( fdm*( ftm*au111 + ftp*au121 )
+     *              +       fdp*( ftm*au211 + ftp*au221 ) )
+     *              + fyp*( fdm*( ftm*au112 + ftp*au122 )
+     *              +       fdp*( ftm*au212 + ftp*au222 ) )
+c                                                                      c
+          if (abs(bu) .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1004) bu,bud,but,buy
+        stop
+          end if
+c                                                                      c
+      u            = 10.**bu
+c----------------------------------------------------------------------c
+c        d(energy)/d(density)                                          c
+c----------------------------------------------------------------------c
+      bud          = fdd*( fym*( ftm*( -au111 + au211 )
+     *              +            ftp*( -au121 + au221 ) )
+     *              +      fyp*( ftm*( -au112 + au212 )
+     *              +            ftp*( -au122 + au222 ) ) )
+          if (abs(bud*u) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1004) bu,bud,but,buy
+        stop
+          end if
+c                                                                      c
+      ud           = 2.3025851*bud*u
+c----------------------------------------------------------------------c
+c        d(energy)/d(temperature)                                      c
+c----------------------------------------------------------------------c
+      but          = ftt*( fym*( fdm*( -au111 + au121 )
+     *              +            fdp*( -au211 + au221 ) )
+     *              +      fyp*( fdm*( -au112 + au122 )
+     *              +            fdp*( -au212 + au222 ) ) )
+c                                                                      c
+          if (abs(but*u) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1004) bu,bud,but,buy
+        stop
+          end if
+c                                                                      c
+      ut           = 2.3025851*but*u
+c----------------------------------------------------------------------c
+c        d(energy)/d(ye)                                               c
+c----------------------------------------------------------------------c
+      buy          = fyy*( fdm*( ftm*( -au111 + au112 )
+     *              +            ftp*( -au121 + au122 ) )
+     *              +      fdp*( ftm*( -au211 + au212 )
+     *              +            ftp*( -au221 + au222 ) ) )
+c                                                                      c
+          if (abs(buy*u) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1004) bu,bud,but,buy
+        stop
+           end if
+c                                                                      c
+      uy           = 2.3025851*buy*u
+c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -c
+c        Protect against "bug" in bck equation of state                c
+c - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -c
+          if (rho .gt. 5.e+13             .and.
+     *        rho .lt. 7.e+13             .and.
+     *        t   .gt. 8.e+10             .and.
+     *        t   .lt. 1.e+11                   ) then
+          if (uy .lt. 1.e+20) uy = 1.e+20
+          end if
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstxt(jp,rho,t,ye,xn,xp,xh)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Free neutron mass fraction data arrays                        c
+c----------------------------------------------------------------------c
+      an111        = axn(j,ida  ,ita  ,iya  )
+      an211        = axn(j,idap1,ita  ,iya  )
+      an121        = axn(j,ida  ,itap1,iya  )
+      an112        = axn(j,ida  ,ita  ,iyap1)
+      an221        = axn(j,idap1,itap1,iya  )
+      an212        = axn(j,idap1,ita  ,iyap1)
+      an122        = axn(j,ida  ,itap1,iyap1)
+      an222        = axn(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Free neutron mass fraction                                    c
+c----------------------------------------------------------------------c
+      babnn        =  fym*( fdm*( ftm*an111 + ftp*an121 )
+     *              +       fdp*( ftm*an211 + ftp*an221 ) )
+     *              + fyp*( fdm*( ftm*an112 + ftp*an122 )
+     *              +       fdp*( ftm*an212 + ftp*an222 ) )
+c                                                                      c
+          if (babnn .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1005) babnn,babnp,babnnc
+        stop
+          else if (babnn .lt. -alogmx) then
+      xn           = 0.0
+          else
+      xn           = 10.**babnn
+          end if
+c----------------------------------------------------------------------c
+c        Free proton mass fraction data arrays                         c
+c----------------------------------------------------------------------c
+      ap111        = axp(j,ida  ,ita  ,iya  )
+      ap211        = axp(j,idap1,ita  ,iya  )
+      ap121        = axp(j,ida  ,itap1,iya  )
+      ap112        = axp(j,ida  ,ita  ,iyap1)
+      ap221        = axp(j,idap1,itap1,iya  )
+      ap212        = axp(j,idap1,ita  ,iyap1)
+      ap122        = axp(j,ida  ,itap1,iyap1)
+      ap222        = axp(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Free proton mass fraction                                     c
+c----------------------------------------------------------------------c
+      babnp        =  fym*( fdm*( ftm*ap111 + ftp*ap121 )
+     *              +       fdp*( ftm*ap211 + ftp*ap221 ) )
+     *              + fyp*( fdm*( ftm*ap112 + ftp*ap122 )
+     *              +       fdp*( ftm*ap212 + ftp*ap222 ) )
+c                                                                      c
+          if (babnp .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1005) babnn,babnp,babnnc
+        stop
+          else if (babnp .lt. -alogmx) then
+      xp           = 0.0
+          else
+      xp           = 10.**babnp
+          end if
+c----------------------------------------------------------------------c
+c        Heavy nuclei mass fraction data arrays                        c
+c----------------------------------------------------------------------c
+      ah111        = axnc(j,ida  ,ita  ,iya  )
+      ah211        = axnc(j,idap1,ita  ,iya  )
+      ah121        = axnc(j,ida  ,itap1,iya  )
+      ah112        = axnc(j,ida  ,ita  ,iyap1)
+      ah221        = axnc(j,idap1,itap1,iya  )
+      ah212        = axnc(j,idap1,ita  ,iyap1)
+      ah122        = axnc(j,ida  ,itap1,iyap1)
+      ah222        = axnc(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Heavy nuclei mass fraction                                    c
+c----------------------------------------------------------------------c
+      babnnc       =  fym*( fdm*( ftm*ah111 + ftp*ah121 )
+     *              +       fdp*( ftm*ah211 + ftp*ah221 ) )
+     *              + fyp*( fdm*( ftm*ah112 + ftp*ah122 )
+     *              +       fdp*( ftm*ah212 + ftp*ah222 ) )
+c                                                                      c
+          if (babnnc .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1005) babnn,babnp,babnnc
+        stop
+          else if (babnnc .lt. -alogmx) then
+      xh           = 0.0
+          else
+      xh           = 10.**babnnc
+          end if
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstst(jp,rho,t,ye,s)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Entropy data arrays                                           c
+c----------------------------------------------------------------------c
+      as111        = as(j,ida  ,ita  ,iya  )
+      as211        = as(j,idap1,ita  ,iya  )
+      as121        = as(j,ida  ,itap1,iya  )
+      as112        = as(j,ida  ,ita  ,iyap1)
+      as221        = as(j,idap1,itap1,iya  )
+      as212        = as(j,idap1,ita  ,iyap1)
+      as122        = as(j,ida  ,itap1,iyap1)
+      as222        = as(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Entropy                                                       c
+c----------------------------------------------------------------------c
+      bs           =  fym*( fdm*( ftm*as111 + ftp*as121 )
+     *              +       fdp*( ftm*as211 + ftp*as221 ) )
+     *              + fyp*( fdm*( ftm*as112 + ftp*as122 )
+     *              +       fdp*( ftm*as212 + ftp*as222 ) )
+c                                                                      c
+          if (abs(bs) .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1006) bs
+        stop
+          end if
+c                                                                      c
+      s            = 10.**bs
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstct(jp,rho,t,ye,cmpn,cmpp,cmpe)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Neutron, proton, and electron chemical potential data arrays  c
+c----------------------------------------------------------------------c
+      an111        = acmpn(j,ida  ,ita  ,iya  )
+      an211        = acmpn(j,idap1,ita  ,iya  )
+      an121        = acmpn(j,ida  ,itap1,iya  )
+      an112        = acmpn(j,ida  ,ita  ,iyap1)
+      an221        = acmpn(j,idap1,itap1,iya  )
+      an212        = acmpn(j,idap1,ita  ,iyap1)
+      an122        = acmpn(j,ida  ,itap1,iyap1)
+      an222        = acmpn(j,idap1,itap1,iyap1)
+c                                                                      c
+      ap111        = acmpp(j,ida  ,ita  ,iya  )
+      ap211        = acmpp(j,idap1,ita  ,iya  )
+      ap121        = acmpp(j,ida  ,itap1,iya  )
+      ap112        = acmpp(j,ida  ,ita  ,iyap1)
+      ap221        = acmpp(j,idap1,itap1,iya  )
+      ap212        = acmpp(j,idap1,ita  ,iyap1)
+      ap122        = acmpp(j,ida  ,itap1,iyap1)
+      ap222        = acmpp(j,idap1,itap1,iyap1)
+c                                                                      c
+      ae111        = acmpe(j,ida  ,ita  ,iya  )
+      ae211        = acmpe(j,idap1,ita  ,iya  )
+      ae121        = acmpe(j,ida  ,itap1,iya  )
+      ae112        = acmpe(j,ida  ,ita  ,iyap1)
+      ae221        = acmpe(j,idap1,itap1,iya  )
+      ae212        = acmpe(j,idap1,ita  ,iyap1)
+      ae122        = acmpe(j,ida  ,itap1,iyap1)
+      ae222        = acmpe(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Neutron, proton, and electron chemical potentials             c
+c----------------------------------------------------------------------c
+      cmpn         =  fym*( fdm*( ftm*an111 + ftp*an121 )
+     *              +       fdp*( ftm*an211 + ftp*an221 ) )
+     *              + fyp*( fdm*( ftm*an112 + ftp*an122 )
+     *              +       fdp*( ftm*an212 + ftp*an222 ) )
+          if (abs(cmpn) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1007) cmpn,cmpp,cmpe
+        stop
+          end if
+c                                                                      c
+      cmpp         =  fym*( fdm*( ftm*ap111 + ftp*ap121 )
+     *              +       fdp*( ftm*ap211 + ftp*ap221 ) )
+     *              + fyp*( fdm*( ftm*ap112 + ftp*ap122 )
+     *              +       fdp*( ftm*ap212 + ftp*ap222 ) )
+          if (abs(cmpp) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1007) cmpn,cmpp,cmpe
+        stop
+          end if
+c                                                                      c
+      cmpe         =  fym*( fdm*( ftm*ae111 + ftp*ae121 )
+     *              +       fdp*( ftm*ae211 + ftp*ae221 ) )
+     *              + fyp*( fdm*( ftm*ae112 + ftp*ae122 )
+     *              +       fdp*( ftm*ae212 + ftp*ae222 ) )
+          if (abs(cmpe) .gt. realmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1007) cmpn,cmpp,cmpe
+        stop
+          end if
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstat(jp,rho,t,ye,ah)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Mean heavy nucleus mass number data arrays                    c
+c----------------------------------------------------------------------c
+        am111      = aa(j,ida  ,ita  ,iya  )
+        am211      = aa(j,idap1,ita  ,iya  )
+        am121      = aa(j,ida  ,itap1,iya  )
+        am112      = aa(j,ida  ,ita  ,iyap1)
+        am221      = aa(j,idap1,itap1,iya  )
+        am212      = aa(j,idap1,ita  ,iyap1)
+        am122      = aa(j,ida  ,itap1,iyap1)
+        am222      = aa(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Mean heavy nucleus mass number                                c
+c----------------------------------------------------------------------c
+        bah        =  fym*( fdm*( ftm*am111 + ftp*am121 )
+     *              +       fdp*( ftm*am211 + ftp*am221 ) )
+     *              + fyp*( fdm*( ftm*am112 + ftp*am122 )
+     *              +       fdp*( ftm*am212 + ftp*am222 ) )
+          if (abs(bah) .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1008) bah
+        stop
+          end if
+c                                                                      c
+      ah           = 10.**bah
+c                                                                      c
+      return
+c**********************************************************************c
+      entry eqstzt(jp,rho,t,ye,zh)
+      j            = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable grid indices and interpolation   c
+c         coefficients                                                 c
+c----------------------------------------------------------------------c
+        call eosidx(j,rho,t,ye,ida,ita,iya,fdm,fdp,fdd,ftm,ftp,ftt,fym,
+     *   fyp,fyy)
+      idap1        = ida + 1
+      itap1        = ita + 1
+      iyap1        = iya + 1
+c----------------------------------------------------------------------c
+c        Mean heavy nucleus charge number data arrays                  c
+c----------------------------------------------------------------------c
+      az111        = az(j,ida  ,ita  ,iya  )
+      az211        = az(j,idap1,ita  ,iya  )
+      az121        = az(j,ida  ,itap1,iya  )
+      az112        = az(j,ida  ,ita  ,iyap1)
+      az221        = az(j,idap1,itap1,iya  )
+      az212        = az(j,idap1,ita  ,iyap1)
+      az122        = az(j,ida  ,itap1,iyap1)
+      az222        = az(j,idap1,itap1,iyap1)
+c----------------------------------------------------------------------c
+c        Mean heavy nucleus charge number                              c
+c----------------------------------------------------------------------c
+      bzh          =  fym*( fdm*( ftm*az111 + ftp*az121 )
+     *              +       fdp*( ftm*az211 + ftp*az221 ) )
+     *              + fyp*( fdm*( ftm*az112 + ftp*az122 )
+     *              +       fdp*( ftm*az212 + ftp*az222 ) )
+          if (abs(bzh) .gt. alogmx) then
+        write (nprint,1010)
+        write (nprint,1001)
+        write (nprint,1002) rho,t,ye
+        write (nprint,1009) bzh
+        stop
+          end if
+c                                                                      c
+      zh           = 10.**bzh
+c                                                                      c
+      return
+c**********************************************************************c
+      entry esrgn(jp,rho,t,ye)
+c                                                                      c
+       j           = jp
+c----------------------------------------------------------------------c
+c        Compute independent variable indices                          c
+c----------------------------------------------------------------------c
+      fd           = dgrid*log10(rho)
+      ft           = tgrid*log10(t  )
+      fy           = ygrid*(0.5 - ye)
+      id           = int(fd)
+      it           = int(ft)
+      iy           = int(fy)
+c----------------------------------------------------------------------c
+c        Test whether zone is still within local table                 c
+c----------------------------------------------------------------------c
+          if (         id .eq. idr(j)
+     *         .and.   it .eq. itr(j)
+     *         .and.   iy .eq. iyr(j)     ) return
+c----------------------------------------------------------------------c
+c        Recompute local table if zone state is no longer inside       c
+c         prior table                                                  c
+c----------------------------------------------------------------------c
+            do 1000 idd = id  ,id+1
+            do  100 itt = it-1,it+2
+            do   10 iyy = iy  ,iy+1
+c                                                                      c
+      ida          = ( idd - id + 1 )
+      ita          = ( itt - it + 2 )
+      iya          = ( iyy - iy + 1 )
+        call eosdtgen(j,idd,itt,iyy,ida,ita,iya)
+c                                                                      c
+   10       continue
+  100       continue
+ 1000       continue
+c----------------------------------------------------------------------c
+c        Save the indices                                              c
+c----------------------------------------------------------------------c
+      idr(j)       = id
+      itr(j)       = it
+      iyr(j)       = iy
+c----------------------------------------------------------------------c
+c        Table generation complete                                     c
+c----------------------------------------------------------------------c
+      return
+      end
+      subroutine hvbub(tol1,tol2,tol3,tol4)
+c***********************************************************************
+      implicit real*8(a-h,o-z)
+      logical bad,fmbad
+      save
+c                                                                      c
+      parameter(zero=0.,one=1.,xms=.7,xm0=2.,xm0ms=xm0-xms,third=1./3.)
+      parameter(bsil=-8.448,ba=-7.075,dnp=1.2935)
+      parameter(a0=.067,c0=2.3798e-4,d00=.16,piby2=1.570796327)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /tcrit/tc
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+      common /zeros / ye0,theta0,size0,egy0
+c***********************************************************************
+      f3(z) = sign( (abs(z))**third , z)
+      frho(u) = 1.0 -1.5*f3(u) +0.5*u + 1.e-8
+      fg(u,u1) = f3(frho(u)) + f3(frho(u1))
+      fw1(x) = 78.0 * x * x * (1.0-x) * f3(1.0-x)
+      fwsize(za,u,u1) = u1 * fw1(za) * fg(u,u1) / f3((phi*theta))
+      fbulk(x)  = wnm + ws * (1.0-2.0*x)*(1.0-2.0*x)
+      fdbldx(x) = - 4.0 * ws * (1.0-2.0*x)
+      fdwszx(x) = wsize * 2.0 * (1.0-(5./3.)*x)/(x*(1.0-x))
+      fphi(x) = 1.0 - 3.0 * (0.5-x)**2
+      fder(u) = ( f3(u) - u ) / f3(frho(u))**2
+      fdbdlu(u) = -  fw1(za) / (phi*theta)**(third) *
+     *              ( u*fg(u,u1) +(u1*fder(u) -u*fder(u1) )/6.0 )
+      fah(za,u) = 193.3333333 * (1.0-za)**2 / frho(u)
+      fuhtra(yh) = (t/ah) *log (abs( yh/ (ah*sqrt(ah)*therm) ) )
+      fxk(za) = xk0*(1. - xkzafac*(1. - 2.*za)**2)
+      fcomp(theta) = (fxk(za)/18.0) * (1.0 - theta)*(1.0 - theta)
+      fpcomp(theta,za) = -(fxk(za)/9.0)*theta*(1.0-theta)
+      fbxthe(theta) = xk0*xkzafac*4./18.*(1. - 2.*za)*(1. - theta)**2
+      faf(x) = sin(piby2*min(one,x)) / x**(2.*third)
+      fcot(x) = cos(piby2*min(one,x)) / sin(piby2*min(one,x))
+      fpth(x) = - af*xmstar*(-2.*third + piby2*x*fcot(x))
+      fpick(adum,bdum,xdum) =
+     &     dim(sign(one,xdum),zero)*adum+dim(zero,sign(one,xdum))*bdum
+c****** x.lt.0:f=b *********   x.gt.0:f=a *****************x.eq.0:f=a*
+c*********************************************************************
+            if(tc.eq.zero) then
+        write(6,*)' give tc'
+        read(5,*)tc
+            endif
+      fmbad           = .false.
+      if(abs(un/t) .ge. 500. .or. abs(uhat/t) .ge. 500.) then
+      fmbad           = .true.
+                      return
+                      endif
+      yn              = 2.0 * therm * exp((un/t))
+      yp              = yn * exp(-(uhat/t))
+      etaatr          = ( 4.0*(un-0.5*uhat-ba)/t )
+      ya              = 8.0 * therm * exp(etaatr)
+                      if( max(yn,yp,ya) .ge. 2.0) then
+      fmbad           = .true.
+                      return
+                      endif
+c*********************************************************************
+      fm      = yn + yp + 4.0*ya
+      phi     = fphi(za)
+      dlphix  = 6.0*(0.5-za)/phi
+      d0      = d00 * phi * theta
+      u       = (1.0 - fm) / (d0/d - fm)
+      u1      = 1.0 - u
+      xh      = u * d0/d
+      ah      = fah(za,u)
+              if(ah .le. zero) then
+      fmbad   = .true.
+              return
+              endif
+      yh      = xh/(ah*u1)
+      tsi     = yn + yp + ya + yh
+c*********************************************************************
+      wsize   = fwsize(za,u,u1)
+      uhtra   = fuhtra(yh)
+      xmstar  = xms + xm0ms * wsize/size0 / (1.+t/tc)**2
+      af      = a0 * faf(phi*theta)
+      excit   = af*t*t
+      tcorr   = 1.0 - excit*xm0ms/size0/(1.+t/tc)**2
+      dbdlu   = fdbdlu(u)*tcorr
+     &        - 0.5*(uhtra+1.5*t/ah)*(f3(u)-u)/frho(u)
+      pcomp   = fpcomp(theta,za)
+      dbdlth  = pcomp - third * wsize * tcorr  + fpth(theta*phi)*t*t
+      dbdlph  = dbdlth - pcomp
+      dbdx    = fdbldx(za) + fdwszx(za)*tcorr + (dbdlph-dbdlth)*dlphix
+     &        + (uhtra+1.5*t/ah) *2.0/(1.0-za)
+     &        + fbxthe(theta)
+c***********************************************************************
+      b       = fbulk(za) + wsize - excit*xmstar + fcomp(theta)
+      tol1    = (dbdlu - dbdlth + tsi*t*d/d0) / (fxk(za)/9.*theta)
+      tol2    = dbdx + uhat
+      tol3    = ye -  (2.0 * ya + yp)*u1 - za * xh
+      tol4    = -un +za*uhat + b + dbdlth + uhtra
+c***********************************************************************
+              return
+c***********************************************************************
+c***********************************************************************
+      entry getzeros
+c***********************************************************************
+c******************************************** get energy zeroes ********
+      ye0 = 26./56.
+      za = ye0
+      theta0 = 1.0
+      size0 = fw1(ye0) /(fphi(ye0))**third
+      theta0 = 1 +(3.0/fxk(ye0))*size0/theta0/theta0**third
+      size0 = size0/theta0**third
+      theta0 = 1 +(3.0/fxk(ye0))*size0/theta0/theta0**third
+      size0 = size0/theta0**third
+      egy0 = fbulk(ye0) + size0 + fcomp(theta0)
+c***********************************************************************
+      write(6,999)ye0,d00*theta0*fphi(ye0),theta0,size0,egy0
+999   format(' zero level for fe: ye,d0,theta,wsize,egy',5f10.5)
+      return
+c***********************************************************************
+      entry guess
+c***********************************************************************
+      rxhmax = xh*fpick( ye0/ye,(1.-ye0)/(1.-ye),  ye0-ye)
+      za = rxhmax*ye + (1. - rxhmax)*ye0
+      phi = fphi(za)
+      theta = 1.0+fw1(za)*(3.0/fxk(za))*(1.0-4.0*d/d00/phi)
+      d0 = d00 * theta * phi
+      excit = a0/(theta*phi)**(2.0*third) * t * t
+      excit = a0 * t * t
+      tcorr = 1.0 - excit*xm0ms/size0
+      u = d/d0 * ye/za
+      u1 = 1.0 - u
+      wsize = fwsize(za,u,u1)
+      ah = fah(za,u)
+      uhathv = -fdbldx(za) - fdwszx(za) * tcorr
+      unhv   = za * uhathv +(fbulk(za) + wsize - excit)
+     * + fdbdlu(u)*tcorr +  fuhtra(1.0/ah/u1) + u * t/ah/u1
+c***********************************************************************
+       un = unhv*rxhmax + (1.-rxhmax)*(un-.001)
+       uhat = uhathv*rxhmax + (1. - rxhmax)*uhat
+c***********************************************************************
+                        return
+c***********************************************************************
+c************************************************ nuclear matter eos ***
+      entry eosnm
+c***********************************************************************
+                        ah = zero
+                        pd = zero
+                        sd = zero
+                        ed = zero
+                        xa = zero
+                        xn = zero
+                        xp = zero
+                        xh = 1.0
+                        u = 1.0
+                        za = ye
+                        d0 = d
+                        xmstar = xms
+              theta = (d0/d00)/fphi(ye)
+              af    = a0 * faf(d0/d00)
+              excit = xmstar * af * t * t
+      if (theta.gt.1.0) then
+              ecomp = (fxk(za)/9.0/gamhv) *
+     &            ( (theta**(gamhv-1.)-gamhv)/(gamhv-1.) + 1./theta)
+              pcomp = (fxk(za)/9.0/gamhv)
+     &                 * (theta**(gamhv-1.) - 1.0/theta)
+      else
+              ecomp = fcomp(theta)
+              pcomp = fpcomp(theta,za)
+      endif
+              b = fbulk(ye) - excit + ecomp
+              ph = d * (pcomp + fpth(d0/d00) *t*t)
+              sh = 2.0 * excit/t
+              eh = b + t * sh -(egy0 -(ye-ye0)*dnp)
+              dlphix = 6.0*(0.5-ye)/fphi(ye)
+              uhat = -fdbldx(za) + pcomp*dlphix
+     &             - ecomp/fxk(za)*xk0*xkzafac*4.*(1. - 2.*za)
+              un = b + ye * uhat + ph/d
+                        return
+c***********************************************************************
+      end
+      subroutine lectron
+c***********************************************************************
+      implicit double precision (a-h,o-z)
+      logical approx,first
+      logical bad,fmbad
+      save
+c***********************************************************************
+      parameter(third=1./3.,eps1=1.e-4,eps2=1.e-6,bet23=2./3.)
+      parameter(nlag=48,betmax=2.0,relmin=1.2,etabet=2.0)
+      parameter(ncnvge=30,expmax=300.,pi2=9.869604401,pi4=9.740909e+1)
+c     parameter(ncnvge=30,expmax=75.,pi2=9.869604401)
+      parameter(const=7.58366e7,xme=.511,zero=0.,hbarc=197.33)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+c                                                                      c
+      dimension x(nlag),wt0(nlag),wt(nlag),fn(nlag),fp(nlag)
+c                                                                      c
+      data first /.true./
+c**************************************** const = (hbar*c)**3 *pi**2 ***
+      data x /
+     * 2.98112358299E-2, 1.57107990617E-1, 3.86265037576E-1,
+     * 7.17574694116E-1, 1.15139383402E00, 1.68818582341E00,
+     * 2.32852700665E00, 3.07311086165E00, 3.92275241305E00,
+     * 4.84839335592E00, 5.94110805462E00, 7.11211053589E00,
+     * 8.39276259909E00, 9.78458318469E00, 1.12892591680E01,
+     * 1.29086577782E01, 1.46448408832E01, 1.65000814290E01,
+     * 1.84768823869E01, 2.05779986340E01, 2.28064622905E01,
+     * 2.52656121564E01, 2.76591280445E01, 3.02910710010E01,
+     * 3.30659306625E01, 3.59886813275E01, 3.90648487642E01,
+     * 4.23005903629E01, 4.57027920385E01, 4.92791863828E01,
+     * 5.30384980878E01, 5.69906248148E01, 6.11468647861E01,
+     * 6.55202069290E01, 7.01257062361E01, 7.49809775189E01,
+     * 8.01068573503E01, 8.55283111160E01, 9.12757079937E01,
+     * 9.73866677136E01, 1.03908833357E02, 1.10904220885E01,
+     * 1.18456425046E02, 1.26683425769E02, 1.35762589578E02,
+     * 1.45986432709E02, 1.57915612023E02, 1.72996328149E02/
+      data wt0 /
+     * 7.42620058280E-02, 1.52271949809E-01, 1.90409088263E-01,
+     * 1.86633059485E-01, 1.53424200158E-01, 1.08779692807E-01,
+     * 6.47607386092E-02, 3.68811941158E-02, 1.78568442692E-02,
+     * 7.67761651450E-03, 2.93578590374E-03, 9.99065537816E-04,
+     * 3.20598016992E-04, 8.15387118036E-05, 1.95315871573E-05,
+     * 4.15418924505E-06, 7.83370038207E-07, 1.30739477492E-07,
+     * 1.92707140802E-08, 2.50263893713E-09, 2.85578550877E-10,
+     * 2.85462241206E-11, 2.49101068494E-12, 1.89033660697E-13,
+     * 1.24216268595E-14, 7.03423152021E-16, 3.41454914859E-17,
+     * 1.41231541490E-18, 4.94421800810E-20, 1.45395248137E-21,
+     * 3.56106836500E-23, 7.19405599649E-25, 1.18553722835E-26,
+     * 1.57349135708E-28, 1.65728544092E-30, 1.36143416272E-32,
+     * 8.54615581396E-35, 4.00009053248E-37, 1.35501999110E-39,
+c     * 3.20163679535E-42, 5.05386916606E-45, 4.96248754070E-48,
+c     * 2.82351071612E-51, 8.26844606951E-55, 1.04906484782E-58,
+c     * 4.34657442273E-63, 3.43473643840E-68, 1.31906608840E-74/
+
+c   This avoids out of range errors in f90
+     * 3.20163679535E-42, 5.05386916606E-45, 0,
+     * 0, 0, 0,
+     * 0, 0, 0/
+
+c***********************************************************************
+      sq(a,b)   = sqrt(a*a + b*b*b)
+      cube(a,b) = (sq(a,b)+a)**third -(max(sq(a,b)-a, zero))**third
+      g1(x2)    = 0.5 * x2 + 1.644934067
+      g3(x2)    = 11.36439395 + x2*(4.9934802201 + 0.25*x2)
+      fexp(xx)   = exp(min(expmax,max(-expmax,xx)))
+      ffn(xx)    = xx**3*(1. + pi2/beta2*(2.*xx*xx+1.)/(2.*xx**4)
+     &            + 7./40.*(pi2/beta2)**2/xx**8)
+      dfndx(xx) = 3.*ffn(xx)/xx + pi2/beta2*(2. - 4.*(2.*xx*xx+1)/xx**2)
+     &            - pi2*pi2/(beta2*beta2)*56./40./xx**6
+      f(xx)     = xx*(2.*xx*xx-3.)*sqrt(xx*xx+1.) +
+     &             3.*log(xx + sqrt(1.+xx*xx))
+      g(xx)     = 8.*xx**3*(sqrt(xx*xx+1.) -1.) - f(xx)
+C----------------------------------------------------------------------C
+C        Load wt's                                                     C
+C----------------------------------------------------------------------C
+      if (first) then
+        first      = .false.
+        do 100 i = 1,nlag
+          wt(i)    = fexp(x(i))*wt0(i)
+  100   continue
+      end if
+c***********************************************************************
+      ww        = d * const/t**3
+      beta      = xme/t
+      beta2     = beta*beta
+      etae      = zero
+      approx    = (beta.le.betmax)
+c********************************************* try semi-rel,deg app. ***
+                if(approx) then
+         etae   = cube(1.5*(ww*ye) , max(pi2*third - 0.5*beta2 , zero))
+         approx = (beta.le.bet23) .or. (etae.gt.etabet*beta)
+c************************************************** valid? *************
+                if(approx) then
+            ped = (t/ww)*third *(g3(etae*etae)-1.5*beta2*g1(etae*etae))
+            pe  = d*ped
+            se  = (4./t)*ped - ye*etae +beta2*g1(etae*etae) / ww
+            ee  = t*(se+ye*etae)-ped
+            yeplus =   2.0*fexp(-etae)*(1.0-fexp(-etae)/8.0) / ww
+c**************************************** yeplus approx here ***********
+            rel = 3.0*ped/(ee-xme*(ye+ 2.0*yeplus) )
+c************************************************** valid? *************
+            approx = (rel .le. relmin)
+            endif
+            endif
+            if(approx) then
+      ue    = etae * t
+            go to 1800
+            endif
+c**************************************** approx gives lower etae ******
+      etae  = max(etae,(ue-0.511)/t)
+            if(etae .gt. 35.0) then
+c         print *,' etae=',etae,' going into t=0'
+            go to 1001
+            endif
+            if(etae.le.zero)
+     *etae  = cube(1.5*(ww*ye) , max(pi2*third - 0.5*beta2 , zero) )
+c****************************************** gauss-laguerre integration *
+      tolp      = zero
+                do 1000 i = 1,ncnvge
+c      print *,'    i=',i
+      wwchk     = zero
+      deriv     = zero
+                do 500 j = 1,nlag
+      fact      = wt(j) * sqrt(x(j) *(x(j)+2.0*beta) ) * (x(j)+beta)
+      fn(j)     = 1.0/(1.0 + fexp(x(j) + beta - etae))
+      fp(j)     = 1.0/(1.0 + fexp(x(j) + beta + etae))
+      wwchk     = wwchk + fact * (fn(j)-fp(j))
+      deriv     = deriv + fact * ( fn(j)*(1.-fn(j)) + fp(j)*(1.-fp(j)) )
+500             continue
+                if(wwchk .le. zero) go to 1001
+      tol       = log(wwchk/(ww*ye))
+                if(abs(tol).le.eps1) go to 1500
+      deriv     =   deriv / wwchk
+c********************************************** oscillations ***********
+                if(tol*tolp .ge. zero) then
+         deta   = - tol/deriv
+                else
+         deta   = detap *tol / (tolp-tol)
+                endif
+                if(abs(deta).le.eps2*abs(etae)) go to 1500
+c      write(6,'(i5,1p2e12.3,1p3e13.4)')i,etae,deta,tol,ww*ye,wwchk
+                if(etae + deta .le. zero) deta = deta/10
+      etae      = etae + deta
+                if(etae .le. zero) etae = abs(deta)
+      tolp      = tol
+      detap     = deta
+1000            continue
+c******************************************************** failure ******
+c*****************************************use the t=0 solution *********
+1001  pfc       = hbarc * (3*pi2*d*ye)**third
+      rb2       = pi2/beta2
+      xans      = (pfc/xme)**3
+      xx        = pfc/xme
+      dxxp      = zero
+                do 1002 l=1,50
+      tol       = (ffn(xx) - xans)/xans
+c       print *,' tol,dxx',tol,dxx,dfndx(xx)
+                if(abs(tol) .le. 1.e-7) go to 1003
+       dxx      = -tol*xans/dfndx(xx)
+                if(dxx*dxxp .lt. zero) dxx = dxx/2.
+       dxxp     = dxx
+       xx       = xx + dxx
+1002            continue
+       write(6,*)' i failed in lepton tol,xx,xguess',tol,xx,xans**third
+1003            continue
+      pe        = xme**4 / (24.*pi2*hbarc**3) * (f(xx) + 4.*rb2
+     &          * xx * sqrt(1.+xx*xx) + 7./15. * rb2*rb2
+     &          * sqrt(1.+xx*xx) * (2.*xx*xx-1.)/xx**3)
+      ek        = xme**4 / (24.*pi2*hbarc**3) *(g(xx) + 4.*rb2
+     &          *(sqrt(1.+xx*xx)*(3.*xx*xx+1.)/xx - (2.*xx*xx+1.)/xx))
+      ee        = ek/d + ye*xme
+      ue        = xme*sqrt(1.+xx*xx)
+      se        = (ee+pe/d-ue*ye) / t
+      rel       = 3. * pe/ek
+      yeplus    = zero
+c      write(6,1234)t,ye*d/6.0e-16,etae
+c1234  format(' t ye*dcgs etae',1p3e13.4)
+                go to 1800
+c*****************************************use the t=0 solution *********
+c******************************************************** failure ******
+1500  continue
+      pe        = zero
+      ee        = zero
+      se        = zero
+      yeplus    = zero
+                do 1600 j = 1,nlag
+      fact      = wt(j) * sqrt(x(j) *(x(j)+2.0*beta) )
+      pe        = pe + fact * (fn(j)+fp(j)) * x(j) * (x(j)+2.0*beta)
+      ee        = ee + fact * (fn(j)+fp(j)) * (x(j) + beta)**2
+      yeplus    = yeplus + fact * fp(j) * (x(j) + beta)
+1600            continue
+      yeplus    = yeplus/ww
+      ue        = etae * t
+      pe        = (t/ww) * d * third * pe
+      ee        = (t/ww)* ee
+      se        = (ee+pe/d)/t - ye*etae
+      rel       = 3.0*pe/d/(ee-xme*(ye+2.0*yeplus) )
+c****************************** yeplus exact here, ee always has mass  *
+1800            continue
+                return
+778   format(' i failed in elect: (ww*ye),wwchk,etae,deta',1p4e12.3)
+                end
+c***********************************************************************
+      subroutine net
+c***********************************************************************
+      implicit real*8(a-h,o-z)
+*call keyeos
+      logical bad,fmbad
+c      save
+c                                                                      c
+      parameter(nuc=6,zero=0.0,const=2.3798e-4,ncnvge=20,dnp=1.2935)
+      parameter (expmax = 75.,three9 = 0.999, five9 = 0.99999)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+      common /zeros / ye0,theta0,size0,egy0
+c                                                                      c
+      dimension a(nuc),z(nuc),zza(nuc),zan(nuc),a52(nuc),bn(nuc)
+      dimension x(nuc),betem(nuc)
+c                                                                      c
+      data x/nuc*0./
+      data a/1,1,4,56,28,16/,z/1,0,2,26,14,8/
+      data zan/1,0,.5,.4643,.5,.5/,zza/1,0,1.,12.071,7,4/
+      data bn/0,0,-7.075,-8.791,-8.448,-7.976/
+      data betem/0,0,-7.075,-8.791,-8.448,-7.976/
+      data a52/2,2,32.,23467.7,4148.54,1024/
+c*** 1=p 2=n 3=2He4 4=26Fe56 5=14Si28 6=8O16****************************
+c***********************************************************************
+      fexp(f) = exp( min( expmax, max( -expmax, f) ) )
+c***********************************************************************
+      nflunk      = 0
+      bad         = .false.
+      epsp        = 5000.
+                  if(uhat.ne. zero) go to 8
+5                 continue
+                  if (nflunk .le. 1) then
+                  if(ye.lt. 0.4643) then
+      un          = t*log(0.5*(1.-ye/.4643)/therm)
+      uhat        = (un-bn(4)-t/a(4)*log(ye/.4643/therm/a52(4)))/.4643
+                  else
+      xh          = (1.0-ye)/(.5357)
+      xp          = 1.-xh
+      uhat        = (bn(4)+t/a(4)*log(xh/a52(4)/therm)
+     &                    - t*log(xp*0.5/therm))/.5357
+      un          = uhat + t*log(xp*0.5/therm)
+                  endif
+                  else if(nflunk.eq.2) then
+      uhat        = t*log((1.0-ye)/ye)
+      un          = t*log((0.5/therm)*(1.0-ye))
+                  else if (nflunk .eq. 3 .and. ye .ge. .50) then
+      xsil        = min((1-ye)*2.,three9)
+      xp          = 1.-xsil
+      uhat        = (bn(5)+t/a(5)*log(xsil/a52(5)/therm)
+     &               -t*log(xp*0.5/therm))/.5
+      un          = uhat + t*log(xp*0.5/therm)
+                  else if (nflunk .eq. 3) then
+      xsil        = min(ye*2.,three9)
+      xp          = 1.-xsil
+      uhat        = (bn(5)+t/a(5)*log(xsil/a52(5)/therm)
+     &               -t*log(xp*0.5/therm))/.5
+      un          = uhat + t*log(xp*0.5/therm)
+                  else if(nflunk .eq. 4) then
+      xh          = min(2.*ye,five9)
+      xp          = 1. - xh
+      uhat        = (bn(4)+t/a(4)*log(xh/a52(4)/therm)
+     &              - t*log(xp*0.5/therm))/.5357
+      un          = uhat + t*log(xp*0.5/therm)
+                  endif
+8                 continue
+c***********************************************************************
+c                  if(exfac.eq.zero)then
+c      write(6,*)' give exfac'
+c      read(5,*)exfac
+c                   endif
+      exfac = zero
+      excited = exfac*.067 * 2.0 * t * t
+      do 90 n = 4,nuc
+              betem(n) = bn(n) - excited
+90            continue
+c***********************************************************************
+      do 100 itrat = 1,ncnvge
+              ones=     zero
+              zas =     zero
+              zs =      zero
+              as =      zero
+              zzas =    zero
+              bes  =    zero
+              tsi =     zero
+c***********************************************************************
+              do 10 n = 1,nuc
+                x(n) = fexp(log(a52(n)*therm)
+     &                 + (a(n)*un-z(n)*uhat-a(n)*betem(n))/t )
+                 ones=     ones + x(n)
+                 zas =     zas + x(n)*zan(n)
+                 zzas =    zzas + x(n)*zza(n)
+                 zs =      zs + x(n)*z(n)
+                 as =      as + x(n)*a(n)
+                 bes =     bes + x(n)*bn(n)
+                 tsi =     tsi + x(n)/a(n)
+10            continue
+c***********************************************************************
+              tolone = log(ones)
+              tolza = log(zas/ye)
+              eps = abs(tolone) + abs(tolza)
+              if(eps.le. 2.e-5) go to 200
+c***********************************************************************
+              epssav = min(abs(eps),epsp)
+              if(epssav .lt. epsp) then
+                 epsp = epssav
+                 xps = x(1)
+                 xns = x(2)
+                 xas = x(3)
+                 xhs = x(4)
+                 uns = un
+                 uhats = uhat
+              endif
+c***********************************************************************
+              if (tolone.ge.75. .and. tolza.ge.75.)go to 101
+c***********************************************************************
+              rdenom = ((zs/ones*zs/zas - as/ones*zzas/zas))
+              if(rdenom .eq. zero) go to 101
+              rdenom = t/rdenom
+              dun = (tolone*zzas/zas - tolza/ones*zs)*rdenom
+              duhat = (zs/zas*tolone - as/ones*tolza) * rdenom
+              un = un + dun
+              uhat = uhat + duhat
+100   continue
+c***********************************************************************
+101   nflunk = nflunk + 1
+      write(6,1000)jshel,nflunk,t,d/6.022e-16,ye,un,uhat,tolone,tolza
+1000  format(' net fail -t d ye un uhat dun duhat tolone tolza  '
+     & ,2i4,1p7e10.2)
+c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      kesfail=7
+      eossubf='net'
+c>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+      if(nflunk.le.4) go to 5
+            bad = .true.
+            xp = xps
+            xn = xns
+            xa = xas
+            xh = xhs
+            un = uns
+            uhat = uhats
+            go to 201
+200   continue
+      xp = x(1)
+      xn = x(2)
+      xa = x(3)
+      xh = x(4)
+c***********************************************************************
+201   continue
+      u  = zero
+      theta = zero
+      ah = zero
+      za = zero
+      xhsum = zero
+           do 202 n = 4,nuc
+      ah = ah + x(n)*a(n)
+      za = za + x(n)*zan(n)
+      xhsum = xhsum + x(n)
+202        continue
+      ah = ah/xhsum
+      za = za/xhsum
+      ph = zero
+      sh = xhsum * excited * 2.0 / t
+      b = bes - x(3)*bn(3)
+      eh = bes  + xhsum*excited - (egy0 -(ye-ye0)*dnp)
+      pd = d * t * tsi
+      ed = 1.5 * t * tsi
+      sd = 2.5 * tsi - (un - ye*uhat - bes + xhsum*excited) /t
+                        return
+c***********************************************************************
+                        end
+c***********************************************************************
+      subroutine saha
+c***********************************************************************
+      implicit real*8(a-h,o-z)
+      logical test
+      logical bad,fmbad,first
+      save
+c                                                                      c
+      parameter(xms=.7,xm0=2.,xm0ms=xm0-xms)
+      parameter(third=1./3.,ba=-7.075,zero=0.0,dnp=1.2935)
+      parameter(a0=.067,c0=2.3798e-4,d00=.16)
+      parameter(ncnvge = 10,epsf=4.e-7,epsg=4.e-8,epsh=4.e-7,epse=4.e-8)
+      parameter (bsil = -8.448)
+      parameter (one=1.,tenm3=1.e-3,dzamin=1.e-12)
+c                                                                      c
+      dimension w(2),x(2),y(2),z(2),e(5),f(5),g(5),h(5),a(4,4)
+      dimension fvec(4),delta(4)
+c                                                                      c
+c        Equation of state arrays                                      c
+      common /tcrit/tc
+      common /params/ gamhv,wnm,ws,xk0,xkzafac
+      common /lsca1 / bad,fmbad
+      common /isca1 / itsav,jshel
+      common /sca1  / af,ah,b,con,d,d0,dbdlu,dedt,delbet,dtran,ed,ee,eh
+      common /sca2  / enu,etot,fa,fm,pd,pe,ph,phi,pnu,ptot,rel,sd,se,sh
+      common /sca3  / snu,stot,t,therm,theta,tsi,u,u1,ue,uhat,uhtra,un
+      common /sca4  / unu,xa,xh,xmstar,xn,xp,ya,ye,yeplus,yh,yn
+      common /sca5  / ynu,yp,za
+      common /zeros / ye0,theta0,size0,egy0
+c                                                                      c
+      data first /.true./
+c***********************************************************************
+      fpick(adum,bdum,xdum) =
+     &     dim(sign(one,xdum),zero)*adum+dim(zero,sign(one,xdum))*bdum
+c ******* x.lt.0:f=b *********   x.gt.0:f=a *****************x.eq.0:f=a*
+      feps(j)   = e(j)**2/epse +f(j)**2/epsf +g(j)**2/epsg +h(j)**2/epsh
+      test(j)      = feps(j) .lt.1.0  .or.
+     &             (abs(xh) .lt. 0.005 .and.
+     &             4.* g(j)**2 .lt. epsg .and. abs(h(j))*ah/t .lt. 1.)
+c************************************* if a guess or no nuclei *********
+          if (first) then
+      con        = 0.01
+      tc         = 12.
+      first      = .false.
+          end if
+      bad = .false.
+      nfail = 0
+      therm = c0 * t * sqrt(t) / d
+      if( ((xa .ne. zero) .or. (za .ne. zero)) .and.
+     &   (theta .ne. zero) ) go to 2
+1     call net
+c********************************************* no nuclei needed ********
+c      if( (xh .lt. con .or. nfail.ge.2) .and. (.not. bad)
+c     & .and. (nfail.ne.0 .or. d.lt.1.e12*6.02e-16) ) return
+      if( (xh .lt. con .or. nfail.ge.2) .and. (.not. bad) ) return
+c******************************************choose guess and set up ****
+              call guess
+c*******************************************begin the iterations********
+2      continue
+c***********************************************************************
+             do 10 iters = 1, ncnvge
+              itsav = iters
+              w(1) = theta
+              x(1) = za
+              y(1) = uhat
+              z(1) = un
+c*****************get the zero point************************************
+c
+                  call hvbub(e(1),f(1),g(1),h(1))
+      if(fmbad) go to 11
+      phi0 = phi
+      u0 = u
+      ya0 = ya
+      fm0 = fm
+                  if (test(1)) go to 25
+      dzap = dza
+      duhatp = duhat
+      dunp = dun
+      dthetp = dtheta
+      dza = 1.0/(8.0*ws*za)/xh
+      duhat = sign(tenm3,g(1))
+      dun = sign(tenm3,h(1)*0.5)
+      dtheta = .001
+                   if(iters.gt.1) then
+      dza=sign(max(dzamin,min(abs(dza), .05*abs(dzap))),-dzap)
+      duhat=sign(min(abs(duhat),.01*abs(duhatp)),-duhatp)
+      dun=sign(min(abs(dun),.01*abs(dunp)),-dunp)
+      dtheta=sign(min(abs(dtheta), .05*abs(dthetp)),-dthetp)
+                   endif
+      dza = sign(min(abs(dza),0.001*za),dza)
+            x(2) = x(1) + dza
+            za = x(2)
+            call hvbub(e(2),f(2),g(2),h(2))
+            if(fmbad) go to 11
+            if(test(2)) go to 25
+                  za = x(1)
+            uhat = uhat + duhat
+            y(2) = uhat
+            call hvbub(e(3),f(3),g(3),h(3))
+            if(fmbad) go to 11
+            if(test(3)) go to 25
+            uhat = y(1)
+            un = un + dun
+            z(2) = un
+            call hvbub(e(4),f(4),g(4),h(4))
+            if(fmbad) go to 11
+            if(test(4)) go to 25
+            un = z(1)
+                 theta = theta + dtheta
+                 w(2) = theta
+                    call hvbub(e(5),f(5),g(5),h(5))
+                    if(fmbad) go to 11
+             if (test(5)) go to 25
+c********************************************find derivs,fill matrix****
+            a(1,1) = (f(2) - f(1))/(x(2) - x(1))
+            a(1,2) = (f(3) - f(1))/(y(2) - y(1))
+            a(1,3) = (f(4) - f(1))/(z(2) - z(1))
+            a(1,4) = (f(5) - f(1))/(w(2) - w(1))
+            a(2,1) = (g(2) - g(1))/(x(2) - x(1))
+            a(2,2) = (g(3) - g(1))/(y(2) - y(1))
+            a(2,3) = (g(4) - g(1))/(z(2) - z(1))
+            a(2,4) = (g(5) - g(1))/(w(2) - w(1))
+            a(3,1) = (h(2) - h(1))/(x(2) - x(1))
+            a(3,2) = (h(3) - h(1))/(y(2) - y(1))
+            a(3,3) = (h(4) - h(1))/(z(2) - z(1))
+            a(3,4) = (h(5) - h(1))/(w(2) - w(1))
+            a(4,1) = (e(2) - e(1))/(x(2) - x(1))
+            a(4,2) = (e(3) - e(1))/(y(2) - y(1))
+            a(4,3) = (e(4) - e(1))/(z(2) - z(1))
+            a(4,4) = (e(5) - e(1))/(w(2) - w(1))
+            fvec(1) = -f(1)
+            fvec(2) = -g(1)
+            fvec(3) = -h(1)
+            fvec(4) = -e(1)
+c********************************************invert the matrix**********
+      call solve(4,a,fvec,delta,fmbad)
+      if(fmbad) go to 11
+      dza = delta(1)
+      duhat = delta(2)
+      dun = delta(3)
+      dtheta = delta(4)
+c***********************************limit step size*********************
+      dza = max(ye-.1-x(1),min(dza,.55-x(1)))
+      dza = sign(min(abs(x(1)*0.25),abs(dza)),dza)
+      dtheta = sign(min(theta*0.2,abs(dtheta)),dtheta)
+c***************************************** shuffle to keep u .gt. 0 ****
+      if( fm0 .gt. 1.0001 .and. iters .gt. 1) then
+      unshuf = - fpick(t*(fm0-1.0)/(fm0+12.0*ya0),0.75*dzap ,-dzap)
+      dunp = dun + unshuf
+      dun = unshuf
+      duhat = 1.0*t*(fm0-1.0)/(fm0+4.0*ya0)
+      endif
+c******************************** update the values ********************
+      za = x(1) + dza
+      uhat = y(1) + duhat
+      un = z(1) + dun
+      theta = w(1) + dtheta
+c***********************************************************************
+                if(iters.ge.5) then
+      if((abs(dza/x(1))+abs(duhat/y(1))+abs(dun/z(1))).le.3.e-7)go to 20
+      if(d .le. 0.1) go to 10
+      if( (d .ge. d00*phi0) .or. (u0.gt.0.99)
+     & .or. (iters.ge. ncnvge .and. bad) ) then
+                        dtran = d
+                        write(6,993)dtran,u,d0,theta,xh
+                        call eosnm
+                        return
+                 endif
+                 endif
+10                     continue
+c******************************************************failure?*********
+11    nfail = nfail + 1
+      if(.not. bad) go to 1
+      if(.not. fmbad) stop 'failure'
+c******************************************************failure?*********
+                        dtran = d
+                        write(6,993)dtran,u,d0,theta,xh
+                        call eosnm
+                        return
+c******************************************************failure?*********
+20    continue
+25    continue
+      xn = yn*u1
+      xp = yp*u1
+      xa = 4.0*u1*ya
+      pd  = d * (tsi*t)
+      ed = 1.5*(tsi*t)*u1
+      sd = tsi * u1 * 2.5 - ( (1.-xh)*un -(ye-za*xh)*uhat -xa*ba)/t
+     * -xh * uhtra/t
+      ph = xh * d * dbdlu
+      sh = xh * af * t * (2.*xmstar-2.*t/tc/(1.+t/tc)*(xmstar-xms) )
+      eh = xh * b +xa*ba - (egy0 -(ye-ye0)*dnp) + t*sh
+      return
+c***********************************************************************
+993   format(' set dtran=',f6.5,'  u=',f7.3,'  d0=',f7.5,' theta=',f7.4
+     &,' xh = ',1pe12.3)
+999   format(' zero level for fe: ye,d0,theta,wsize,egy',5f10.5)
+1000  format(' i failed iters,za,uhat,un,theta ',/,2i3,1p4e12.5)
+                        end
+c***********************************************************************
+c      comments of september 7,1984
+c       solves the matrix equation a * x = b where
+c     a is an n by n matrix, b and x n-component vectors
+c
+c
+c***********************************************************************
+c***********************************************************************
+      subroutine solve(n,a,bb,x,fmbad)
+c***********************************************************************
+      implicit real*8(a-h,o-z)
+      logical fmbad
+      save
+      parameter (nsize = 4)
+      dimension a(nsize,nsize),bb(nsize),x(nsize)
+      dimension xl(nsize,nsize),u(nsize,nsize),y(nsize)
+      do 10 m=1,n
+10    xl(m,m)=1.
+        do 100 k=1,n
+        do 40 j=k,n
+        u(k,j)=a(k,j)
+        if(k.eq.1)go to 40
+        do 310 m=1,k-1
+310      u(k,j)=u(k,j)-xl(k,m)*u(m,j)
+40    continue
+41      if(k.eq.n)go to 100
+        do 50 i=k+1,n
+        xl(i,k)=a(i,k)
+        if(k.eq.1) go to 50
+        do 45 m=1,k-1
+45      xl(i,k)=xl(i,k)-xl(i,m)*u(m,k)
+      if(u(k,k) .eq. 0.) then
+      fmbad = .true.
+      return
+      endif
+50      xl(i,k)=xl(i,k)/u(k,k)
+100     continue
+      do 200 i=1,n
+      y(i)=bb(i)
+      if(i.eq.1) go to 200
+      do 150 k=1,i-1
+150   y(i)=y(i)-xl(i,k)*y(k)
+200   continue
+      do 300 ii=1,n
+      i=n+1-ii
+      x(i)=y(i)
+      if(i.eq.n)go to 300
+      do 250 k=i+1,n
+250   x(i)=x(i)-u(i,k)*x(k)
+300   x(i)=x(i)/u(i,i)
+      return
+      end
+c***********************************************************************
+c################################################################## end

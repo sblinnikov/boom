@@ -1,0 +1,27 @@
+*deck rdvec
+      subroutine  rdvec (v,nw,word,nt)
+*call implic
+      character*10 word
+c      character(*) word
+      dimension  v(nw)
+*call krdwtdm
+      write(*,*)'ntype,nwi,word ',ntype,nwi,word
+!      pause
+!      read (nt,end=91) ntype,nwi,word
+      read (nt,'(2i10,1x,a)',end=91) ntype,nwi,word ! unform --> form
+      if(nwi.ne.nw)  then
+                     print *,'inconssistent length in rdvec'
+                     print *,'nw=',nw,'  nwin=',nwi
+                     stop 'inconssistent length in rdvec'
+                     endif
+!      read (nt,end=92) (v(i),i=1,nw)
+      read (nt,*,end=92) (v(i),i=1,nw) ! form!!!
+      krd=krd+1
+      return
+ 91   continue
+      print *,' rdvec error in header'
+      stop 'rdvec error in header'
+ 92   continue
+      print *,'rdvec error in block'
+      stop 'rdvec error in block'
+      end

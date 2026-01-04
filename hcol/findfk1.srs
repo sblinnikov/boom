@@ -1,0 +1,115 @@
+*deck findfk1
+      subroutine  findfk1(fmu,x0,x1,kpx,fk)
+*call implic
+      parameter(lmax=8)
+      dimension fk(lmax),tl(lmax),al(lmax)
+c
+      if(abs(x1-x0).lt.(1d-10)) then
+      do kx=1,lmax
+      fk(kx)=0d0
+      end do
+      go to 799
+      end if
+c
+      if(fmu.gt.x0.and.fmu.gt.x1) go to 400
+      if(fmu.lt.x0.and.fmu.lt.x1) go to 300
+c
+      xmax=max(x0,x1)
+      argtl=xmax-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=poly(xmax,al,jx,lmax)
+      end do
+c
+      xmin=min(x0,x1)
+      argtl=fmu-xmin
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(xmin,al,jx,lmax)
+      end do
+c
+      argtl=0.0
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        if(mod(l,2).ne.0) al(l)=0d0
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-2d0*poly(fmu,al,jx,lmax)-(fmu**kx-xmin**kx)/kx
+      if(x1.gt.x0) fk(kx)=-fk(kx)
+      end do
+      go to 799
+c
+ 300  continue
+      argtl=x0-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=poly(x0,al,jx,lmax)
+      end do
+c
+      argtl=x1-fmu
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(x1,al,jx,lmax)
+      end do
+      go to 799
+c
+  400 continue
+      argtl=fmu-x0
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=poly(x0,al,jx,lmax)
+      if(kpx.ne.0) fk(kx)=fk(kx)-x0**kx/kx
+      end do
+c     -------------------------
+      argtl=fmu-x1
+      call findtl(argtl,tl)
+      do kx=1,lmax
+      jx=kx-1
+      fac=1.0
+        do l=1,kx
+        al(l)=fac*tl(l)
+        fac=-(kx-l)*fac
+        end do
+      fk(kx)=fk(kx)-poly(x1,al,jx,lmax)
+      if(kpx.ne.0) fk(kx)=fk(kx)+x1**kx/kx
+      end do
+      go to 799
+c     --------------------
+c
+  799 continue
+      return
+      end

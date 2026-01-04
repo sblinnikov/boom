@@ -1,0 +1,88 @@
+*deck ratenu
+      subroutine ratenu(ro,t,fmue,fmuhat,xp,xhv,ahv,zhv,enu,denu
+     &,ydot,gamma)
+*call implic
+*call const
+c^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+c     in this version block=0d0 !!!
+c^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+c
+      save   aconst,constp,consth
+c
+      data  gep   /1d0/
+      data  ftep  /1083.9d0/
+      data  wep   /1.293d0/
+      data  wh    /4.3d0/
+      data  geh   /2d0/
+      data  fteh  /19950d0/
+      data  argm  /115d0/
+      data  ntry  /0/
+c--------------------------------------------------------
+      if(ntry.eq.0)  then
+      ntry=1
+      aconst=pai4/(avo*(planck/emev*clite)**3)
+c     aconst=1d0/(avo*facdis)
+      constp=gep*log(2d0)/(ftep*(fmelctr*clite2/emev)**5)
+      consth=geh*log(2d0)/(fteh*(fmelctr*clite2/emev)**5)
+                     endif
+c--------------------------------------------------------
+      enu2=enu**2
+      source=0d0
+      gamma=0d0
+      arg4=(-enu-fmuhat+fmue)/t
+      arg4=min(max(arg4,-argm),argm)
+      exp4=exp(arg4)
+      sep=0d0
+      gammap=0d0
+c
+c     calculate absorption rate...
+      arg3=(-fmuhat+wep)/t
+      arg3=min(max(arg3,-argm),argm)
+      exp3=exp(arg3)
+      coefep=constp/aconst*xp*ro
+      gammap=coefep*(enu+wep)**2/(exp3+exp4)
+c
+c     calculate source
+      arg1=(enu+wep-fmue)/t
+          if(arg1.gt. argm) then
+                            fd1=0d0
+      elseif(arg1.lt.-argm) then
+                            fd1=1d0
+                            else
+                            fd1=1d0/(1d0+exp(arg1))
+                            endif
+      sep=constp*xp*fd1*enu2*(enu+wep)**2
+c----------------------------------------------------------------
+      seh=0d0
+      gammah=0d0
+c     condition for neutron shell blockage:
+      if ((ahv .le. 0d0) .or. (ahv-zhv .ge. 40d0))    go to 905
+c
+      weh=fmuhat+wh
+c
+c     calculate absorption rate...
+c     arg5=(-fmuhat+weh)/t
+      arg5=wh/t
+      exp5=exp(min(argm,arg5))
+c     mistake in myra          zhv is missing
+      coefeh=consth/aconst*xhv*zhv/ahv*ro
+      gammah=coefeh*(enu+weh)**2/(exp5+exp4)
+c
+c     calculate source function...
+      arg2=(enu+weh-fmue)/t
+c     mistake in myra zhv is missing
+      coh=consth*xhv*zhv/ahv
+           if(arg2.gt.argm)  then
+                             fd2=0d0
+      elseif(arg2.lt.-argm)  then
+                             fd2=1d0
+                             else
+                             fd2=1d0/(1d0+exp(arg2))
+                             endif
+      seh=coh*fd2*enu2*(enu+weh)**2
+  905 continue
+      source=sep+seh
+      ydot=source*ro*avo*denu
+      gamma=gammap+gammah
+      return
+      end

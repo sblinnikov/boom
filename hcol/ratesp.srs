@@ -1,0 +1,77 @@
+*deck ratesp
+      subroutine  ratesp(jmax,ngmax)
+      implicit none
+*call const
+*call corct
+*call dim
+*call compair
+c
+c     Assume that above a certain density that pair production is
+c     Unimportant.  This idea comes from a suggestion of Bruenn
+c     Should turn this into a key
+c     - joe 19971106
+c     
+c     Actually this is not a good idea.  The transport code will get 
+c     confused where equilp kicks in.  So this sets equilp so high
+c     that it does not called.
+c     - joe 20040119
+
+      integer*4, intent(in) :: jmax, ngmax
+      real*8, parameter :: equilp = 5d15
+      real*8, parameter :: tminrate = 0.3d0
+      real*8, dimension(ngmaxm) :: emissb, absorb
+      real*8 :: tmv
+      integer*4 :: j, k, ng
+      real*8 :: qtot
+
+c Assuming no interaction if temperature falls below a certain value.
+c Otherwise I get spurtious explosions.  joe 19971120
+c------------------------------------------------------------------
+c     pair emission
+      if (keypp .eq. 1) then
+      do j=2,jmax
+	if (krates(j, 1) .eq. 1 .or. krates(j,2) .eq. 1 .or.
+     +	       krates(j,3) .eq. 1) then
+           if  (yep(j).gt.(1d-24) .and. rob(j) .lt. equilp) then
+              do  ng=1,ngmax	
+                 yopen(ng,1:2)=max(one-ya(j,ng,1:2)/yfull(ng),zero)
+              end do	
+              call prodrat
+     1             (rob(j),tb(j),ye(j),fmue(j),ngmax,j,qtot)
+              ydotpj(j,1:ngmax,1:2)=ydotp(1:ngmax,1:2)
+              abstpj(j,1:ngmax,1:2)=abstp(1:ngmax,1:2)
+              ydotpj(j,1:ngmax,3) = 0d0
+              abstpj(j,1:ngmax,3) = 0d0
+           else
+              ydotpj(j,1:ngmax,1:3)=0d0
+              abstpj(j,1:ngmax,1:3)=0d0
+           endif
+	endif
+      enddo	
+      endif
+
+c     Add nucleon bremstrahlung.  See ratebrem for details
+
+      if (kbrem .eq. 1) then
+         do j=2,jmax
+            if (krates(j, 1) .eq. 1 .or. krates(j,2) .eq. 1 .or.
+     +           krates(j,3) .eq. 1) then
+               if  (yep(j).gt.(1d-24) .and. rob(j) .lt. equilp) then
+                  tmv = tb(j) / tmev
+                  do  ng=1,ngmax	
+                     call ratebrem(rob(j), tmv, fmue(j), fmuhat(j),
+     +                    xn(j), enu(ng), denu(ng), 
+     &                    emissb(ng), absorb(ng))
+                  enddo
+                  do k=1,2
+                     ydotpj(j,1:ngmax,k)=ydotpj(j,1:ngmax,k) + 
+     &                    emissb(1:ngmax)
+                     abstpj(j,1:ngmax,k)=abstpj(j,1:ngmax,k) + 
+     &                    absorb(1:ngmax)
+                  enddo
+               endif    
+            endif
+         enddo
+      endif
+      return
+      end

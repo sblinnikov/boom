@@ -1,0 +1,41 @@
+*deck subdd3
+      subroutine  subdd3(ydot,dydr,amu,amusq)
+*call implic
+*call const
+      data argmax,argsup,fmin,flow /5.0d0,4.0d1,1.0d-3,1.0d-16/
+      data ntry /0/
+      save exmax
+c------------------------
+      if(ntry.eq.0) then
+      ntry=1
+      exmax=exp(argmax)
+      endif
+c------------------------
+      if(ydot.gt.0d0) then
+                      f=clite*dydr/ydot
+                      else
+                      f=0d0
+                      endif
+      f=max(f,flow)
+      fff=min(f,argsup)
+      x=exp(fff)
+      xxinv=1d0/x**2
+      if(x.gt.exmax) then
+                     cothf=1d0+2d0*xxinv*((xxinv+1d0)*xxinv+1d0)
+                     else
+                     if(f.lt.fmin) then
+                                   diff=f*(1d0-f**2/15d0)/3d0
+                                   go to 700
+                                   else
+                                   cothf=(1d0+xxinv)/(1d0-xxinv)
+                                   endif
+                     endif
+      diff=cothf-1d0/f
+700   d=1d0+f*diff
+      f2=d*diff/f
+      amu=diff
+      amusq=f2
+c
+  799 continue
+      return
+      end

@@ -1,0 +1,91 @@
+*deck colapse
+      program  colapse
+      USE, INTRINSIC :: ISO_FORTRAN_ENV, ONLY: OUTPUT_UNIT
+      implicit none
+*call dim
+*call grvec
+*call const
+*call corct
+*call par
+#ifdef USE_MPI
+      include 'mpif.h'
+#endif
+      interface
+         function second()
+         real second
+         end function
+      end interface
+      character*120 input_file
+      character*80 filenam,diskw
+      character*20 namef
+      integer :: lng, imax, ngmax, jmax
+      real*8 :: cldmpi
+!      integer :: cldmpi
+      INTEGER :: iostat_val, unit_status, user_unit
+      CHARACTER(LEN=256) :: filename
+
+*call version
+#ifdef USE_MPI
+      call mpi_init(ierr)
+      call mpi_comm_rank(MPI_COMM_WORLD, kpeid, ierr) 
+      call mpi_comm_size(MPI_COMM_WORLD, kpen, ierr)
+#endif 
+#ifdef CRAY
+      call pxfgetarg(kpeid+1, input_file, 120, ierr)
+#else
+      call getarg(kpeid+1, input_file)
+#endif
+      print *, kpeid, ' is reading file=',input_file
+      open(unit=5, file=input_file, status='old')
+#ifdef USE_MPI
+      call  mpi_barrier(MPI_COMM_WORLD,ierr)
+#endif
+      IF (unit_status == 1) THEN
+        WRITE(*,*) "***NB*** Std output unit"
+        WRITE(*,*) "Std output unit", OUTPUT_UNIT, "is already open."
+!       You can add further checks to see the name of the file
+      ELSE
+        WRITE(*,*) "unit_status=",unit_status
+        WRITE(*,*) "***NB*** Standard output unit is not open."
+      END IF
+!      pause  ! for debug
+!      stop 4 ! for debug
+      print 900,version
+900   format('  collapse  version  ',a)
+      read (5,801,end=990)  name
+801   format(a)
+      call  pfname(name,namef,lng)
+      if(lng.eq.0)  then
+         print *,'illegal name'
+         stop    'illegal name'
+      endif
+      read  (5,*,end=990)  imax,ngmax,numax
+      ngmax=max(1,ngmax)
+      numax=max(1,numax)
+      print 901,name,imax,ngmax,numax
+901   format(' job=',a/' ',i4,' zones.    ngmax=',i2,'  numax=',i1)
+      imaxp1=imax+1
+      jmax=imaxp1
+      cputime=second ()
+      print 905,cputime
+905   format(' cp time in colapse =',f10.3)
+      call input(jmax,ngmax,numax)
+      call selftest()
+#ifdef USE_MPI
+      call  mpi_barrier(MPI_COMM_WORLD,ierr)
+#endif
+      cldmpi=second ()
+      print 906,cldmpi
+906   format(' cp time after input=',f10.3)
+      call  rashi(jmax,ngmax,numax)
+#ifdef USE_MPI
+      close(5)
+      call  mpi_barrier(MPI_COMM_WORLD,ierr)
+      call  mpi_finalize(ierr)
+#endif
+      call  finish(jmax,ngmax,numax)
+      stop 007
+990   continue
+      print *,' eof on input'
+      stop    ' eof on input'
+      end

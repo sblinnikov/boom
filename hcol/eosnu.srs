@@ -1,0 +1,69 @@
+*deck eosnu
+      subroutine  eosnu (ro,t,ynu,e,p,s,er,et,pr,pt,sr,st
+     &                  ,ey,py,sy)
+*call implic
+*call const
+*call chemp
+c
+      save  c43,c2,fz2,fz3
+c
+      data ntry  / 0 /
+      data eps   / 1.0d-8 /
+c
+c------------------------------------------------
+      if(ntry.eq.0)  then
+                     ntry=1
+                     c43=4d0/3d0
+                     c2=planck*clite/boltz
+                     fz2=avo/4d0/pai*c2**3
+                     fz3=4d0*pai/3d0/c2**3*boltz
+                     etanue=1d0
+                     endif
+c------------------------------------------------
+      t2=t*t
+      t3=t*t2
+      t4=t*t3
+      eta=etanue
+      f2n=fz2*ro/t3*ynu
+      if(f2n.le.0d0)  then
+                      print 905,fz2,ro,t3,ynu
+905   format(' eosnu: fz2,ro,t3,ynu',1p10e10.2)
+                      print *,'eosnu negative f2n'
+                      stop 'eosnu negative f2n'
+                      endif
+      do 100  it=1,99
+      call  frmi23 (eta,f2,f3,df2,df3)
+      f=f2-f2n
+      deta=-f/df2
+      r=abs(deta/(eta+eps))
+10    continue
+      eta=eta+deta
+      if(r.lt.eps) go to 110
+100   continue
+      print 900
+      print 901,etanue,eta,deta,f2n,f
+      stop 'no convergence in eosnu'
+  900 format(' no convergence in eosnu')
+  901 format(' etanue,eta,deta,f2n,f ',1p5e12.4)
+110   continue
+      etanue=eta
+      f2df2=f2/df2
+      f3df3=f3/df3
+      detadr=f2df2/ro
+      detadt=-3.d0*f2df2/t
+      detady=f2df2/ynu
+      p=fz3*t4*f3
+      e=3.d0*p/ro
+      s=rgas*ynu*(-eta+c43*f3/f2)
+      pr=p/ro*f2df2/f3df3
+      pt=p/t*(4.d0-3.d0*f2df2/f3df3)
+      py=p/ynu*f2df2/f3df3
+      er=(3.d0*pr-e)/ro
+      et=3.d0*pt/ro
+      ey=3.d0*py/ro
+      dsig=rgas*ynu*(-1.d0+c43*(df3*f2-f3*df2)/f2**2)
+      sr=detadr*dsig
+      st=detadt*dsig
+      sy=s/ynu+detady*dsig
+      return
+      end

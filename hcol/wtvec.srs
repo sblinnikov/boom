@@ -1,0 +1,18 @@
+*deck wtvec
+      subroutine  wtvec (v,nw,word,nt)
+*call implic
+c      character(len=*) :: word ! fails to read *t09 file
+      character(*) word
+c      character*10 :: word ! crashes gf with -CB
+      dimension  v(nw)
+*call krdwtdm
+!      write(*,*)'wtvec word, nt ', word, nt
+!      pause
+      ntype=2
+!      write (nt) ntype,nw,word
+!      write (nt) (v(i),i=1,nw)
+      write (nt,'(2i10,1x,a)') ntype,nw,word ! unform to formatted
+      write (nt,*) (v(i),i=1,nw)
+      kwt=kwt+1
+      return
+      end

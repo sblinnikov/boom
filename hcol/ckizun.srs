@@ -1,0 +1,22 @@
+*deck ckizun
+      subroutine  ckizun(r,fmass,p,dmp,jmax,pext)
+*call implic
+      dimension r(jmax),fmass(jmax),p(jmax),dmp(jmax)
+*call const
+      print 900
+900   format('1 j      ag',10x,'ap',10x,'a',11x,'a/ag')
+      do   j=2,jmax
+      r2=r(j)**2
+      ag=-grav*fmass(j)/r2
+      k=min (j+1,jmax)
+      pak=p(k)
+      if(j.eq.jmax)  pak=pext
+      dp=pak-p(j)
+      ap=-pai4*r2*dp/dmp(j)
+      atot=ag+ap
+      da=atot/ag
+      print 901,j,ag,ap,atot,da
+901   format(' ',i3,1p4e12.3)
+      enddo
+      return
+      end
