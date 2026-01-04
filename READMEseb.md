@@ -71,8 +71,8 @@ Makefile.opts.ifc13 works with this option
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
 Now Makefile.opts.ifx works with ifx versions through 2025.*.* prior to 2025.3.0 .  
-Version 2025.3.0 fails with unformatted *.t09 file trying to read more data.  
-A new version of boom is now prepared with formatted read/write to *.t09 files.  
+Version 2025.3.0 fails with ***unformatted*** *.t09 file trying to read more data.  
+A new version of boom is now prepared with ***formatted*** read/write to *.t09 files.  
 
 
 
@@ -166,7 +166,7 @@ etc. until
 
 ./bin/boom datainp/test3nr.5  
 
-Change boom to boomunf here for unformatted t09 version.  
+***Change boom to boomunf here for unformatted t09 version.***  
 
 To run the same with the perl script runboom:
 
@@ -175,7 +175,7 @@ cd bin
 ./runboom test3nr 1 5  (OK in gfortran and in ifx)
 
 will run test3nr models, which are good for fast tests.  
-Change runboom to runboomunf here for unformatted t09 version.  
+***Change runboom to runboomunf here for unformatted t09 version.***  
 
 
 For debug (if compiled with -g option)  
