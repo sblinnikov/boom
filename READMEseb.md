@@ -1,48 +1,48 @@
-# boom write-up by SeB
+# boom write-up by SeB  
 
-origin  git@github.com:sblinnikov/boom.git
+origin  git@github.com:sblinnikov/boom.git  
 
-## Introduction
+## Introduction  
 
-This is a README file made by S.I.Blinnikov from the original README
--- some corrections are marked by SeB, but many are just added.
+This is a README file made by S.I.Blinnikov from the original README  
+-- some corrections are marked by SeB, but many are just added.  
 
-The interactive documentation used to be at
+The interactive documentation used to be at  
 
-http://en.wikiversity.org/wiki/BoomCode
+http://en.wikiversity.org/wiki/BoomCode  
 
-but it seems that the link does not work properly now
-(10.01.2014, updated 20.11.2025)
+but it seems that the link does not work properly now  
+(10.01.2014, updated 20.11.2025)  
 
-Author:
-Joseph Chen-Yu Wang joe@confucius.gnacademy.org
-President, Globewide Network Academy - http://www.gnacademy.org/
+Author:  
+Joseph Chen-Yu Wang joe@confucius.gnacademy.org  
+President, Globewide Network Academy - http://www.gnacademy.org/  
 
-S.B. Physics - MIT - 1991 Ph.D. Astronomy - University of Texas at Austin
+S.B. Physics - MIT - 1991 Ph.D. Astronomy - University of Texas at Austin  
 
-Author's e-mail joe@confucius.gnacademy.org
+Author's e-mail joe@confucius.gnacademy.org  
 
 
-## QUICKSTART
+## QUICKSTART  
 
-cd <rootdir> for boom
-edit Makefile.opts to set compiler options
+cd <rootdir> for boom  
+edit Makefile.opts to set compiler options  
 
-SeB:
+SeB:  
 
-There are prepared Makefile.opts.gf etc.
+There are prepared Makefile.opts.gf etc.  
 
-Almost nothing works in original scripts.
+Almost nothing works in original scripts.  
 
-### GFORTRAN
+### GFORTRAN  
 
 E.g. for gfortran:  Makefile.opts.gf wanted /usr/lib/libg2c.a which was absent.  
 One can take it from /opt/sage-4.6.2/local/lib/libg2c.a if sage is installed.  
 It starts working with SYSLIBS= -lgfortran (no libg2c.a is used) but at some  
 point the compilation crashed finding errors in formats.    
 
-In original code there were many warnings on type mismatch of formal and actual
-arguments, gfortran did not work with default options, 
+In original code there were many warnings on type mismatch of formal and actual  
+arguments, gfortran did not work with default options,  
 intel fortran works OK with this.  
 
 In gfortran  
@@ -50,29 +50,34 @@ FFLAGS=-fallow-argument-mismatch
 option degrades type mismatch of arguments to warnings,  
 but the executable crashed immediately.
 It is better to correct this mismatch which is done now by SeB.
-Use Makefile.opts.gfstrict as a template for Makefile.opts with gfortran.
+Use Makefile.opts.gfstrict as a template for Makefile.opts with gfortran.  
 
 
-Function exp10() is OK for ifort/ifx but is absent in gfortran.
-So, it is defined as
-  exp10(x) = 1d1**x
-in plot/plshockr.srs
+Function exp10() is OK for ifort/ifx but is absent in gfortran.  
+So, it is defined as  
+  exp10(x) = 1d1**x  
+in plot/plshockr.srs  
 
-### INTEL IFORT AND IFX
+### INTEL IFORT AND IFX  
 
-Makefile.opts.ifc wants
-SYSLIBS= -lsvml -lguide -no-ipo -lpthread
+Makefile.opts.ifc wants  
+SYSLIBS= -lsvml -lguide -no-ipo -lpthread  
 but  -lguide is deprecated in the newer releases of intel compiler suite,  
-use -liomp5 instead.
+use -liomp5 instead.  
 
 Makefile.opts.ifc13 works with this option  
 -- tested with ifort version 14.0.2 and version 2021.9.0 .  
 
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
-Now Makefile.opts.ifx works with ifx versions through 2025.3.0 .  
+Now Makefile.opts.ifx works with ifx versions through 2025.*.* prior to 2025.3.0 .  
+Version 2025.3.0 fails with unformatted *.t09 file trying to read more data.  
+A new version of boom is now prepared with formatted read/write to *.t09 files.  
 
-## BUILDING EXECUTABLE
+
+
+
+## BUILDING EXECUTABLE  
 
 So, e.g., just  
  cp Makefile.opts.ifx Makefile.opts  
@@ -91,8 +96,16 @@ or
 my($rootdir) = "/home/seb/prg/gitWork/boom";  
 
 NB. bin/runboom.sample redirects stdout to the file $outdir/$model.t06. 
-Explore *.t06 text for important messages and diagnostics.
-I add my messages with '***NB***' mark.
+Explore *.t06 text for important messages and diagnostics.  
+I add my messages with '***NB***' mark.  
+
+This will build boom with formatted *.t09.  
+If you want to use old unformatted version do  
+
+ make -f unf.mak clean  
+ make -f unf.mak boom  
+
+
 
 ## Boom parameters  
 
@@ -138,21 +151,22 @@ The last digit is the keyets c inprof has 2 digits :
 
 ## TO RUN:  
 
-Prepare input model imodels/model.dat, e.g.
-from the root boom/ directory
+Prepare input model imodels/model.dat, e.g.  
+from the root boom/ directory  
 
-cp imodels/woosley.dat imodels/model.dat
+cp imodels/woosley.dat imodels/model.dat  
 
 To run without perl script, try e.g. 
 
 ./bin/boom datainp/test3nr.1 
 
-./bin/boom datainp/test3nr.2
+./bin/boom datainp/test3nr.2  
 
-etc. until
+etc. until  
 
-./bin/boom datainp/test3nr.5
+./bin/boom datainp/test3nr.5  
 
+Change boom to boomunf here for unformatted t09 version.  
 
 To run the same with the perl script runboom:
 
@@ -161,21 +175,23 @@ cd bin
 ./runboom test3nr 1 5  (OK in gfortran and in ifx)
 
 will run test3nr models, which are good for fast tests.  
+Change runboom to runboomunf here for unformatted t09 version.  
 
-For debug (if compiled with -g option)
 
-gdb ./bin/boom 
+For debug (if compiled with -g option)  
 
- r datainp/tau3.1 
- r datainp/tau3.2
-...
-or
- r datainp/test3nr.1 
- r datainp/test3nr.2
-...
-etc.
+gdb ./bin/boom  
 
-For other models in bin/ directory
+ r datainp/tau3.1  
+ r datainp/tau3.2  
+...  
+or  
+ r datainp/test3nr.1  
+ r datainp/test3nr.2  
+...  
+etc.  
+
+For other models in bin/ directory  
 
 ./runboom <model name> 1 5  
 

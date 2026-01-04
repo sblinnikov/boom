@@ -395,7 +395,7 @@ LIBS=-L../lib -lboom
 
 
 boom: libboom.a  colapse.o
-	$(FC) colapse.o  $(LIBS) $(SYSLIBS) -o boom
+	$(FC) colapse.o  $(LIBS) $(SYSLIBS) -o boomunf
 
 libboom.a: $(objs)
 	ar crv libboom.a $(objs)
@@ -403,7 +403,8 @@ libboom.a: $(objs)
 	rm -f libboom.a
 
 install: boom
-	install boom $(bin)
+	install boomunf $(bin)
+	rm boomunf
 
 clean:
 	rm -f $(objs) rashi.o rashi.F boom *.a *~ *.il ifc*
@@ -425,7 +426,7 @@ clean:
 	$(FC) -c $(FFLAGS) $*.F -o $*.o
 	rm $*.F  ## SB commented out for debug
 	echo *.F must be removed here in standard setup
-	
+
 %.o: %.f
 	$(FC) -c $(FFLAGS) $<
 
