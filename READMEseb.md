@@ -207,15 +207,18 @@ will begin from stage 5 and continue to stage 10 (this must be checked).
 
 E.g.  
 
-./runboom test3 1 2
--- a quick initial test (crashes in gfortran, OK in ifx)
+./runboom test3 1 2  
+-- a quick initial test (crashes in gfortran, OK in ifx)  
 
 
 See the file datainp/README for model names.  
 
-tau3 is the most realistic model.  
+tau3 is the most realistic model.    
 
 Files like tau3.1 contain namelist &cor with main control parameters.  
+
+tau3det (with extensions 1 through 4) is introduced by SeB for details on  
+strange outputs of tau3 after bounce (works with ifx, but gfort gives garbage).  
 
   
 ## GETTING DATA OUT  
@@ -384,10 +387,12 @@ SeB: ifort version 2021.9.0 seems to work OK.
 
 Makefile.opts.ifc21 works with ifort 2021.11.1  
 
+ifort and icc are both *depricated* by Intel.  
+
 Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ  
 only in comments.  
 
-Both are OK for recent ifx compilers
+Both are OK for recent ifx compilers  
 (tested through version 2025.3.0).  
 
 ------------------------------------------------------------  
