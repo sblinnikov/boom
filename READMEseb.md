@@ -71,8 +71,8 @@ Makefile.opts.ifc13 works with this option
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
 Now Makefile.opts.ifx works with ifx versions through 2025.*.* prior to 2025.3.0 .  
-Version 2025.3.0 fails with ***unformatted*** *.t09 file trying to read more data.  
-A new version of boom is now prepared with ***formatted*** read/write to *.t09 files.  
+Version 2025.3.0 fails with **unformatted** *.t09 file trying to read more data.  
+A new version of boom is now prepared with **formatted** read/write to *.t09 files.  
 
 
 
@@ -97,7 +97,7 @@ my($rootdir) = "/home/seb/prg/gitWork/boom";
 
 NB. bin/runboom.sample redirects stdout to the file $outdir/$model.t06. 
 Explore *.t06 text for important messages and diagnostics.  
-I add my messages with '***NB***' mark.  
+I add my messages with '**NB**' mark.  
 
 This will build boom with formatted *.t09.  
 If you want to use old unformatted version do  
@@ -218,7 +218,8 @@ tau3 is the most realistic model.
 Files like tau3.1 contain namelist &cor with main control parameters.  
 
 tau3det (with extensions 1 through 4) is introduced by SeB for details on  
-strange outputs of tau3 after bounce (works with ifx, but gfort gives garbage).  
+strange outputs of tau3 after bounce (works with ifx, but gfort gives long lines 
+in files *t12 with free format, so plotr does not -- **TODO** fix format for t12 output).  
 
   
 ## GETTING DATA OUT  
@@ -387,7 +388,7 @@ SeB: ifort version 2021.9.0 seems to work OK.
 
 Makefile.opts.ifc21 works with ifort 2021.11.1  
 
-ifort and icc are both *depricated* by Intel.  
+ifort and icc are both **depricated** by Intel.  
 
 Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ  
 only in comments.  
