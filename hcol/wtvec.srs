@@ -12,6 +12,7 @@ c      character*10 :: word ! crashes gf with -CB
 !      write (nt) ntype,nw,word
 !      write (nt) (v(i),i=1,nw)
       write (nt,'(2i10,1x,a)') ntype,nw,word ! unform to formatted
+!      write (nt,'(1p,3g25.15)') (v(i),i=1,nw)
       write (nt,*) (v(i),i=1,nw)
       kwt=kwt+1
       return

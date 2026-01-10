@@ -662,10 +662,12 @@ c
                exit
             endif
 	 enddo
+         write(*,*)'in rashi: ntplot=',ntplot
+!         pause
          write(ntplot,828)
  828     format(10('rrrrrrrrrr')) 
-         write (ntplot,*) (rlog(j),j=1,jmax)
-         write (ntplot,*) (fmass(j), j=1,jmax)
+         write (ntplot,'(1p,3g25.15)') (rlog(j),j=1,jmax)
+         write (ntplot,'(1p,3g25.15)') (fmass(j), j=1,jmax)
          call flush(ntplot)
  189     if(time.lt.tplotp)  goto   190
          tplotp=tplotp+dtplot
