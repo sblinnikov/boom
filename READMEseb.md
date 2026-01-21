@@ -298,10 +298,23 @@ or by default
 ./plotenu ../outputs/tau3.t12 > tau3.t12.Lnu  
 -- produces a set of neutrino Luminosity Lnu(t) plots in 1e50 erg/s  
 when the second arg is 2 or omitted  
+For another run, e.g.  
+  
+./plotenu ../outputs/test3det.t12 > test3det.t12.Lnu  
+after that  
+ ploticus -f test3det.t12.Lnu -o test3det.t12Lnu.png -png  
+produces test3det.t12Lnu.png plot.
 
-./plotenu ../outputs/tau3.t12 2 > tau3.t12.enu  
+./plotenu ../outputs/tau3.t12 1 > tau3.t12.enu  
+./plotenu ../outputs/test3det.t12 1 > test3det.t12.Lnu  
+
 -- produces a set of the mean neutrino energy Enu in MeV  
 when the second arg is 1  
+  
+./plotenu ../outputs/test3det.t12 1 > test3det.t12.enu  
+ ploticus -f test3det.t12.enu -o test3det.t12enu.png -png  
+  
+ okular test3det.t12enu.png  
 
 
 ./plframe - produces a snapshot of many variables at a single moment  
