@@ -304,13 +304,29 @@ For another run, e.g.
 after that  
  ploticus -f test3det.t12.Lnu -o test3det.t12Lnu.png -png  
 produces test3det.t12Lnu.png plot.
-
+  
 ./plotenu ../outputs/tau3.t12 1 > tau3.t12.enu  
-./plotenu ../outputs/test3det.t12 1 > test3det.t12.Lnu  
+For another outputs directory:  
+  
+./plotenu ../outputs02jan26/tau3.t12 > tau3.t12.Lnu  
+ ploticus -f tau3.t12.Lnu -o tau3.t12Lnu.png -png  
+ okular tau3.t12Lnu.png  
 
+Output E_\nu:  
+
+./plotenu ../outputs02jan26/tau3.t12 1 > tau3.t12.enu  
+ ploticus -f tau3.t12.enu -o tau3.t12enu.png -png  
+  
+ okular tau3.t12enu.png  
+  
+./plotenu ../outputs/tau3det.t12 1 > tau3det.t12.enu  
+  
+./plotenu ../outputs/test3det.t12 1 > test3det.t12.enu  
+  
 -- produces a set of the mean neutrino energy Enu in MeV  
 when the second arg is 1  
   
+
 ./plotenu ../outputs/test3det.t12 1 > test3det.t12.enu  
  ploticus -f test3det.t12.enu -o test3det.t12enu.png -png  
   
