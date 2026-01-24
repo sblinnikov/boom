@@ -332,6 +332,22 @@ when the second arg is 1
   
  okular test3det.t12enu.png  
 
+## sample set of plotting commands for test3nrdet run: 
+
+./plotr ../outputs/test3nrdet.t12 > test3nrdet.t12.pl  
+ ploticus -f test3nrdet.t12.pl -o test3nrdet.t12.png -png  
+ okular test3nrdet.t12.png  
+ ./plshockr ../outputs/test3nrdet.t12 > test3nrdet.10.shk  
+ ploticus -f test3nrdet.10.shk -o test3nrdet.10.png -png  
+ okular test3nrdet.10.png  
+ ./plotenu ../outputs/test3nrdet.t12 > test3nrdet.t12.Lnu  
+ ploticus -f test3nrdet.t12.Lnu -o test3nrdet.t12Lnu.png -png  
+ okular test3nrdet.t12Lnu.png  
+ ./plotenu ../outputs/test3nrdet.t12 1 > test3nrdet.t12.enu  
+ ploticus -f test3nrdet.t12.enu -o test3nrdet.t12enu.png -png  
+ okular test3nrdet.t12enu.png  
+  
+## snapshots  
 
 ./plframe - produces a snapshot of many variables at a single moment  
 ./plsnaps - shows the time evolution of a variable  
