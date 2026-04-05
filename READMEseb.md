@@ -70,12 +70,10 @@ Makefile.opts.ifc13 works with this option
 
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
-Now Makefile.opts.ifx works with ifx versions through 2025.*.* prior to 2025.3.0 .  
+Now Makefile.opts.ifx works with ifx versions through 2025.3.3 .  
 Version 2025.3.0 fails with **unformatted** *.t09 file trying to read more data.  
-A new version of boom is now prepared with **formatted** read/write to *.t09 files.  
-
-
-
+A new version of boom is now prepared with **formatted** read/write to *.t09 files.
+The **formatted** output is no the default.    
 
 ## BUILDING EXECUTABLE  
 
@@ -439,7 +437,7 @@ Makefile.opts.ifx24 and Makefile.opts.ifx are equivalent, they differ
 only in comments.  
 
 Both are OK for recent ifx compilers  
-(tested through version 2025.3.0).  
+(tested through version 2025.3.3).  
 
 ------------------------------------------------------------  
 
