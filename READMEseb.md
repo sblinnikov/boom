@@ -71,9 +71,9 @@ Makefile.opts.ifc13 works with this option
 Makefile.opts.ifc21 works with ifort 2021.11.1.  
 
 Now Makefile.opts.ifx works with ifx versions through 2025.3.3 .  
-Version 2025.3.0 fails with **unformatted** *.t09 file trying to read more data.  
+Version 2025.3.0 failed with **unformatted** *.t09 file trying to read more data.  
 A new version of boom is now prepared with **formatted** read/write to *.t09 files.
-The **formatted** output is no the default.    
+The **formatted** output is now the default.    
 
 ## BUILDING EXECUTABLE  
 
@@ -98,13 +98,12 @@ Explore *.t06 text for important messages and diagnostics.
 I add my messages with '**NB**' mark.  
 
 This will build boom with formatted *.t09.  
-If you want to use old unformatted version do  
 
+If you want to use old unformatted version do  
+  
  make -f unf.mak clean  
  make -f unf.mak boom  
-
-
-
+  
 ## Boom parameters  
 
 Boom parameters (given in *.srs files like input.srs):  
@@ -173,6 +172,8 @@ cd bin
 ./runboom test3nr 1 5  (OK in gfortran and in ifx)
 
 will run test3nr models, which are good for fast tests.  
+This produces a formatted version of *.t09 output.  
+
 ***Change runboom to runboomunf here for unformatted t09 version.***  
 
 
