@@ -38,7 +38,7 @@
       endif
 
       open(unit=12,file=namef,status='old'
-     1,access='sequential')
+     1,access='sequential') ! trying to debug
       ntp=12
       rewind ntp
       hx=' time'
@@ -62,13 +62,18 @@
       enddo
   909 format(a10)
       read(ntp,*) namein,ntime,time,dtlast,dta,jmax,ngmax,numax,khelem
+!      write(*,*)'ntp=',ntp ! writes to unit 12
+!      write(*,'(2a)')' read(ntp,*) namein,ntime,',
+!     + 'time,dtlast,dta,jmax,ngmax,numax,khelem'
+!      pause
       xxx = ''
       nut = 1
       t(n) = time
       do while (xxx .ne. 'rrrrrrrrrr')
          read(ntp,909,end=217) xxx
-	 read(ntp,*) xlumn(nut,n), xlume(nut,n), fenu(nut,n),
-     ^	 kgrn(nut,n)
+! old:	 read(ntp,*) xlumn(nut,n), xlume(nut,n), fenu(nut,n),
+	 read(ntp,'(3e26.17,i12)') xlumn(nut,n), xlume(nut,n), 
+     ^   fenu(nut,n),kgrn(nut,n)
          if (xlume(nut,n) .lt. 1d40) then
            fenu(nut,n) = 0d0
          endif
