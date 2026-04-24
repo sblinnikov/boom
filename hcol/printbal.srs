@@ -27,7 +27,7 @@
       do j=2,jmax
          i=j-1
 	 k=j+1
-	 rm = (ra(j) + rb(j)) / 2
+	 rm = (ra(j) + rb(j)) / 2d0
 	 pjk = (pa(j) + pb(j) + pa(k) + pb(j)) / 4d0 +
      ^	   (sgma(j) + sgmb(j) + sgma(k) + sgma(k)) / 4d0
 	 work(j) = pai4 * rm * rm * velb(j) * pjk

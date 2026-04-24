@@ -251,7 +251,12 @@ or for test3nr model
  ./plotr ../outputs/test3nr.t12 2 > test3nr.t12.pl  
 or  
  ./plotr ../outputs/test3det.t12 2 > test3det.t12.pl  
--- produces a set of r(t) plots with a step in the second arg (here 2).  
+-- produces a set of r(t) plots with a step in the second arg (here 2).
+File *.t12 contains in array rin not r directly but lg r(m) where r is in cm, 
+and m the Lagrangean mass -- the next entry is fmassin in grams.
+The 1st element of array rin keeps the physical time of run in seconds.
+Files rin and fmassin are output from subroutine rashi.   
+The log10 of radii are prepared in rashi from array ra.
 The file like test3nr.t12 contains too many profiles of physical quantities,  
 so the step allows to rarefy the output and to get good plots.  
 
